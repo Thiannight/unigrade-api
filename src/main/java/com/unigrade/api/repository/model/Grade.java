@@ -36,5 +36,5 @@ public class Grade {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "user_id", nullable = false)
-  private AppUser user;
+  private User user;
 }

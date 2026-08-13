@@ -14,7 +14,7 @@ import lombok.Setter;
 @Table(name = "users")
 @Getter
 @Setter
-public class AppUser {
+public class User {
 
   @Id
   @Column(length = 8)
