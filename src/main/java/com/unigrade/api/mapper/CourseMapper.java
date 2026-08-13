@@ -17,11 +17,11 @@ public class CourseMapper {
   }
 
   public JCourse toEntity(Course domain) {
-    var entity = new JCourse();
-    entity.setId(domain.id());
-    entity.setReference(domain.reference());
-    entity.setTitle(domain.title());
-    entity.setCredits(domain.credits());
-    return entity;
+    return JCourse.builder()
+        .id(domain.id())
+        .reference(domain.reference())
+        .title(domain.title())
+        .credits(domain.credits())
+        .build();
   }
 }

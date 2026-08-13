@@ -17,11 +17,11 @@ public class PromotionMapper {
   }
 
   public JPromotion toEntity(Promotion domain) {
-    var entity = new JPromotion();
-    entity.setId(domain.id());
-    entity.setReference(domain.reference());
-    entity.setStartYear(domain.startYear());
-    entity.setEndYear(domain.endYear());
-    return entity;
+    return JPromotion.builder()
+        .id(domain.id())
+        .reference(domain.reference())
+        .startYear(domain.startYear())
+        .endYear(domain.endYear())
+        .build();
   }
 }

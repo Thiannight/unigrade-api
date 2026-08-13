@@ -18,11 +18,11 @@ public class ExamMapper {
   }
 
   public JExam toEntity(Exam domain, JCourse course) {
-    var entity = new JExam();
-    entity.setId(domain.id());
-    entity.setExamDate(domain.examDate());
-    entity.setCoefficient(domain.coefficient());
-    entity.setCourse(course);
-    return entity;
+    return JExam.builder()
+        .id(domain.id())
+        .examDate(domain.examDate())
+        .coefficient(domain.coefficient())
+        .course(course)
+        .build();
   }
 }

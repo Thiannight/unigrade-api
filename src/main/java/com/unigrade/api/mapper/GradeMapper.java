@@ -21,13 +21,13 @@ public class GradeMapper {
   }
 
   public JGrade toEntity(Grade domain, JUser student, JExam exam) {
-    var entity = new JGrade();
-    entity.setId(domain.id());
-    entity.setScore(domain.score());
-    entity.setGradeDate(domain.gradeDate());
-    entity.setReason(domain.reason());
-    entity.setStudent(student);
-    entity.setExam(exam);
-    return entity;
+    return JGrade.builder()
+        .id(domain.id())
+        .score(domain.score())
+        .gradeDate(domain.gradeDate())
+        .reason(domain.reason())
+        .student(student)
+        .exam(exam)
+        .build();
   }
 }

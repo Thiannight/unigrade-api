@@ -19,11 +19,11 @@ public class TeacherCourseMapper {
   }
 
   public JTeacherCourse toEntity(TeacherCourse domain, JCourse course, JUser teacher) {
-    var entity = new JTeacherCourse();
-    entity.setId(domain.id());
-    entity.setCourse(course);
-    entity.setTeacher(teacher);
-    entity.setSchoolYear(domain.schoolYear());
-    return entity;
+    return JTeacherCourse.builder()
+        .id(domain.id())
+        .course(course)
+        .teacher(teacher)
+        .schoolYear(domain.schoolYear())
+        .build();
   }
 }

@@ -23,15 +23,15 @@ public class UserMapper {
   }
 
   public JUser toEntity(User domain) {
-    var entity = new JUser();
-    entity.setId(domain.id());
-    entity.setFirstName(domain.firstName());
-    entity.setLastName(domain.lastName());
-    entity.setBirthDate(domain.birthDate());
-    entity.setEmail(domain.email());
-    entity.setPassword(domain.password());
-    entity.setIsActive(domain.isActive());
-    entity.setRole(JRole.valueOf(domain.role().name()));
-    return entity;
+    return JUser.builder()
+        .id(domain.id())
+        .firstName(domain.firstName())
+        .lastName(domain.lastName())
+        .birthDate(domain.birthDate())
+        .email(domain.email())
+        .password(domain.password())
+        .isActive(domain.isActive())
+        .role(JRole.valueOf(domain.role().name()))
+        .build();
   }
 }

@@ -17,10 +17,10 @@ public class StudentGroupMapper {
   }
 
   public JStudentGroup toEntity(StudentGroup domain, JPromotion promotion) {
-    var entity = new JStudentGroup();
-    entity.setId(domain.id());
-    entity.setReference(domain.reference());
-    entity.setPromotion(promotion);
-    return entity;
+    return JStudentGroup.builder()
+        .id(domain.id())
+        .reference(domain.reference())
+        .promotion(promotion)
+        .build();
   }
 }

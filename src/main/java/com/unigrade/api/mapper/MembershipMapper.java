@@ -20,12 +20,12 @@ public class MembershipMapper {
   }
 
   public JMembership toEntity(Membership domain, JStudentGroup group, JUser student) {
-    var entity = new JMembership();
-    entity.setId(domain.id());
-    entity.setGroup(group);
-    entity.setStudent(student);
-    entity.setStartDate(domain.startDate());
-    entity.setEndDate(domain.endDate());
-    return entity;
+    return JMembership.builder()
+        .id(domain.id())
+        .group(group)
+        .student(student)
+        .startDate(domain.startDate())
+        .endDate(domain.endDate())
+        .build();
   }
 }

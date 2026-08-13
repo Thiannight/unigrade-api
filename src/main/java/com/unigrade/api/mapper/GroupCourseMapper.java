@@ -18,10 +18,6 @@ public class GroupCourseMapper {
   }
 
   public JGroupCourse toEntity(GroupCourse domain, JCourse course, JStudentGroup group) {
-    var entity = new JGroupCourse();
-    entity.setId(domain.id());
-    entity.setCourse(course);
-    entity.setGroup(group);
-    return entity;
+    return JGroupCourse.builder().id(domain.id()).course(course).group(group).build();
   }
 }
