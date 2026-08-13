@@ -16,6 +16,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "student_group", uniqueConstraints = @UniqueConstraint(columnNames = "reference"))
@@ -31,6 +33,7 @@ public class JStudentGroup {
   private UUID id;
 
   @Column(length = 2, nullable = false)
+  @JdbcTypeCode(SqlTypes.CHAR)
   private String reference;
 
   @ManyToOne(fetch = FetchType.LAZY)
