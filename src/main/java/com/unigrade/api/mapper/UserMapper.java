@@ -1,8 +1,6 @@
 package com.unigrade.api.mapper;
 
-import com.unigrade.api.model.Role;
 import com.unigrade.api.model.User;
-import com.unigrade.api.repository.model.JRole;
 import com.unigrade.api.repository.model.JUser;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +16,7 @@ public class UserMapper {
         .email(entity.getEmail())
         .password(entity.getPassword())
         .isActive(entity.getIsActive())
-        .role(Role.valueOf(entity.getRole().name()))
+        .role(entity.getRole())
         .build();
   }
 
@@ -31,7 +29,7 @@ public class UserMapper {
         .email(domain.email())
         .password(domain.password())
         .isActive(domain.isActive())
-        .role(JRole.valueOf(domain.role().name()))
+        .role(domain.role())
         .build();
   }
 }

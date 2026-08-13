@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.unigrade.api.model.Role;
 import com.unigrade.api.model.User;
-import com.unigrade.api.repository.model.JRole;
 import com.unigrade.api.repository.model.JUser;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
@@ -22,7 +21,7 @@ class UserMapperTest {
     entity.setEmail("ada@unigrade.com");
     entity.setPassword("hashed-password");
     entity.setIsActive(true);
-    entity.setRole(JRole.STUDENT);
+    entity.setRole(Role.STUDENT);
 
     User result = userMapper.toDomain(entity);
 
@@ -58,6 +57,6 @@ class UserMapperTest {
     assertEquals(domain.email(), result.getEmail());
     assertEquals(domain.password(), result.getPassword());
     assertEquals(domain.isActive(), result.getIsActive());
-    assertEquals(JRole.STUDENT, result.getRole());
+    assertEquals(Role.STUDENT, result.getRole());
   }
 }

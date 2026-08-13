@@ -1,5 +1,6 @@
 package com.unigrade.api.repository.model;
 
+import com.unigrade.api.model.Role;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -37,7 +38,7 @@ public class JUser {
   @Column(name = "last_name", length = 100)
   private String lastName;
 
-  @Column(name = "birth_date")
+  @Column(name = "birth_date", nullable = false)
   private LocalDate birthDate;
 
   @Column(length = 100, nullable = false, unique = true)
@@ -51,7 +52,7 @@ public class JUser {
 
   @Enumerated(EnumType.STRING)
   @Column(length = 20, nullable = false)
-  private JRole role;
+  private Role role;
 
   @OneToMany(mappedBy = "student")
   private List<JMembership> memberships;
