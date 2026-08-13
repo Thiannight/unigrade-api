@@ -63,8 +63,8 @@ CREATE TABLE grade (
 
 CREATE TABLE membership (
     id          UUID,
-    group_id    UUID,
-    student_id  CHAR(8),
+    group_id    UUID      NOT NULL,
+    student_id  CHAR(8)   NOT NULL,
     start_date  DATE  NOT NULL,
     end_date    DATE,
     PRIMARY KEY (id),
@@ -75,8 +75,8 @@ CREATE TABLE membership (
 
 CREATE TABLE group_course (
     id          UUID,
-    course_id   UUID,
-    group_id    UUID,
+    course_id   UUID      NOT NULL,
+    group_id    UUID      NOT NULL,
     PRIMARY KEY (id),
     UNIQUE (course_id, group_id),
     FOREIGN KEY (course_id) REFERENCES course (id),
@@ -85,8 +85,8 @@ CREATE TABLE group_course (
 
 CREATE TABLE teacher_course (
     id            UUID,
-    course_id     UUID,
-    teacher_id    CHAR(8),
+    course_id     UUID      NOT NULL,
+    teacher_id    CHAR(8)   NOT NULL,
     school_year   SMALLINT  NOT NULL,
     PRIMARY KEY (id),
     UNIQUE (course_id, teacher_id),

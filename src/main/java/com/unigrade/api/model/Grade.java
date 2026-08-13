@@ -1,7 +1,7 @@
 package com.unigrade.api.model;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record Grade(
-    UUID id, Float score, OffsetDateTime gradeDate, String reason, String studentId, UUID examId) {}
+    UUID id, Float score, Instant gradeDate, String reason, String studentId, UUID examId) {}

@@ -25,13 +25,13 @@ public class JUser {
   @Column(name = "first_name", length = 100, nullable = false)
   private String firstName;
 
-  @Column(name = "last_name", length = 100, nullable = false)
+  @Column(name = "last_name", length = 100)
   private String lastName;
 
   @Column(name = "birth_date")
   private LocalDate birthDate;
 
-  @Column(length = 50, nullable = false, unique = true)
+  @Column(length = 100, nullable = false, unique = true)
   private String email;
 
   @Column(length = 255, nullable = false)

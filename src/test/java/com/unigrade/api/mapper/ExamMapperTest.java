@@ -6,7 +6,7 @@ import com.unigrade.api.model.Exam;
 import com.unigrade.api.repository.model.JCourse;
 import com.unigrade.api.repository.model.JExam;
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +20,7 @@ class ExamMapperTest {
 
     var entity = new JExam();
     entity.setId(UUID.fromString("22222222-2222-2222-2222-222222222222"));
-    entity.setExamDate(OffsetDateTime.parse("2026-01-01T10:00:00Z"));
+    entity.setExamDate(Instant.parse("2026-01-01T10:00:00Z"));
     entity.setCoefficient(new BigDecimal("0.5000"));
     entity.setCourse(course);
 
@@ -37,7 +37,7 @@ class ExamMapperTest {
     var domain =
         new Exam(
             UUID.fromString("33333333-3333-3333-3333-333333333333"),
-            OffsetDateTime.parse("2026-01-01T10:00:00Z"),
+            Instant.parse("2026-01-01T10:00:00Z"),
             new BigDecimal("0.5000"),
             UUID.fromString("11111111-1111-1111-1111-111111111111"));
     var course = new JCourse();

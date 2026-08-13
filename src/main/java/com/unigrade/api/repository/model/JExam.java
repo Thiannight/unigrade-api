@@ -9,7 +9,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
@@ -26,7 +26,7 @@ public class JExam {
   private UUID id;
 
   @Column(name = "exam_date", nullable = false)
-  private OffsetDateTime examDate;
+  private Instant examDate;
 
   @Column(precision = 5, scale = 4, nullable = false)
   private BigDecimal coefficient;

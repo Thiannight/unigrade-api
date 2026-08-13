@@ -7,7 +7,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
@@ -26,7 +26,7 @@ public class JGrade {
   private Float score;
 
   @Column(name = "grade_date", nullable = false)
-  private OffsetDateTime gradeDate;
+  private Instant gradeDate;
 
   @Column(length = 255, nullable = false)
   private String reason;
