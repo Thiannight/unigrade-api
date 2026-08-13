@@ -3,8 +3,10 @@ package com.unigrade.api.repository.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,4 +35,7 @@ public class JPromotion {
 
   @Column(name = "end_year", nullable = false)
   private Short endYear;
+
+  @OneToMany(mappedBy = "promotion")
+  private List<JStudentGroup> studentGroups;
 }

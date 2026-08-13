@@ -3,8 +3,10 @@ package com.unigrade.api.repository.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
@@ -32,4 +34,13 @@ public class JCourse {
 
   @Column(nullable = false)
   private Short credits;
+
+  @OneToMany(mappedBy = "course")
+  private List<JExam> exams;
+
+  @OneToMany(mappedBy = "course")
+  private List<JGroupCourse> groupCourses;
+
+  @OneToMany(mappedBy = "course")
+  private List<JTeacherCourse> teacherCourses;
 }

@@ -5,8 +5,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -41,4 +43,13 @@ public class JUser {
   @Enumerated(EnumType.STRING)
   @Column(length = 20, nullable = false)
   private JRole role;
+
+  @OneToMany(mappedBy = "student")
+  private List<JMembership> memberships;
+
+  @OneToMany(mappedBy = "student")
+  private List<JGrade> grades;
+
+  @OneToMany(mappedBy = "teacher")
+  private List<JTeacherCourse> teacherCourses;
 }
