@@ -22,7 +22,9 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "student_group", uniqueConstraints = @UniqueConstraint(columnNames = "reference"))
+@Table(
+    name = "student_group",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"reference", "promotion_id"}))
 @Getter
 @Setter
 @Builder

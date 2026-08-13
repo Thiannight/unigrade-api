@@ -14,7 +14,7 @@ CREATE TABLE exam (
     coefficient   NUMERIC(5,4)   NOT NULL,
     course_id     UUID           NOT NULL,
     PRIMARY KEY (id),
-    FOREIGN KEY (course_id) REFERENCES course (id)
+    FOREIGN KEY (course_id) REFERENCES course (id) ON DELETE CASCADE
 );
 
 CREATE TABLE users (
@@ -46,7 +46,7 @@ CREATE TABLE student_group (
     reference     CHAR(2)      NOT NULL,
     promotion_id  UUID         NOT NULL,
     PRIMARY KEY (id),
-    UNIQUE (reference),
+    UNIQUE (reference, promotion_id),
     FOREIGN KEY (promotion_id) REFERENCES promotion (id)
 );
 
@@ -58,8 +58,8 @@ CREATE TABLE grade (
     student_id  CHAR(8)        NOT NULL,
     exam_id     UUID           NOT NULL,
     PRIMARY KEY (id),
-    FOREIGN KEY (student_id) REFERENCES users (id),
-    FOREIGN KEY (exam_id) REFERENCES exam (id)
+    FOREIGN KEY (student_id) REFERENCES users (id) ON DELETE CASCADE,
+    FOREIGN KEY (exam_id) REFERENCES exam (id) ON DELETE CASCADE
 );
 
 CREATE TABLE membership (
@@ -90,7 +90,7 @@ CREATE TABLE teacher_course (
     teacher_id    CHAR(8)   NOT NULL,
     school_year   SMALLINT  NOT NULL,
     PRIMARY KEY (id),
-    UNIQUE (course_id, teacher_id),
+    UNIQUE (course_id, teacher_id, school_year),
     FOREIGN KEY (course_id) REFERENCES course (id) ON DELETE CASCADE,
     FOREIGN KEY (teacher_id) REFERENCES users (id) ON DELETE CASCADE
 );
