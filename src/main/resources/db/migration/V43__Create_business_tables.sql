@@ -26,7 +26,8 @@ CREATE TABLE users (
     password    VARCHAR(255)  NOT NULL,
     is_active   BOOLEAN       NOT NULL,
     role        VARCHAR(20)   NOT NULL,
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+    UNIQUE (email)
 );
 
 CREATE TABLE promotion (
@@ -69,8 +70,8 @@ CREATE TABLE membership (
     end_date    DATE,
     PRIMARY KEY (id),
     UNIQUE (group_id, student_id),
-    FOREIGN KEY (group_id) REFERENCES student_group (id),
-    FOREIGN KEY (student_id) REFERENCES users (id)
+    FOREIGN KEY (group_id) REFERENCES student_group (id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 CREATE TABLE group_course (
@@ -79,8 +80,8 @@ CREATE TABLE group_course (
     group_id    UUID      NOT NULL,
     PRIMARY KEY (id),
     UNIQUE (course_id, group_id),
-    FOREIGN KEY (course_id) REFERENCES course (id),
-    FOREIGN KEY (group_id) REFERENCES student_group (id)
+    FOREIGN KEY (course_id) REFERENCES course (id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES student_group (id) ON DELETE CASCADE
 );
 
 CREATE TABLE teacher_course (
@@ -90,6 +91,6 @@ CREATE TABLE teacher_course (
     school_year   SMALLINT  NOT NULL,
     PRIMARY KEY (id),
     UNIQUE (course_id, teacher_id),
-    FOREIGN KEY (course_id) REFERENCES course (id),
-    FOREIGN KEY (teacher_id) REFERENCES users (id)
+    FOREIGN KEY (course_id) REFERENCES course (id) ON DELETE CASCADE,
+    FOREIGN KEY (teacher_id) REFERENCES users (id) ON DELETE CASCADE
 );
