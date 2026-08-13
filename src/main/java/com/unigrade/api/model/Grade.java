@@ -15,5 +15,5 @@ public record Grade(
     @NotNull @Positive Float score,
     @NotNull Instant gradeDate,
     @NotBlank @Size(max = 255) String reason,
-    @NotBlank @Pattern(regexp = "(STD|MGR|TCR)\\d{5}") String studentId,
+    @NotBlank @Pattern(regexp = "(STD)\\d{5}") String studentId,
     @NotNull UUID examId) {}
