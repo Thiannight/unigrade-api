@@ -8,8 +8,12 @@ import org.springframework.stereotype.Component;
 public class PromotionMapper {
 
   public Promotion toDomain(JPromotion entity) {
-    return new Promotion(
-        entity.getId(), entity.getReference(), entity.getStartYear(), entity.getEndYear());
+    return Promotion.builder()
+        .id(entity.getId())
+        .reference(entity.getReference())
+        .startYear(entity.getStartYear())
+        .endYear(entity.getEndYear())
+        .build();
   }
 
   public JPromotion toEntity(Promotion domain) {

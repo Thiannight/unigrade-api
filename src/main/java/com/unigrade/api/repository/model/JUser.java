@@ -11,6 +11,8 @@ import java.time.LocalDate;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "users")
@@ -20,6 +22,7 @@ public class JUser {
 
   @Id
   @Column(length = 8)
+  @JdbcTypeCode(SqlTypes.CHAR)
   private String id;
 
   @Column(name = "first_name", length = 100, nullable = false)

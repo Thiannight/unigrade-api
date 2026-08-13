@@ -10,11 +10,12 @@ import org.springframework.stereotype.Component;
 public class TeacherCourseMapper {
 
   public TeacherCourse toDomain(JTeacherCourse entity) {
-    return new TeacherCourse(
-        entity.getId(),
-        entity.getCourse().getId(),
-        entity.getTeacher().getId(),
-        entity.getSchoolYear());
+    return TeacherCourse.builder()
+        .id(entity.getId())
+        .courseId(entity.getCourse().getId())
+        .teacherId(entity.getTeacher().getId())
+        .schoolYear(entity.getSchoolYear())
+        .build();
   }
 
   public JTeacherCourse toEntity(TeacherCourse domain, JCourse course, JUser teacher) {

@@ -9,8 +9,12 @@ import org.springframework.stereotype.Component;
 public class ExamMapper {
 
   public Exam toDomain(JExam entity) {
-    return new Exam(
-        entity.getId(), entity.getExamDate(), entity.getCoefficient(), entity.getCourse().getId());
+    return Exam.builder()
+        .id(entity.getId())
+        .examDate(entity.getExamDate())
+        .coefficient(entity.getCoefficient())
+        .courseId(entity.getCourse().getId())
+        .build();
   }
 
   public JExam toEntity(Exam domain, JCourse course) {

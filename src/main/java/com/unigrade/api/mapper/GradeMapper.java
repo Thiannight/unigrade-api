@@ -10,13 +10,14 @@ import org.springframework.stereotype.Component;
 public class GradeMapper {
 
   public Grade toDomain(JGrade entity) {
-    return new Grade(
-        entity.getId(),
-        entity.getScore(),
-        entity.getGradeDate(),
-        entity.getReason(),
-        entity.getStudent().getId(),
-        entity.getExam().getId());
+    return Grade.builder()
+        .id(entity.getId())
+        .score(entity.getScore())
+        .gradeDate(entity.getGradeDate())
+        .reason(entity.getReason())
+        .studentId(entity.getStudent().getId())
+        .examId(entity.getExam().getId())
+        .build();
   }
 
   public JGrade toEntity(Grade domain, JUser student, JExam exam) {

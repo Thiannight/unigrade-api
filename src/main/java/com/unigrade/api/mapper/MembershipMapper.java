@@ -10,12 +10,13 @@ import org.springframework.stereotype.Component;
 public class MembershipMapper {
 
   public Membership toDomain(JMembership entity) {
-    return new Membership(
-        entity.getId(),
-        entity.getGroup().getId(),
-        entity.getStudent().getId(),
-        entity.getStartDate(),
-        entity.getEndDate());
+    return Membership.builder()
+        .id(entity.getId())
+        .groupId(entity.getGroup().getId())
+        .studentId(entity.getStudent().getId())
+        .startDate(entity.getStartDate())
+        .endDate(entity.getEndDate())
+        .build();
   }
 
   public JMembership toEntity(Membership domain, JStudentGroup group, JUser student) {

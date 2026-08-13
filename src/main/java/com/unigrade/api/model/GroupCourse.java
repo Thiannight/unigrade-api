@@ -1,5 +1,8 @@
 package com.unigrade.api.model;
 
+import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
+import lombok.Builder;
 
-public record GroupCourse(UUID id, UUID courseId, UUID groupId) {}
+@Builder
+public record GroupCourse(UUID id, @NotNull UUID courseId, @NotNull UUID groupId) {}

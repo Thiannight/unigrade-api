@@ -10,7 +10,11 @@ import org.springframework.stereotype.Component;
 public class GroupCourseMapper {
 
   public GroupCourse toDomain(JGroupCourse entity) {
-    return new GroupCourse(entity.getId(), entity.getCourse().getId(), entity.getGroup().getId());
+    return GroupCourse.builder()
+        .id(entity.getId())
+        .courseId(entity.getCourse().getId())
+        .groupId(entity.getGroup().getId())
+        .build();
   }
 
   public JGroupCourse toEntity(GroupCourse domain, JCourse course, JStudentGroup group) {

@@ -10,15 +10,16 @@ import org.springframework.stereotype.Component;
 public class UserMapper {
 
   public User toDomain(JUser entity) {
-    return new User(
-        entity.getId(),
-        entity.getFirstName(),
-        entity.getLastName(),
-        entity.getBirthDate(),
-        entity.getEmail(),
-        entity.getPassword(),
-        entity.getIsActive(),
-        Role.valueOf(entity.getRole().name()));
+    return User.builder()
+        .id(entity.getId())
+        .firstName(entity.getFirstName())
+        .lastName(entity.getLastName())
+        .birthDate(entity.getBirthDate())
+        .email(entity.getEmail())
+        .password(entity.getPassword())
+        .isActive(entity.getIsActive())
+        .role(Role.valueOf(entity.getRole().name()))
+        .build();
   }
 
   public JUser toEntity(User domain) {

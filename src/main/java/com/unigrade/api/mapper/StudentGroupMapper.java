@@ -9,7 +9,11 @@ import org.springframework.stereotype.Component;
 public class StudentGroupMapper {
 
   public StudentGroup toDomain(JStudentGroup entity) {
-    return new StudentGroup(entity.getId(), entity.getReference(), entity.getPromotion().getId());
+    return StudentGroup.builder()
+        .id(entity.getId())
+        .reference(entity.getReference())
+        .promotionId(entity.getPromotion().getId())
+        .build();
   }
 
   public JStudentGroup toEntity(StudentGroup domain, JPromotion promotion) {
