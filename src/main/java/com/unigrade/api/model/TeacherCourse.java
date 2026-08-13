@@ -11,5 +11,5 @@ import lombok.Builder;
 public record TeacherCourse(
     UUID id,
     @NotNull UUID courseId,
-    @NotBlank @Pattern(regexp = "(STD|MGR|TCR)\\d{5}") String teacherId,
+    @NotBlank @Pattern(regexp = "(TCR)\\d{5}") String teacherId,
     @NotNull @Positive Short schoolYear) {}
