@@ -7,14 +7,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "course_group")
+@Table(
+    name = "group_course",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "group_id"}))
 @Getter
 @Setter
-public class CourseGroup {
+public class GroupCourse {
 
   @Id
   @Column(length = 50)
@@ -26,5 +29,5 @@ public class CourseGroup {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "group_id", nullable = false)
-  private Group group;
+  private StudentGroup group;
 }

@@ -7,12 +7,15 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "membership")
+@Table(
+    name = "membership",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"group_id", "student_id"}))
 @Getter
 @Setter
 public class Membership {
@@ -21,14 +24,17 @@ public class Membership {
   @Column(length = 50)
   private String id;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "group_id", nullable = false)
+  private StudentGroup group;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "student_id", nullable = false)
+  private AppUser student;
+
   @Column(name = "start_date", nullable = false)
   private LocalDate startDate;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "group_id", nullable = false)
-  private Group group;
-
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "user_id", nullable = false)
-  private User user;
+  @Column(name = "end_date")
+  private LocalDate endDate;
 }

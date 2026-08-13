@@ -7,27 +7,30 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "teach")
+@Table(
+    name = "teacher_course",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "teacher_id"}))
 @Getter
 @Setter
-public class Teach {
+public class TeacherCourse {
 
   @Id
   @Column(length = 50)
   private String id;
-
-  @Column(name = "school_year", nullable = false)
-  private Short schoolYear;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "course_id", nullable = false)
   private Course course;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "user_id", nullable = false)
-  private User user;
+  @JoinColumn(name = "teacher_id", nullable = false)
+  private AppUser teacher;
+
+  @Column(name = "school_year", nullable = false)
+  private Short schoolYear;
 }

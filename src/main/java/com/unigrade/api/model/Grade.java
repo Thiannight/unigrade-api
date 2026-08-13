@@ -7,5 +7,5 @@ public record Grade(
     Float score,
     OffsetDateTime gradeDate,
     String reason,
-    String examId,
-    String userId) {}
+    String studentId,
+    String examId) {}

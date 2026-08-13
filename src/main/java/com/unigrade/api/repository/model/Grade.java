@@ -27,14 +27,14 @@ public class Grade {
   @Column(name = "grade_date", nullable = false)
   private OffsetDateTime gradeDate;
 
-  @Column(length = 50)
+  @Column(length = 255, nullable = false)
   private String reason;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "student_id", nullable = false)
+  private AppUser student;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "exam_id", nullable = false)
   private Exam exam;
-
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "user_id", nullable = false)
-  private User user;
 }

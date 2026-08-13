@@ -4,11 +4,18 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "promotion")
+@Table(
+    name = "promotion",
+    uniqueConstraints = {
+      @UniqueConstraint(columnNames = "reference"),
+      @UniqueConstraint(columnNames = "start_year"),
+      @UniqueConstraint(columnNames = "end_year")
+    })
 @Getter
 @Setter
 public class Promotion {
@@ -18,7 +25,7 @@ public class Promotion {
   private String id;
 
   @Column(length = 50, nullable = false)
-  private String ref;
+  private String reference;
 
   @Column(name = "start_year", nullable = false)
   private Short startYear;
