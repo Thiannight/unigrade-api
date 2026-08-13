@@ -11,7 +11,10 @@ public class TeacherCourseMapper {
 
   public TeacherCourse toDomain(JTeacherCourse entity) {
     return new TeacherCourse(
-        entity.getId(), entity.getCourse().getId(), entity.getTeacher().getId(), entity.getSchoolYear());
+        entity.getId(),
+        entity.getCourse().getId(),
+        entity.getTeacher().getId(),
+        entity.getSchoolYear());
   }
 
   public JTeacherCourse toEntity(TeacherCourse domain, JCourse course, JUser teacher) {

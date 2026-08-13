@@ -8,7 +8,8 @@ import org.springframework.stereotype.Component;
 public class CourseMapper {
 
   public Course toDomain(JCourse entity) {
-    return new Course(entity.getId(), entity.getReference(), entity.getTitle(), entity.getCredits());
+    return new Course(
+        entity.getId(), entity.getReference(), entity.getTitle(), entity.getCredits());
   }
 
   public JCourse toEntity(Course domain) {
