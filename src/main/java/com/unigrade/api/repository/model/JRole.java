@@ -1,6 +1,6 @@
 package com.unigrade.api.repository.model;
 
-public enum Role {
+public enum JRole {
   STUDENT,
   TEACHER,
   ADMIN

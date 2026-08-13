@@ -16,7 +16,7 @@ import lombok.Setter;
 @Table(name = "grade")
 @Getter
 @Setter
-public class Grade {
+public class JGrade {
 
   @Id
   @Column(length = 36)
@@ -33,9 +33,9 @@ public class Grade {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "student_id", nullable = false)
-  private User student;
+  private JUser student;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "exam_id", nullable = false)
-  private Exam exam;
+  private JExam exam;
 }

@@ -14,7 +14,7 @@ import lombok.Setter;
 @Table(name = "users")
 @Getter
 @Setter
-public class User {
+public class JUser {
 
   @Id
   @Column(length = 8)
@@ -40,5 +40,5 @@ public class User {
 
   @Enumerated(EnumType.STRING)
   @Column(length = 20, nullable = false)
-  private Role role;
+  private JRole role;
 }

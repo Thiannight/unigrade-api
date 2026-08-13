@@ -13,19 +13,25 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "student_group", uniqueConstraints = @UniqueConstraint(columnNames = "reference"))
+@Table(
+    name = "teacher_course",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "teacher_id"}))
 @Getter
 @Setter
-public class StudentGroup {
+public class JTeacherCourse {
 
   @Id
   @Column(length = 36)
   private UUID id;
 
-  @Column(length = 2, nullable = false)
-  private String reference;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "course_id", nullable = false)
+  private JCourse course;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "promotion_id", nullable = false)
-  private Promotion promotion;
+  @JoinColumn(name = "teacher_id", nullable = false)
+  private JUser teacher;
+
+  @Column(name = "school_year", nullable = false)
+  private Short schoolYear;
 }

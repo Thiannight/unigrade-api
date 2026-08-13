@@ -8,34 +8,27 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import java.time.LocalDate;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Table(
-    name = "membership",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"group_id", "student_id"}))
+    name = "group_course",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "group_id"}))
 @Getter
 @Setter
-public class Membership {
+public class JGroupCourse {
 
   @Id
   @Column(length = 36)
   private UUID id;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "group_id", nullable = false)
-  private StudentGroup group;
+  @JoinColumn(name = "course_id", nullable = false)
+  private JCourse course;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "student_id", nullable = false)
-  private User student;
-
-  @Column(name = "start_date", nullable = false)
-  private LocalDate startDate;
-
-  @Column(name = "end_date")
-  private LocalDate endDate;
+  @JoinColumn(name = "group_id", nullable = false)
+  private JStudentGroup group;
 }

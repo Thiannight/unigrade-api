@@ -7,28 +7,29 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(
-    name = "group_course",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "group_id"}))
+@Table(name = "exam")
 @Getter
 @Setter
-public class GroupCourse {
+public class JExam {
 
   @Id
   @Column(length = 36)
   private UUID id;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "course_id", nullable = false)
-  private Course course;
+  @Column(name = "exam_date", nullable = false)
+  private OffsetDateTime examDate;
+
+  @Column(precision = 5, scale = 4, nullable = false)
+  private BigDecimal coefficient;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "group_id", nullable = false)
-  private StudentGroup group;
+  @JoinColumn(name = "course_id", nullable = false)
+  private JCourse course;
 }

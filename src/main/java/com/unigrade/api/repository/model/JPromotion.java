@@ -11,25 +11,26 @@ import lombok.Setter;
 
 @Entity
 @Table(
-    name = "course",
+    name = "promotion",
     uniqueConstraints = {
       @UniqueConstraint(columnNames = "reference"),
-      @UniqueConstraint(columnNames = "title")
+      @UniqueConstraint(columnNames = "start_year"),
+      @UniqueConstraint(columnNames = "end_year")
     })
 @Getter
 @Setter
-public class Course {
+public class JPromotion {
 
   @Id
   @Column(length = 36)
   private UUID id;
 
-  @Column(length = 20, nullable = false)
+  @Column(length = 50, nullable = false)
   private String reference;
 
-  @Column(length = 50, nullable = false)
-  private String title;
+  @Column(name = "start_year", nullable = false)
+  private Short startYear;
 
-  @Column(nullable = false)
-  private Short credits;
+  @Column(name = "end_year", nullable = false)
+  private Short endYear;
 }
