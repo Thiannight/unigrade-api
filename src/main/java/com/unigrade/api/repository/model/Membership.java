@@ -9,6 +9,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDate;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,8 +22,8 @@ import lombok.Setter;
 public class Membership {
 
   @Id
-  @Column(length = 50)
-  private String id;
+  @Column(length = 36)
+  private UUID id;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "group_id", nullable = false)
@@ -30,7 +31,7 @@ public class Membership {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "student_id", nullable = false)
-  private AppUser student;
+  private User student;
 
   @Column(name = "start_date", nullable = false)
   private LocalDate startDate;

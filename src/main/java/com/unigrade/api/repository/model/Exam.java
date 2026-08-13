@@ -9,6 +9,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,8 +20,8 @@ import lombok.Setter;
 public class Exam {
 
   @Id
-  @Column(length = 50)
-  private String id;
+  @Column(length = 36)
+  private UUID id;
 
   @Column(name = "exam_date", nullable = false)
   private OffsetDateTime examDate;

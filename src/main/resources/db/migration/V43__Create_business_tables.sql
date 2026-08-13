@@ -1,5 +1,5 @@
 CREATE TABLE course (
-    id         VARCHAR(50),
+    id         UUID,
     reference  VARCHAR(20)  NOT NULL,
     title      VARCHAR(50)  NOT NULL,
     credits    SMALLINT     NOT NULL,
@@ -9,10 +9,10 @@ CREATE TABLE course (
 );
 
 CREATE TABLE exam (
-    id            VARCHAR(50),
+    id            UUID,
     exam_date     TIMESTAMPTZ    NOT NULL,
     coefficient   NUMERIC(5,4)   NOT NULL,
-    course_id     VARCHAR(50)    NOT NULL,
+    course_id     UUID           NOT NULL,
     PRIMARY KEY (id),
     FOREIGN KEY (course_id) REFERENCES course (id)
 );
@@ -30,7 +30,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE promotion (
-    id          VARCHAR(50),
+    id          UUID,
     reference   VARCHAR(50)  NOT NULL,
     start_year  SMALLINT     NOT NULL,
     end_year    SMALLINT     NOT NULL,
@@ -41,29 +41,29 @@ CREATE TABLE promotion (
 );
 
 CREATE TABLE student_group (
-    id            VARCHAR(50),
+    id            UUID,
     reference     CHAR(2)      NOT NULL,
-    promotion_id  VARCHAR(50)  NOT NULL,
+    promotion_id  UUID         NOT NULL,
     PRIMARY KEY (id),
     UNIQUE (reference),
     FOREIGN KEY (promotion_id) REFERENCES promotion (id)
 );
 
 CREATE TABLE grade (
-    id          VARCHAR(50),
+    id          UUID,
     score       REAL           NOT NULL,
     grade_date  TIMESTAMPTZ    NOT NULL,
     reason      VARCHAR(255)   NOT NULL,
     student_id  CHAR(8)        NOT NULL,
-    exam_id     VARCHAR(50)    NOT NULL,
+    exam_id     UUID           NOT NULL,
     PRIMARY KEY (id),
     FOREIGN KEY (student_id) REFERENCES users (id),
     FOREIGN KEY (exam_id) REFERENCES exam (id)
 );
 
 CREATE TABLE membership (
-    id          VARCHAR(50),
-    group_id    VARCHAR(50),
+    id          UUID,
+    group_id    UUID,
     student_id  CHAR(8),
     start_date  DATE  NOT NULL,
     end_date    DATE,
@@ -74,9 +74,9 @@ CREATE TABLE membership (
 );
 
 CREATE TABLE group_course (
-    id          VARCHAR(50),
-    course_id   VARCHAR(50),
-    group_id    VARCHAR(50),
+    id          UUID,
+    course_id   UUID,
+    group_id    UUID,
     PRIMARY KEY (id),
     UNIQUE (course_id, group_id),
     FOREIGN KEY (course_id) REFERENCES course (id),
@@ -84,8 +84,8 @@ CREATE TABLE group_course (
 );
 
 CREATE TABLE teacher_course (
-    id            VARCHAR(50),
-    course_id     VARCHAR(50),
+    id            UUID,
+    course_id     UUID,
     teacher_id    CHAR(8),
     school_year   SMALLINT  NOT NULL,
     PRIMARY KEY (id),

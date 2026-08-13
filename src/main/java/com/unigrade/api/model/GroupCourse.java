@@ -1,3 +1,5 @@
 package com.unigrade.api.model;
 
-public record GroupCourse(String id, String courseId, String groupId) {}
+import java.util.UUID;
+
+public record GroupCourse(UUID id, UUID courseId, UUID groupId) {}

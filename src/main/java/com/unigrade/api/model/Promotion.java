@@ -1,3 +1,5 @@
 package com.unigrade.api.model;
 
-public record Promotion(String id, String reference, Short startYear, Short endYear) {}
+import java.util.UUID;
+
+public record Promotion(UUID id, String reference, Short startYear, Short endYear) {}

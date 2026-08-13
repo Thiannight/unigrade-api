@@ -8,6 +8,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -20,8 +21,8 @@ import lombok.Setter;
 public class GroupCourse {
 
   @Id
-  @Column(length = 50)
-  private String id;
+  @Column(length = 36)
+  private UUID id;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "course_id", nullable = false)

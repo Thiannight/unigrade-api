@@ -8,6 +8,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -18,8 +19,8 @@ import lombok.Setter;
 public class Grade {
 
   @Id
-  @Column(length = 50)
-  private String id;
+  @Column(length = 36)
+  private UUID id;
 
   @Column(nullable = false)
   private Float score;
@@ -32,7 +33,7 @@ public class Grade {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "student_id", nullable = false)
-  private AppUser student;
+  private User student;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "exam_id", nullable = false)

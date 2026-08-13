@@ -2,5 +2,6 @@ package com.unigrade.api.model;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
-public record Exam(String id, OffsetDateTime examDate, BigDecimal coefficient, String courseId) {}
+public record Exam(UUID id, OffsetDateTime examDate, BigDecimal coefficient, UUID courseId) {}

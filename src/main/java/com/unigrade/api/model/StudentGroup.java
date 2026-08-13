@@ -1,3 +1,5 @@
 package com.unigrade.api.model;
 
-public record StudentGroup(String id, String reference, String promotionId) {}
+import java.util.UUID;
+
+public record StudentGroup(UUID id, String reference, UUID promotionId) {}
