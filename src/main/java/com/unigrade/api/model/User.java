@@ -16,7 +16,8 @@ public record User(
     @NotBlank @Size(max = 100) String firstName,
     @Size(max = 100) String lastName,
     @NotNull LocalDate birthDate,
-    @NotNull @Email @Size(max = 100) String email,
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY) @Size(max = 255) String password,
+    @NotBlank @Email @Size(max = 100) String email,
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY) @Size(min = 4, max = 255) @NotBlank
+        String password,
     @NotNull Boolean isActive,
     @NotNull Role role) {}
