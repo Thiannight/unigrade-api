@@ -6,14 +6,14 @@ import com.unigrade.api.repository.PromotionRepository;
 import com.unigrade.api.repository.model.JPromotion;
 import java.util.List;
 import java.util.UUID;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class PromotionService {
 
   private final PromotionRepository promotionRepository;
@@ -31,14 +31,10 @@ public class PromotionService {
   }
 
   public Promotion create(Promotion promotion) {
-    validateYears(promotion);
-    var withoutId =
-        new Promotion(null, promotion.reference(), promotion.startYear(), promotion.endYear());
-    return saveAndMap(promotionMapper.toEntity(withoutId));
+    return saveAndMap(promotionMapper.toEntity(promotion));
   }
 
   public Promotion update(UUID id, Promotion promotion) {
-    validateYears(promotion);
     if (!promotionRepository.existsById(id)) {
       throw notFound(id);
     }
@@ -60,13 +56,6 @@ public class PromotionService {
     } catch (DataIntegrityViolationException e) {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Promotion reference, start year or end year already exists", e);
-    }
-  }
-
-  private void validateYears(Promotion promotion) {
-    if (promotion.startYear() >= promotion.endYear()) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "startYear must be strictly before endYear");
     }
   }
 

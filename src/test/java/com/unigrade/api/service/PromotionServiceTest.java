@@ -10,6 +10,7 @@ import com.unigrade.api.mapper.PromotionMapper;
 import com.unigrade.api.model.Promotion;
 import com.unigrade.api.repository.PromotionRepository;
 import com.unigrade.api.repository.model.JPromotion;
+import jakarta.validation.Validation;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -75,12 +76,14 @@ class PromotionServiceTest {
   }
 
   @Test
-  void create_invalidYears_throwsBadRequest() {
+  void create_invalidYears_failsBeanValidation() {
     var domain = new Promotion(null, "PROMO-2026", (short) 2029, (short) 2026);
 
-    assertThatThrownBy(() -> promotionService.create(domain))
-        .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("400");
+    try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
+      var violations = validatorFactory.getValidator().validate(domain);
+
+      assertThat(violations).isNotEmpty();
+    }
   }
 
   @Test

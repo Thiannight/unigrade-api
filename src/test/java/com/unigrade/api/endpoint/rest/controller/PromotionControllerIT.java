@@ -8,6 +8,7 @@ import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.OK;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.unigrade.api.conf.FacadeIT;
 import com.unigrade.api.model.Promotion;
 import java.util.UUID;
@@ -24,15 +25,14 @@ class PromotionControllerIT extends FacadeIT {
   void crud_lifecycle() {
     var toCreate = new Promotion(null, "PROMO-IT-2030", (short) 2030, (short) 2033);
 
-    ResponseEntity<Promotion> createResponse =
-        restTemplate.postForEntity("/promotions", toCreate, Promotion.class);
+    ResponseEntity<JsonNode> createResponse =
+        restTemplate.postForEntity("/promotions", toCreate, JsonNode.class);
     assertThat(createResponse.getStatusCode()).isEqualTo(CREATED);
-    Promotion created = createResponse.getBody();
-    assertThat(created).isNotNull();
-    assertThat(created.id()).isNotNull();
+    assertThat(createResponse.getBody()).isNotNull();
+    UUID createdId = UUID.fromString(createResponse.getBody().get("id").asText());
 
     ResponseEntity<Promotion> getResponse =
-        restTemplate.getForEntity("/promotions/" + created.id(), Promotion.class);
+        restTemplate.getForEntity("/promotions/" + createdId, Promotion.class);
     assertThat(getResponse.getStatusCode()).isEqualTo(OK);
     assertThat(getResponse.getBody().reference()).isEqualTo("PROMO-IT-2030");
 
@@ -41,18 +41,18 @@ class PromotionControllerIT extends FacadeIT {
     assertThat(listResponse.getStatusCode()).isEqualTo(OK);
     assertThat(listResponse.getBody()).isNotEmpty();
 
-    var toUpdate = new Promotion(created.id(), "PROMO-IT-2030-BIS", (short) 2030, (short) 2034);
-    restTemplate.put("/promotions/" + created.id(), toUpdate);
+    var toUpdate = new Promotion(null, "PROMO-IT-2030-BIS", (short) 2030, (short) 2034);
+    restTemplate.put("/promotions/" + createdId, toUpdate);
 
     ResponseEntity<Promotion> afterUpdate =
-        restTemplate.getForEntity("/promotions/" + created.id(), Promotion.class);
+        restTemplate.getForEntity("/promotions/" + createdId, Promotion.class);
     assertThat(afterUpdate.getBody().reference()).isEqualTo("PROMO-IT-2030-BIS");
     assertThat(afterUpdate.getBody().endYear()).isEqualTo((short) 2034);
 
-    restTemplate.delete("/promotions/" + created.id());
+    restTemplate.delete("/promotions/" + createdId);
 
     ResponseEntity<String> afterDelete =
-        restTemplate.getForEntity("/promotions/" + created.id(), String.class);
+        restTemplate.getForEntity("/promotions/" + createdId, String.class);
     assertThat(afterDelete.getStatusCode()).isEqualTo(NOT_FOUND);
   }
 
