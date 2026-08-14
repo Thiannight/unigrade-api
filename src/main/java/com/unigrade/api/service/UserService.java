@@ -10,6 +10,7 @@ import com.unigrade.api.repository.model.JUser;
 import java.time.Year;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -47,7 +48,7 @@ public class UserService {
             user.password(),
             user.isActive(),
             user.role());
-    return mapper.toDomain(repository.save(mapper.toEntity(withId)));
+    return mapper.toDomain(raceAwareSave(mapper.toEntity(withId)));
   }
 
   public User update(String id, User user) {
@@ -71,7 +72,7 @@ public class UserService {
             .isActive(user.isActive())
             .role(user.role())
             .build();
-    return mapper.toDomain(repository.save(toSave));
+    return mapper.toDomain(raceAwareSave(toSave));
   }
 
   public void delete(String id) {
@@ -98,6 +99,14 @@ public class UserService {
   private String generateStudentId() {
     String prefix = "STD" + (Year.now().getValue() % 100);
     return prefix + nextNumber(prefix, 3);
+  }
+
+  private JUser raceAwareSave(JUser user) {
+    try {
+      return repository.save(user);
+    } catch (DataIntegrityViolationException e) {
+      throw new ConflictException("User or email already exists");
+    }
   }
 
   private NotFoundException userNotFound() {

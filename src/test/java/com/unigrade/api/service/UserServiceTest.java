@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
@@ -106,6 +107,17 @@ class UserServiceTest {
   }
 
   @Test
+  void create_duplicateConstraintRace_throwsConflict() {
+    var domain = domain(null);
+    when(repository.existsByEmail("ada@unigrade.com")).thenReturn(false);
+    when(repository.findFirstByIdStartingWithOrderByIdDesc(anyString()))
+        .thenReturn(Optional.empty());
+    when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
+
+    assertThrows(ConflictException.class, () -> service.create(domain));
+  }
+
+  @Test
   void update_changedEmailTaken_throwsConflict() {
     when(repository.existsById(ID)).thenReturn(true);
     when(repository.existsByEmailAndIdNot("other@unigrade.com", ID)).thenReturn(true);
@@ -121,6 +133,15 @@ class UserServiceTest {
             Role.STUDENT);
 
     assertThrows(ConflictException.class, () -> service.update(ID, domain));
+  }
+
+  @Test
+  void update_duplicateConstraintRace_throwsConflict() {
+    when(repository.existsById(ID)).thenReturn(true);
+    when(repository.existsByEmailAndIdNot("ada@unigrade.com", ID)).thenReturn(false);
+    when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
+
+    assertThrows(ConflictException.class, () -> service.update(ID, domain(ID)));
   }
 
   @Test
