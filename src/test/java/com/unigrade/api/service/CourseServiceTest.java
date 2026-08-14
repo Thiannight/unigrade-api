@@ -1,7 +1,8 @@
 package com.unigrade.api.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,8 +45,8 @@ class CourseServiceTest {
 
     List<Course> result = service.findAll(1, 10);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.get(0).reference()).isEqualTo("CS101");
+    assertEquals(1, result.size());
+    assertEquals("CS101", result.get(0).reference());
   }
 
   @Test
@@ -54,16 +55,17 @@ class CourseServiceTest {
 
     Course result = service.findById(ID);
 
-    assertThat(result.id()).isEqualTo(ID);
+    assertEquals(ID, result.id());
   }
 
   @Test
   void findById_missing_throwsNotFound() {
     when(repository.findById(ID)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service.findById(ID))
-        .isInstanceOf(NotFoundException.class)
-        .hasMessageContaining("not found");
+    NotFoundException exception =
+        assertThrows(NotFoundException.class, () -> service.findById(ID));
+
+    assertTrue(exception.getMessage().contains("not found"));
   }
 
   @Test
@@ -73,7 +75,7 @@ class CourseServiceTest {
 
     Course result = service.create(domain);
 
-    assertThat(result.reference()).isEqualTo("CS101");
+    assertEquals("CS101", result.reference());
     verify(repository).save(any());
   }
 
@@ -82,7 +84,7 @@ class CourseServiceTest {
     var domain = new Course(null, "CS101", "Intro to CS", (short) 6);
     when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
 
-    assertThatThrownBy(() -> service.create(domain)).isInstanceOf(ConflictException.class);
+    assertThrows(ConflictException.class, () -> service.create(domain));
   }
 
   @Test
@@ -90,7 +92,7 @@ class CourseServiceTest {
     when(repository.existsById(ID)).thenReturn(false);
     var domain = new Course(ID, "CS101", "Intro to CS", (short) 6);
 
-    assertThatThrownBy(() -> service.update(ID, domain)).isInstanceOf(NotFoundException.class);
+    assertThrows(NotFoundException.class, () -> service.update(ID, domain));
   }
 
   @Test
@@ -101,14 +103,14 @@ class CourseServiceTest {
 
     Course result = service.update(ID, domain);
 
-    assertThat(result.id()).isEqualTo(ID);
+    assertEquals(ID, result.id());
   }
 
   @Test
   void delete_missing_throwsNotFound() {
     when(repository.existsById(ID)).thenReturn(false);
 
-    assertThatThrownBy(() -> service.delete(ID)).isInstanceOf(NotFoundException.class);
+    assertThrows(NotFoundException.class, () -> service.delete(ID));
   }
 
   @Test

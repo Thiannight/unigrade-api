@@ -1,6 +1,6 @@
 package com.unigrade.api.exception;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 import java.util.UUID;
@@ -28,17 +28,18 @@ class GlobalExceptionHandlerTest {
     ProblemDetail detail =
         handler.handleValidation(new MethodArgumentNotValidException(null, bindingResult));
 
-    assertThat(detail.getStatus()).isEqualTo(400);
-    assertThat(detail.getDetail()).isEqualTo("Validation failed");
-    assertThat(detail.getProperties().get("errors"))
-        .isEqualTo(List.of("reference: must not be blank", "startYear: must be positive"));
+    assertEquals(400, detail.getStatus());
+    assertEquals("Validation failed", detail.getDetail());
+    assertEquals(
+        List.of("reference: must not be blank", "startYear: must be positive"),
+        detail.getProperties().get("errors"));
   }
 
   @Test
   void dataIntegrityViolation_mapsToConflict() {
     ProblemDetail detail = handler.handleConflict(new DataIntegrityViolationException("dup"));
 
-    assertThat(detail.getStatus()).isEqualTo(409);
+    assertEquals(409, detail.getStatus());
   }
 
   @Test
@@ -47,8 +48,8 @@ class GlobalExceptionHandlerTest {
 
     ProblemDetail detail = handler.handleTypeMismatch(e);
 
-    assertThat(detail.getStatus()).isEqualTo(400);
-    assertThat(detail.getDetail()).isEqualTo("Invalid value for parameter 'id'");
+    assertEquals(400, detail.getStatus());
+    assertEquals("Invalid value for parameter 'id'", detail.getDetail());
   }
 
   @Test
@@ -56,38 +57,38 @@ class GlobalExceptionHandlerTest {
     ProblemDetail detail =
         handler.handleUnreadable(new HttpMessageNotReadableException("bad json", null, null));
 
-    assertThat(detail.getStatus()).isEqualTo(400);
-    assertThat(detail.getDetail()).isEqualTo("Malformed request body");
+    assertEquals(400, detail.getStatus());
+    assertEquals("Malformed request body", detail.getDetail());
   }
 
   @Test
   void notFound_mapsTo404() {
     ProblemDetail detail = handler.handleNotFound(new NotFoundException("Promotion not found: x"));
 
-    assertThat(detail.getStatus()).isEqualTo(404);
-    assertThat(detail.getDetail()).isEqualTo("Promotion not found: x");
+    assertEquals(404, detail.getStatus());
+    assertEquals("Promotion not found: x", detail.getDetail());
   }
 
   @Test
   void conflict_mapsTo409() {
     ProblemDetail detail = handler.handleConflict(new ConflictException("already exists"));
 
-    assertThat(detail.getStatus()).isEqualTo(409);
-    assertThat(detail.getDetail()).isEqualTo("already exists");
+    assertEquals(409, detail.getStatus());
+    assertEquals("already exists", detail.getDetail());
   }
 
   @Test
   void badRequest_mapsTo400() {
     ProblemDetail detail = handler.handleBadRequest(new BadRequestException("bad"));
 
-    assertThat(detail.getStatus()).isEqualTo(400);
+    assertEquals(400, detail.getStatus());
   }
 
   @Test
   void forbidden_mapsTo403() {
     ProblemDetail detail = handler.handleForbidden(new ForbiddenException("no"));
 
-    assertThat(detail.getStatus()).isEqualTo(403);
+    assertEquals(403, detail.getStatus());
   }
 
   @Test
@@ -95,8 +96,8 @@ class GlobalExceptionHandlerTest {
     ProblemDetail detail =
         handler.handleResponseStatus(new ResponseStatusException(HttpStatus.NOT_FOUND, "gone"));
 
-    assertThat(detail.getStatus()).isEqualTo(404);
-    assertThat(detail.getDetail()).isEqualTo("gone");
+    assertEquals(404, detail.getStatus());
+    assertEquals("gone", detail.getDetail());
   }
 
   @Test
@@ -104,13 +105,13 @@ class GlobalExceptionHandlerTest {
     ProblemDetail detail =
         handler.handleResponseStatus(new ResponseStatusException(HttpStatus.CONFLICT));
 
-    assertThat(detail.getStatus()).isEqualTo(409);
+    assertEquals(409, detail.getStatus());
   }
 
   @Test
   void unexpected_mapsTo500() {
     ProblemDetail detail = handler.handleUnexpected(new RuntimeException("boom"));
 
-    assertThat(detail.getStatus()).isEqualTo(500);
+    assertEquals(500, detail.getStatus());
   }
 }

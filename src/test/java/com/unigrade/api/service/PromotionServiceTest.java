@@ -1,7 +1,9 @@
 package com.unigrade.api.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,8 +45,8 @@ class PromotionServiceTest {
 
     List<Promotion> result = service.findAll();
 
-    assertThat(result).hasSize(1);
-    assertThat(result.get(0).reference()).isEqualTo("PROMO-2026");
+    assertEquals(1, result.size());
+    assertEquals("PROMO-2026", result.get(0).reference());
   }
 
   @Test
@@ -53,16 +55,17 @@ class PromotionServiceTest {
 
     Promotion result = service.findById(ID);
 
-    assertThat(result.id()).isEqualTo(ID);
+    assertEquals(ID, result.id());
   }
 
   @Test
   void findById_missing_throwsNotFound() {
     when(repository.findById(ID)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service.findById(ID))
-        .isInstanceOf(NotFoundException.class)
-        .hasMessageContaining("not found");
+    NotFoundException exception =
+        assertThrows(NotFoundException.class, () -> service.findById(ID));
+
+    assertTrue(exception.getMessage().contains("not found"));
   }
 
   @Test
@@ -72,7 +75,7 @@ class PromotionServiceTest {
 
     Promotion result = service.create(domain);
 
-    assertThat(result.reference()).isEqualTo("PROMO-2026");
+    assertEquals("PROMO-2026", result.reference());
     verify(repository).save(any());
   }
 
@@ -83,7 +86,7 @@ class PromotionServiceTest {
     try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
       var violations = validatorFactory.getValidator().validate(domain);
 
-      assertThat(violations).isNotEmpty();
+      assertFalse(violations.isEmpty());
     }
   }
 
@@ -92,7 +95,7 @@ class PromotionServiceTest {
     var domain = new Promotion(null, "PROMO-2026", (short) 2026, (short) 2029);
     when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
 
-    assertThatThrownBy(() -> service.create(domain)).isInstanceOf(ConflictException.class);
+    assertThrows(ConflictException.class, () -> service.create(domain));
   }
 
   @Test
@@ -100,7 +103,7 @@ class PromotionServiceTest {
     when(repository.existsById(ID)).thenReturn(false);
     var domain = new Promotion(ID, "PROMO-2026", (short) 2026, (short) 2029);
 
-    assertThatThrownBy(() -> service.update(ID, domain)).isInstanceOf(NotFoundException.class);
+    assertThrows(NotFoundException.class, () -> service.update(ID, domain));
   }
 
   @Test
@@ -111,14 +114,14 @@ class PromotionServiceTest {
 
     Promotion result = service.update(ID, domain);
 
-    assertThat(result.id()).isEqualTo(ID);
+    assertEquals(ID, result.id());
   }
 
   @Test
   void delete_missing_throwsNotFound() {
     when(repository.existsById(ID)).thenReturn(false);
 
-    assertThatThrownBy(() -> service.delete(ID)).isInstanceOf(NotFoundException.class);
+    assertThrows(NotFoundException.class, () -> service.delete(ID));
   }
 
   @Test
