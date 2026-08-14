@@ -1,7 +1,6 @@
 package com.unigrade.api.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,11 +9,10 @@ import static org.mockito.Mockito.when;
 
 import com.unigrade.api.exception.ConflictException;
 import com.unigrade.api.exception.NotFoundException;
-import com.unigrade.api.mapper.PromotionMapper;
-import com.unigrade.api.model.Promotion;
-import com.unigrade.api.repository.PromotionRepository;
-import com.unigrade.api.repository.model.JPromotion;
-import jakarta.validation.Validation;
+import com.unigrade.api.mapper.CourseMapper;
+import com.unigrade.api.model.Course;
+import com.unigrade.api.repository.CourseRepository;
+import com.unigrade.api.repository.model.JCourse;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,36 +22,38 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 @ExtendWith(MockitoExtension.class)
-class PromotionServiceTest {
+class CourseServiceTest {
 
   private static final UUID ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
-  @Mock private PromotionRepository repository;
-  private final PromotionMapper mapper = new PromotionMapper();
-  private PromotionService service;
+  @Mock private CourseRepository repository;
+  private final CourseMapper mapper = new CourseMapper();
+  private CourseService service;
 
   @BeforeEach
   void setUp() {
-    service = new PromotionService(repository, mapper);
+    service = new CourseService(repository, mapper);
   }
 
   @Test
   void findAll_returnsMappedList() {
-    when(repository.findAll()).thenReturn(List.of(entity()));
+    when(repository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(entity())));
 
-    List<Promotion> result = service.findAll();
+    List<Course> result = service.findAll(1, 10);
 
     assertEquals(1, result.size());
-    assertEquals("PROMO-2026", result.get(0).reference());
+    assertEquals("CS101", result.get(0).reference());
   }
 
   @Test
   void findById_existing_returnsMapped() {
     when(repository.findById(ID)).thenReturn(Optional.of(entity()));
 
-    Promotion result = service.findById(ID);
+    Course result = service.findById(ID);
 
     assertEquals(ID, result.id());
   }
@@ -68,30 +68,19 @@ class PromotionServiceTest {
   }
 
   @Test
-  void create_validYears_saves() {
-    var domain = new Promotion(null, "PROMO-2026", (short) 2026, (short) 2029);
+  void create_saves() {
+    var domain = new Course(null, "CS101", "Intro to CS", (short) 6);
     when(repository.save(any())).thenReturn(entity());
 
-    Promotion result = service.create(domain);
+    Course result = service.create(domain);
 
-    assertEquals("PROMO-2026", result.reference());
+    assertEquals("CS101", result.reference());
     verify(repository).save(any());
   }
 
   @Test
-  void create_invalidYears_failsBeanValidation() {
-    var domain = new Promotion(null, "PROMO-2026", (short) 2029, (short) 2026);
-
-    try (var validatorFactory = Validation.buildDefaultValidatorFactory()) {
-      var violations = validatorFactory.getValidator().validate(domain);
-
-      assertFalse(violations.isEmpty());
-    }
-  }
-
-  @Test
   void create_duplicateConstraint_throwsConflict() {
-    var domain = new Promotion(null, "PROMO-2026", (short) 2026, (short) 2029);
+    var domain = new Course(null, "CS101", "Intro to CS", (short) 6);
     when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
 
     assertThrows(ConflictException.class, () -> service.create(domain));
@@ -100,7 +89,7 @@ class PromotionServiceTest {
   @Test
   void update_missing_throwsNotFound() {
     when(repository.existsById(ID)).thenReturn(false);
-    var domain = new Promotion(ID, "PROMO-2026", (short) 2026, (short) 2029);
+    var domain = new Course(ID, "CS101", "Intro to CS", (short) 6);
 
     assertThrows(NotFoundException.class, () -> service.update(ID, domain));
   }
@@ -109,9 +98,9 @@ class PromotionServiceTest {
   void update_existing_saves() {
     when(repository.existsById(ID)).thenReturn(true);
     when(repository.save(any())).thenReturn(entity());
-    var domain = new Promotion(ID, "PROMO-2026", (short) 2026, (short) 2029);
+    var domain = new Course(ID, "CS101", "Intro to CS", (short) 6);
 
-    Promotion result = service.update(ID, domain);
+    Course result = service.update(ID, domain);
 
     assertEquals(ID, result.id());
   }
@@ -132,12 +121,12 @@ class PromotionServiceTest {
     verify(repository).deleteById(ID);
   }
 
-  private JPromotion entity() {
-    var e = new JPromotion();
+  private JCourse entity() {
+    var e = new JCourse();
     e.setId(ID);
-    e.setReference("PROMO-2026");
-    e.setStartYear((short) 2026);
-    e.setEndYear((short) 2029);
+    e.setReference("CS101");
+    e.setTitle("Intro to CS");
+    e.setCredits((short) 6);
     return e;
   }
 }

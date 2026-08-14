@@ -1,12 +1,14 @@
 package com.unigrade.api.exception;
 
-import java.util.Objects;
+import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
@@ -14,19 +16,31 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ProblemDetail handleValidation(MethodArgumentNotValidException e) {
-    String message =
+    List<String> errors =
         e.getBindingResult().getFieldErrors().stream()
-            .findFirst()
-            .map(fieldError -> fieldError.getDefaultMessage())
-            .filter(Objects::nonNull)
-            .orElse("Validation failed");
-    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, message);
+            .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+            .toList();
+    ProblemDetail detail =
+        ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation failed");
+    detail.setProperty("errors", errors);
+    return detail;
   }
 
   @ExceptionHandler(DataIntegrityViolationException.class)
   public ProblemDetail handleConflict(DataIntegrityViolationException e) {
     return ProblemDetail.forStatusAndDetail(
-        HttpStatus.CONFLICT, "Promotion reference, start year or end year already exists");
+        HttpStatus.CONFLICT, "Resource already exists or violates a data constraint");
+  }
+
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+    return ProblemDetail.forStatusAndDetail(
+        HttpStatus.BAD_REQUEST, "Invalid value for parameter '" + e.getName() + "'");
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ProblemDetail handleUnreadable(HttpMessageNotReadableException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Malformed request body");
   }
 
   @ExceptionHandler(NotFoundException.class)

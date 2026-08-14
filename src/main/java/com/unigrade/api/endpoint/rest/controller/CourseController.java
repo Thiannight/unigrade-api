@@ -1,7 +1,7 @@
 package com.unigrade.api.endpoint.rest.controller;
 
-import com.unigrade.api.model.Promotion;
-import com.unigrade.api.service.PromotionService;
+import com.unigrade.api.model.Course;
+import com.unigrade.api.service.CourseService;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -15,34 +15,36 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/promotions")
+@RequestMapping("/courses")
 @RequiredArgsConstructor
-public class PromotionController {
+public class CourseController {
 
-  private final PromotionService service;
+  private final CourseService service;
 
   @GetMapping
-  public List<Promotion> findAll() {
-    return service.findAll();
+  public List<Course> findAll(
+      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+    return service.findAll(page, size);
   }
 
   @GetMapping("/{id}")
-  public Promotion findById(@PathVariable UUID id) {
+  public Course findById(@PathVariable UUID id) {
     return service.findById(id);
   }
 
   @PostMapping
-  public ResponseEntity<Promotion> create(@Valid @RequestBody Promotion promotion) {
-    Promotion created = service.create(promotion);
-    return ResponseEntity.created(URI.create("/promotions/" + created.id())).body(created);
+  public ResponseEntity<Course> create(@Valid @RequestBody Course course) {
+    Course created = service.create(course);
+    return ResponseEntity.created(URI.create("/courses/" + created.id())).body(created);
   }
 
   @PutMapping("/{id}")
-  public Promotion update(@PathVariable UUID id, @Valid @RequestBody Promotion promotion) {
-    return service.update(id, promotion);
+  public Course update(@PathVariable UUID id, @Valid @RequestBody Course course) {
+    return service.update(id, course);
   }
 
   @DeleteMapping("/{id}")
