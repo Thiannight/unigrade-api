@@ -22,7 +22,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,13 +39,13 @@ class CourseServiceTest {
   }
 
   @Test
-  void findAll_returnsMappedPage() {
+  void findAll_returnsMappedList() {
     when(repository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(entity())));
 
-    var result = service.findAll(PageRequest.of(0, 20));
+    List<Course> result = service.findAll(1, 10);
 
-    assertThat(result.getContent()).hasSize(1);
-    assertThat(result.getContent().get(0).reference()).isEqualTo("CS101");
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).reference()).isEqualTo("CS101");
   }
 
   @Test

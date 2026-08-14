@@ -6,11 +6,11 @@ import com.unigrade.api.mapper.CourseMapper;
 import com.unigrade.api.model.Course;
 import com.unigrade.api.repository.CourseRepository;
 import com.unigrade.api.repository.model.JCourse;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,8 +20,11 @@ public class CourseService {
   private final CourseRepository repository;
   private final CourseMapper mapper;
 
-  public Page<Course> findAll(Pageable pageable) {
-    return repository.findAll(pageable).map(mapper::toDomain);
+  public List<Course> findAll(int page, int size) {
+    return repository
+        .findAll(PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 50)))
+        .map(mapper::toDomain)
+        .toList();
   }
 
   public Course findById(UUID id) {
