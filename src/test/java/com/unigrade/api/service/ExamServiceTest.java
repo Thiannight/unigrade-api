@@ -45,29 +45,39 @@ class ExamServiceTest {
   }
 
   @Test
-  void findAll_returnsMappedList() {
-    when(repository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(entity())));
+  void findAll_existingCourse_returnsMappedList() {
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.findAllByCourseId(any(), any(Pageable.class)))
+        .thenReturn(new PageImpl<>(List.of(entity())));
 
-    List<Exam> result = service.findAll(0, 10);
+    List<Exam> result = service.findAll(COURSE_ID, 0, 10);
 
     assertEquals(1, result.size());
     assertEquals(COURSE_ID, result.get(0).courseId());
   }
 
   @Test
-  void findById_existing_returnsMapped() {
-    when(repository.findById(ID)).thenReturn(Optional.of(entity()));
+  void findAll_missingCourse_throwsNotFound() {
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.empty());
 
-    Exam result = service.findById(ID);
+    assertThrows(NotFoundException.class, () -> service.findAll(COURSE_ID, 0, 10));
+  }
+
+  @Test
+  void findById_existing_returnsMapped() {
+    when(repository.findByIdAndCourseId(ID, COURSE_ID)).thenReturn(Optional.of(entity()));
+
+    Exam result = service.findById(COURSE_ID, ID);
 
     assertEquals(ID, result.id());
   }
 
   @Test
   void findById_missing_throwsNotFound() {
-    when(repository.findById(ID)).thenReturn(Optional.empty());
+    when(repository.findByIdAndCourseId(ID, COURSE_ID)).thenReturn(Optional.empty());
 
-    NotFoundException exception = assertThrows(NotFoundException.class, () -> service.findById(ID));
+    NotFoundException exception =
+        assertThrows(NotFoundException.class, () -> service.findById(COURSE_ID, ID));
 
     assertTrue(exception.getMessage().contains("not found"));
   }
@@ -78,7 +88,7 @@ class ExamServiceTest {
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
     when(repository.save(any())).thenReturn(entity());
 
-    Exam result = service.create(domain);
+    Exam result = service.create(COURSE_ID, domain);
 
     assertEquals(COURSE_ID, result.courseId());
     verify(repository).save(any());
@@ -89,50 +99,50 @@ class ExamServiceTest {
     var domain = new Exam(null, EXAM_DATE, new BigDecimal("0.5000"), COURSE_ID);
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.empty());
 
-    assertThrows(NotFoundException.class, () -> service.create(domain));
+    assertThrows(NotFoundException.class, () -> service.create(COURSE_ID, domain));
   }
 
   @Test
-  void update_missing_throwsNotFound() {
-    when(repository.existsById(ID)).thenReturn(false);
+  void update_missingExam_throwsNotFound() {
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.existsByIdAndCourseId(ID, COURSE_ID)).thenReturn(false);
     var domain = new Exam(ID, EXAM_DATE, new BigDecimal("0.5000"), COURSE_ID);
 
-    assertThrows(NotFoundException.class, () -> service.update(ID, domain));
+    assertThrows(NotFoundException.class, () -> service.update(COURSE_ID, ID, domain));
   }
 
   @Test
   void update_missingCourse_throwsNotFound() {
-    when(repository.existsById(ID)).thenReturn(true);
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.empty());
     var domain = new Exam(ID, EXAM_DATE, new BigDecimal("0.5000"), COURSE_ID);
 
-    assertThrows(NotFoundException.class, () -> service.update(ID, domain));
+    assertThrows(NotFoundException.class, () -> service.update(COURSE_ID, ID, domain));
   }
 
   @Test
   void update_existing_saves() {
-    when(repository.existsById(ID)).thenReturn(true);
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.existsByIdAndCourseId(ID, COURSE_ID)).thenReturn(true);
     when(repository.save(any())).thenReturn(entity());
     var domain = new Exam(ID, EXAM_DATE, new BigDecimal("0.5000"), COURSE_ID);
 
-    Exam result = service.update(ID, domain);
+    Exam result = service.update(COURSE_ID, ID, domain);
 
     assertEquals(ID, result.id());
   }
 
   @Test
   void delete_missing_throwsNotFound() {
-    when(repository.existsById(ID)).thenReturn(false);
+    when(repository.existsByIdAndCourseId(ID, COURSE_ID)).thenReturn(false);
 
-    assertThrows(NotFoundException.class, () -> service.delete(ID));
+    assertThrows(NotFoundException.class, () -> service.delete(COURSE_ID, ID));
   }
 
   @Test
   void delete_existing_deletes() {
-    when(repository.existsById(ID)).thenReturn(true);
+    when(repository.existsByIdAndCourseId(ID, COURSE_ID)).thenReturn(true);
 
-    service.delete(ID);
+    service.delete(COURSE_ID, ID);
 
     verify(repository).deleteById(ID);
   }

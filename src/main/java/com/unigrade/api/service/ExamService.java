@@ -21,34 +21,38 @@ public class ExamService {
   private final CourseRepository courseRepository;
   private final ExamMapper mapper;
 
-  public List<Exam> findAll(int page, int size) {
+  public List<Exam> findAll(UUID courseId, int page, int size) {
+    findCourse(courseId);
     return repository
-        .findAll(PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 50)))
+        .findAllByCourseId(courseId, PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 50)))
         .map(mapper::toDomain)
         .toList();
   }
 
-  public Exam findById(UUID id) {
-    return repository.findById(id).map(mapper::toDomain).orElseThrow(() -> notFound(id));
+  public Exam findById(UUID courseId, UUID id) {
+    return repository
+        .findByIdAndCourseId(id, courseId)
+        .map(mapper::toDomain)
+        .orElseThrow(() -> notFound(id));
   }
 
-  public Exam create(Exam exam) {
-    JCourse course = findCourse(exam.courseId());
+  public Exam create(UUID courseId, Exam exam) {
+    JCourse course = findCourse(courseId);
     return mapper.toDomain(repository.save(mapper.toEntity(exam, course)));
   }
 
-  public Exam update(UUID id, Exam exam) {
-    if (!repository.existsById(id)) {
+  public Exam update(UUID courseId, UUID id, Exam exam) {
+    JCourse course = findCourse(courseId);
+    if (!repository.existsByIdAndCourseId(id, courseId)) {
       throw notFound(id);
     }
-    JCourse course = findCourse(exam.courseId());
-    var withId = new Exam(id, exam.examDate(), exam.coefficient(), exam.courseId());
+    var withId = new Exam(id, exam.examDate(), exam.coefficient(), courseId);
     JExam saved = repository.save(mapper.toEntity(withId, course));
     return mapper.toDomain(saved);
   }
 
-  public void delete(UUID id) {
-    if (!repository.existsById(id)) {
+  public void delete(UUID courseId, UUID id) {
+    if (!repository.existsByIdAndCourseId(id, courseId)) {
       throw notFound(id);
     }
     repository.deleteById(id);

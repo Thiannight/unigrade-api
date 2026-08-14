@@ -34,43 +34,45 @@ class ExamControllerIT extends FacadeIT {
         new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.5000"), courseId);
 
     ResponseEntity<JsonNode> createResponse =
-        restTemplate.postForEntity("/exams", toCreate, JsonNode.class);
+        restTemplate.postForEntity("/courses/" + courseId + "/exams", toCreate, JsonNode.class);
     assertEquals(CREATED, createResponse.getStatusCode());
     assertNotNull(createResponse.getBody());
     UUID createdId = UUID.fromString(createResponse.getBody().get("id").asText());
 
-    ResponseEntity<Exam> getResponse = restTemplate.getForEntity("/exams/" + createdId, Exam.class);
+    ResponseEntity<Exam> getResponse =
+        restTemplate.getForEntity("/courses/" + courseId + "/exams/" + createdId, Exam.class);
     assertEquals(OK, getResponse.getStatusCode());
     assertEquals(courseId, getResponse.getBody().courseId());
 
-    ResponseEntity<Exam[]> listResponse = restTemplate.getForEntity("/exams", Exam[].class);
+    ResponseEntity<Exam[]> listResponse =
+        restTemplate.getForEntity("/courses/" + courseId + "/exams", Exam[].class);
     assertEquals(OK, listResponse.getStatusCode());
     assertFalse(listResponse.getBody().length == 0);
 
     var toUpdate =
         new Exam(null, Instant.parse("2026-07-01T09:00:00Z"), new BigDecimal("0.7500"), courseId);
-    restTemplate.put("/exams/" + createdId, toUpdate);
+    restTemplate.put("/courses/" + courseId + "/exams/" + createdId, toUpdate);
 
-    ResponseEntity<Exam> afterUpdate = restTemplate.getForEntity("/exams/" + createdId, Exam.class);
+    ResponseEntity<Exam> afterUpdate =
+        restTemplate.getForEntity("/courses/" + courseId + "/exams/" + createdId, Exam.class);
     assertEquals(new BigDecimal("0.7500"), afterUpdate.getBody().coefficient());
 
-    restTemplate.delete("/exams/" + createdId);
+    restTemplate.delete("/courses/" + courseId + "/exams/" + createdId);
 
     ResponseEntity<String> afterDelete =
-        restTemplate.getForEntity("/exams/" + createdId, String.class);
+        restTemplate.getForEntity("/courses/" + courseId + "/exams/" + createdId, String.class);
     assertEquals(NOT_FOUND, afterDelete.getStatusCode());
   }
 
   @Test
   void create_missingCourse_returnsNotFound() {
+    UUID missingCourseId = UUID.randomUUID();
     var invalid =
         new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("0.5000"),
-            UUID.randomUUID());
+            null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.5000"), missingCourseId);
 
-    ResponseEntity<String> response = restTemplate.postForEntity("/exams", invalid, String.class);
+    ResponseEntity<String> response =
+        restTemplate.postForEntity("/courses/" + missingCourseId + "/exams", invalid, String.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
@@ -81,7 +83,8 @@ class ExamControllerIT extends FacadeIT {
     var invalid =
         new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("1.5000"), courseId);
 
-    ResponseEntity<String> response = restTemplate.postForEntity("/exams", invalid, String.class);
+    ResponseEntity<String> response =
+        restTemplate.postForEntity("/courses/" + courseId + "/exams", invalid, String.class);
 
     assertEquals(BAD_REQUEST, response.getStatusCode());
   }
@@ -91,15 +94,35 @@ class ExamControllerIT extends FacadeIT {
     UUID courseId = createCourse("CS-EX-103", "Exam Date Course");
     var invalid = new Exam(null, null, new BigDecimal("0.5000"), courseId);
 
-    ResponseEntity<String> response = restTemplate.postForEntity("/exams", invalid, String.class);
+    ResponseEntity<String> response =
+        restTemplate.postForEntity("/courses/" + courseId + "/exams", invalid, String.class);
 
     assertEquals(BAD_REQUEST, response.getStatusCode());
   }
 
   @Test
   void getById_missing_returnsNotFound() {
+    UUID courseId = createCourse("CS-EX-105", "Exam Get Course");
+
     ResponseEntity<String> response =
-        restTemplate.getForEntity("/exams/" + UUID.randomUUID(), String.class);
+        restTemplate.getForEntity(
+            "/courses/" + courseId + "/exams/" + UUID.randomUUID(), String.class);
+
+    assertEquals(NOT_FOUND, response.getStatusCode());
+  }
+
+  @Test
+  void getById_wrongCourse_returnsNotFound() {
+    UUID courseId = createCourse("CS-EX-106", "Exam Wrong Course A");
+    UUID otherCourseId = createCourse("CS-EX-107", "Exam Wrong Course B");
+    var toCreate =
+        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.5000"), courseId);
+    ResponseEntity<JsonNode> createResponse =
+        restTemplate.postForEntity("/courses/" + courseId + "/exams", toCreate, JsonNode.class);
+    UUID examId = UUID.fromString(createResponse.getBody().get("id").asText());
+
+    ResponseEntity<String> response =
+        restTemplate.getForEntity("/courses/" + otherCourseId + "/exams/" + examId, String.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
@@ -112,15 +135,21 @@ class ExamControllerIT extends FacadeIT {
 
     ResponseEntity<String> response =
         restTemplate.exchange(
-            "/exams/" + UUID.randomUUID(), PUT, new HttpEntity<>(toUpdate), String.class);
+            "/courses/" + courseId + "/exams/" + UUID.randomUUID(),
+            PUT,
+            new HttpEntity<>(toUpdate),
+            String.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
 
   @Test
   void delete_missing_returnsNotFound() {
+    UUID courseId = createCourse("CS-EX-108", "Exam Delete Course");
+
     ResponseEntity<Void> response =
-        restTemplate.exchange("/exams/" + UUID.randomUUID(), DELETE, null, Void.class);
+        restTemplate.exchange(
+            "/courses/" + courseId + "/exams/" + UUID.randomUUID(), DELETE, null, Void.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
   }

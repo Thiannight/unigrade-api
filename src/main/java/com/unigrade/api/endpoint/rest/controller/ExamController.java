@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/exams")
+@RequestMapping("/courses/{courseId}/exams")
 @RequiredArgsConstructor
 public class ExamController {
 
@@ -27,29 +27,33 @@ public class ExamController {
 
   @GetMapping
   public List<Exam> findAll(
-      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-    return service.findAll(page, size);
+      @PathVariable UUID courseId,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "20") int size) {
+    return service.findAll(courseId, page, size);
   }
 
   @GetMapping("/{id}")
-  public Exam findById(@PathVariable UUID id) {
-    return service.findById(id);
+  public Exam findById(@PathVariable UUID courseId, @PathVariable UUID id) {
+    return service.findById(courseId, id);
   }
 
   @PostMapping
-  public ResponseEntity<Exam> create(@Valid @RequestBody Exam exam) {
-    Exam created = service.create(exam);
-    return ResponseEntity.created(URI.create("/exams/" + created.id())).body(created);
+  public ResponseEntity<Exam> create(@PathVariable UUID courseId, @Valid @RequestBody Exam exam) {
+    Exam created = service.create(courseId, exam);
+    return ResponseEntity.created(URI.create("/courses/" + courseId + "/exams/" + created.id()))
+        .body(created);
   }
 
   @PutMapping("/{id}")
-  public Exam update(@PathVariable UUID id, @Valid @RequestBody Exam exam) {
-    return service.update(id, exam);
+  public Exam update(
+      @PathVariable UUID courseId, @PathVariable UUID id, @Valid @RequestBody Exam exam) {
+    return service.update(courseId, id, exam);
   }
 
   @DeleteMapping("/{id}")
-  public ResponseEntity<Void> delete(@PathVariable UUID id) {
-    service.delete(id);
+  public ResponseEntity<Void> delete(@PathVariable UUID courseId, @PathVariable UUID id) {
+    service.delete(courseId, id);
     return ResponseEntity.noContent().build();
   }
 }
