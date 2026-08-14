@@ -37,23 +37,23 @@ class StudentGroupControllerIT extends FacadeIT {
     ResponseEntity<StudentGroup> getResponse =
         restTemplate.getForEntity("/groups/" + createdId, StudentGroup.class);
     assertEquals(OK, getResponse.getStatusCode());
-      assertNotNull(getResponse.getBody());
-      assertEquals("A1", getResponse.getBody().reference());
+    assertNotNull(getResponse.getBody());
+    assertEquals("A1", getResponse.getBody().reference());
     assertEquals(promotionId, getResponse.getBody().promotionId());
 
     ResponseEntity<StudentGroup[]> listResponse =
         restTemplate.getForEntity("/groups", StudentGroup[].class);
     assertEquals(OK, listResponse.getStatusCode());
-      assertNotNull(listResponse.getBody());
-      assertNotEquals(0, listResponse.getBody().length);
+    assertNotNull(listResponse.getBody());
+    assertNotEquals(0, listResponse.getBody().length);
 
     var toUpdate = new StudentGroup(null, "C3", promotionId);
     restTemplate.put("/groups/" + createdId, toUpdate);
 
     ResponseEntity<StudentGroup> afterUpdate =
         restTemplate.getForEntity("/groups/" + createdId, StudentGroup.class);
-      assertNotNull(afterUpdate.getBody());
-      assertEquals("C3", afterUpdate.getBody().reference());
+    assertNotNull(afterUpdate.getBody());
+    assertEquals("C3", afterUpdate.getBody().reference());
 
     restTemplate.delete("/groups/" + createdId);
 
