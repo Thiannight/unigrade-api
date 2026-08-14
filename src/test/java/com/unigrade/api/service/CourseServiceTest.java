@@ -62,8 +62,7 @@ class CourseServiceTest {
   void findById_missing_throwsNotFound() {
     when(repository.findById(ID)).thenReturn(Optional.empty());
 
-    NotFoundException exception =
-        assertThrows(NotFoundException.class, () -> service.findById(ID));
+    NotFoundException exception = assertThrows(NotFoundException.class, () -> service.findById(ID));
 
     assertTrue(exception.getMessage().contains("not found"));
   }
