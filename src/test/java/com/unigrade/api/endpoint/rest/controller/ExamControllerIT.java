@@ -25,15 +25,16 @@ import org.springframework.http.ResponseEntity;
 
 class ExamControllerIT extends FacadeIT {
 
-  @Autowired
-  private TestRestTemplate restTemplate;
+  @Autowired private TestRestTemplate restTemplate;
 
   @Test
   void crud_lifecycle() {
     UUID courseId = createCourse("CS-EX-101", "Exam Lifecycle Course");
-    var toCreate = new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.5000"), courseId);
+    var toCreate =
+        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.5000"), courseId);
 
-    ResponseEntity<JsonNode> createResponse = restTemplate.postForEntity("/exams", toCreate, JsonNode.class);
+    ResponseEntity<JsonNode> createResponse =
+        restTemplate.postForEntity("/exams", toCreate, JsonNode.class);
     assertEquals(CREATED, createResponse.getStatusCode());
     assertNotNull(createResponse.getBody());
     UUID createdId = UUID.fromString(createResponse.getBody().get("id").asText());
@@ -46,7 +47,8 @@ class ExamControllerIT extends FacadeIT {
     assertEquals(OK, listResponse.getStatusCode());
     assertFalse(listResponse.getBody().length == 0);
 
-    var toUpdate = new Exam(null, Instant.parse("2026-07-01T09:00:00Z"), new BigDecimal("0.7500"), courseId);
+    var toUpdate =
+        new Exam(null, Instant.parse("2026-07-01T09:00:00Z"), new BigDecimal("0.7500"), courseId);
     restTemplate.put("/exams/" + createdId, toUpdate);
 
     ResponseEntity<Exam> afterUpdate = restTemplate.getForEntity("/exams/" + createdId, Exam.class);
@@ -54,13 +56,19 @@ class ExamControllerIT extends FacadeIT {
 
     restTemplate.delete("/exams/" + createdId);
 
-    ResponseEntity<String> afterDelete = restTemplate.getForEntity("/exams/" + createdId, String.class);
+    ResponseEntity<String> afterDelete =
+        restTemplate.getForEntity("/exams/" + createdId, String.class);
     assertEquals(NOT_FOUND, afterDelete.getStatusCode());
   }
 
   @Test
   void create_missingCourse_returnsNotFound() {
-    var invalid = new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.5000"), UUID.randomUUID());
+    var invalid =
+        new Exam(
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("0.5000"),
+            UUID.randomUUID());
 
     ResponseEntity<String> response = restTemplate.postForEntity("/exams", invalid, String.class);
 
@@ -70,7 +78,8 @@ class ExamControllerIT extends FacadeIT {
   @Test
   void create_coefficientOutOfRange_returnsBadRequest() {
     UUID courseId = createCourse("CS-EX-102", "Exam Range Course");
-    var invalid = new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("1.5000"), courseId);
+    var invalid =
+        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("1.5000"), courseId);
 
     ResponseEntity<String> response = restTemplate.postForEntity("/exams", invalid, String.class);
 
@@ -89,7 +98,8 @@ class ExamControllerIT extends FacadeIT {
 
   @Test
   void getById_missing_returnsNotFound() {
-    ResponseEntity<String> response = restTemplate.getForEntity("/exams/" + UUID.randomUUID(), String.class);
+    ResponseEntity<String> response =
+        restTemplate.getForEntity("/exams/" + UUID.randomUUID(), String.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
@@ -97,24 +107,28 @@ class ExamControllerIT extends FacadeIT {
   @Test
   void update_missing_returnsNotFound() {
     UUID courseId = createCourse("CS-EX-104", "Exam Update Course");
-    var toUpdate = new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.5000"), courseId);
+    var toUpdate =
+        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.5000"), courseId);
 
-    ResponseEntity<String> response = restTemplate.exchange("/exams/" + UUID.randomUUID(), PUT,
-        new HttpEntity<>(toUpdate), String.class);
+    ResponseEntity<String> response =
+        restTemplate.exchange(
+            "/exams/" + UUID.randomUUID(), PUT, new HttpEntity<>(toUpdate), String.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
 
   @Test
   void delete_missing_returnsNotFound() {
-    ResponseEntity<Void> response = restTemplate.exchange("/exams/" + UUID.randomUUID(), DELETE, null, Void.class);
+    ResponseEntity<Void> response =
+        restTemplate.exchange("/exams/" + UUID.randomUUID(), DELETE, null, Void.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
 
   private UUID createCourse(String reference, String title) {
     var course = new Course(null, reference, title, (short) 6);
-    ResponseEntity<JsonNode> response = restTemplate.postForEntity("/courses", course, JsonNode.class);
+    ResponseEntity<JsonNode> response =
+        restTemplate.postForEntity("/courses", course, JsonNode.class);
     return UUID.fromString(response.getBody().get("id").asText());
   }
 }

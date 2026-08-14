@@ -34,10 +34,8 @@ class ExamServiceTest {
   private static final UUID COURSE_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
   private static final Instant EXAM_DATE = Instant.parse("2026-01-01T10:00:00Z");
 
-  @Mock
-  private ExamRepository repository;
-  @Mock
-  private CourseRepository courseRepository;
+  @Mock private ExamRepository repository;
+  @Mock private CourseRepository courseRepository;
   private final ExamMapper mapper = new ExamMapper();
   private ExamService service;
 
