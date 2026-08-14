@@ -1,6 +1,8 @@
 package com.unigrade.api.endpoint.rest.controller;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -27,31 +29,31 @@ class CourseControllerIT extends FacadeIT {
 
     ResponseEntity<JsonNode> createResponse =
         restTemplate.postForEntity("/courses", toCreate, JsonNode.class);
-    assertThat(createResponse.getStatusCode()).isEqualTo(CREATED);
-    assertThat(createResponse.getBody()).isNotNull();
+    assertEquals(CREATED, createResponse.getStatusCode());
+    assertNotNull(createResponse.getBody());
     UUID createdId = UUID.fromString(createResponse.getBody().get("id").asText());
 
     ResponseEntity<Course> getResponse =
         restTemplate.getForEntity("/courses/" + createdId, Course.class);
-    assertThat(getResponse.getStatusCode()).isEqualTo(OK);
-    assertThat(getResponse.getBody().reference()).isEqualTo("CS-IT-101");
+    assertEquals(OK, getResponse.getStatusCode());
+    assertEquals("CS-IT-101", getResponse.getBody().reference());
     ResponseEntity<Course[]> listResponse = restTemplate.getForEntity("/courses", Course[].class);
-    assertThat(listResponse.getStatusCode()).isEqualTo(OK);
-    assertThat(listResponse.getBody()).isNotEmpty();
+    assertEquals(OK, listResponse.getStatusCode());
+    assertFalse(listResponse.getBody().length == 0);
 
     var toUpdate = new Course(null, "CS-IT-101-BIS", "Intro to Testing v2", (short) 8);
     restTemplate.put("/courses/" + createdId, toUpdate);
 
     ResponseEntity<Course> afterUpdate =
         restTemplate.getForEntity("/courses/" + createdId, Course.class);
-    assertThat(afterUpdate.getBody().reference()).isEqualTo("CS-IT-101-BIS");
-    assertThat(afterUpdate.getBody().credits()).isEqualTo((short) 8);
+    assertEquals("CS-IT-101-BIS", afterUpdate.getBody().reference());
+    assertEquals((short) 8, afterUpdate.getBody().credits());
 
     restTemplate.delete("/courses/" + createdId);
 
     ResponseEntity<String> afterDelete =
         restTemplate.getForEntity("/courses/" + createdId, String.class);
-    assertThat(afterDelete.getStatusCode()).isEqualTo(NOT_FOUND);
+    assertEquals(NOT_FOUND, afterDelete.getStatusCode());
   }
 
   @Test
@@ -60,7 +62,7 @@ class CourseControllerIT extends FacadeIT {
 
     ResponseEntity<String> response = restTemplate.postForEntity("/courses", invalid, String.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+    assertEquals(BAD_REQUEST, response.getStatusCode());
   }
 
   @Test
@@ -69,7 +71,7 @@ class CourseControllerIT extends FacadeIT {
 
     ResponseEntity<String> response = restTemplate.postForEntity("/courses", invalid, String.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+    assertEquals(BAD_REQUEST, response.getStatusCode());
   }
 
   @Test
@@ -81,7 +83,7 @@ class CourseControllerIT extends FacadeIT {
     ResponseEntity<String> response =
         restTemplate.postForEntity("/courses", duplicate, String.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+    assertEquals(CONFLICT, response.getStatusCode());
   }
 
   @Test
@@ -93,7 +95,7 @@ class CourseControllerIT extends FacadeIT {
     ResponseEntity<String> response =
         restTemplate.postForEntity("/courses", duplicate, String.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+    assertEquals(CONFLICT, response.getStatusCode());
   }
 
   @Test
@@ -101,7 +103,7 @@ class CourseControllerIT extends FacadeIT {
     ResponseEntity<String> response =
         restTemplate.getForEntity("/courses/" + UUID.randomUUID(), String.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+    assertEquals(NOT_FOUND, response.getStatusCode());
   }
 
   @Test
@@ -109,6 +111,6 @@ class CourseControllerIT extends FacadeIT {
     ResponseEntity<Void> response =
         restTemplate.exchange("/courses/" + UUID.randomUUID(), DELETE, null, Void.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+    assertEquals(NOT_FOUND, response.getStatusCode());
   }
 }

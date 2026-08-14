@@ -1,6 +1,8 @@
 package com.unigrade.api.endpoint.rest.controller;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -27,33 +29,33 @@ class PromotionControllerIT extends FacadeIT {
 
     ResponseEntity<JsonNode> createResponse =
         restTemplate.postForEntity("/promotions", toCreate, JsonNode.class);
-    assertThat(createResponse.getStatusCode()).isEqualTo(CREATED);
-    assertThat(createResponse.getBody()).isNotNull();
+    assertEquals(CREATED, createResponse.getStatusCode());
+    assertNotNull(createResponse.getBody());
     UUID createdId = UUID.fromString(createResponse.getBody().get("id").asText());
 
     ResponseEntity<Promotion> getResponse =
         restTemplate.getForEntity("/promotions/" + createdId, Promotion.class);
-    assertThat(getResponse.getStatusCode()).isEqualTo(OK);
-    assertThat(getResponse.getBody().reference()).isEqualTo("PROMO-IT-2030");
+    assertEquals(OK, getResponse.getStatusCode());
+    assertEquals("PROMO-IT-2030", getResponse.getBody().reference());
 
     ResponseEntity<Promotion[]> listResponse =
         restTemplate.getForEntity("/promotions", Promotion[].class);
-    assertThat(listResponse.getStatusCode()).isEqualTo(OK);
-    assertThat(listResponse.getBody()).isNotEmpty();
+    assertEquals(OK, listResponse.getStatusCode());
+    assertFalse(listResponse.getBody().length == 0);
 
     var toUpdate = new Promotion(null, "PROMO-IT-2030-BIS", (short) 2030, (short) 2034);
     restTemplate.put("/promotions/" + createdId, toUpdate);
 
     ResponseEntity<Promotion> afterUpdate =
         restTemplate.getForEntity("/promotions/" + createdId, Promotion.class);
-    assertThat(afterUpdate.getBody().reference()).isEqualTo("PROMO-IT-2030-BIS");
-    assertThat(afterUpdate.getBody().endYear()).isEqualTo((short) 2034);
+    assertEquals("PROMO-IT-2030-BIS", afterUpdate.getBody().reference());
+    assertEquals((short) 2034, afterUpdate.getBody().endYear());
 
     restTemplate.delete("/promotions/" + createdId);
 
     ResponseEntity<String> afterDelete =
         restTemplate.getForEntity("/promotions/" + createdId, String.class);
-    assertThat(afterDelete.getStatusCode()).isEqualTo(NOT_FOUND);
+    assertEquals(NOT_FOUND, afterDelete.getStatusCode());
   }
 
   @Test
@@ -63,7 +65,7 @@ class PromotionControllerIT extends FacadeIT {
     ResponseEntity<String> response =
         restTemplate.postForEntity("/promotions", invalid, String.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+    assertEquals(BAD_REQUEST, response.getStatusCode());
   }
 
   @Test
@@ -73,7 +75,7 @@ class PromotionControllerIT extends FacadeIT {
     ResponseEntity<String> response =
         restTemplate.postForEntity("/promotions", invalid, String.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(BAD_REQUEST);
+    assertEquals(BAD_REQUEST, response.getStatusCode());
   }
 
   @Test
@@ -85,7 +87,7 @@ class PromotionControllerIT extends FacadeIT {
     ResponseEntity<String> response =
         restTemplate.postForEntity("/promotions", duplicate, String.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
+    assertEquals(CONFLICT, response.getStatusCode());
   }
 
   @Test
@@ -93,7 +95,7 @@ class PromotionControllerIT extends FacadeIT {
     ResponseEntity<String> response =
         restTemplate.getForEntity("/promotions/" + UUID.randomUUID(), String.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+    assertEquals(NOT_FOUND, response.getStatusCode());
   }
 
   @Test
@@ -101,6 +103,6 @@ class PromotionControllerIT extends FacadeIT {
     ResponseEntity<Void> response =
         restTemplate.exchange("/promotions/" + UUID.randomUUID(), DELETE, null, Void.class);
 
-    assertThat(response.getStatusCode()).isEqualTo(NOT_FOUND);
+    assertEquals(NOT_FOUND, response.getStatusCode());
   }
 }
