@@ -20,7 +20,8 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "group_course",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "group_id", "school_year"}))
+    uniqueConstraints =
+        @UniqueConstraint(columnNames = {"course_id", "group_id", "school_year", "semester"}))
 @Getter
 @Setter
 @Builder
@@ -35,6 +36,9 @@ public class JGroupCourse {
 
   @Column(name = "school_year", nullable = false)
   private Short schoolYear;
+
+  @Column(nullable = false)
+  private Short semester;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "course_id", nullable = false)

@@ -15,6 +15,7 @@ public class ExamMapper {
         .coefficient(entity.getCoefficient())
         .courseId(entity.getCourse().getId())
         .schoolYear(entity.getSchoolYear())
+        .semester(entity.getSemester())
         .build();
   }
 
@@ -25,6 +26,7 @@ public class ExamMapper {
         .coefficient(domain.coefficient())
         .course(course)
         .schoolYear(domain.schoolYear())
+        .semester(domain.semester())
         .build();
   }
 }

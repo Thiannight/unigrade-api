@@ -29,9 +29,10 @@ public class ExamController {
   public List<Exam> findAll(
       @PathVariable UUID courseId,
       @RequestParam(required = false) Short schoolYear,
+      @RequestParam(required = false) Short semester,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {
-    return service.findAll(courseId, schoolYear, page, size);
+    return service.findAll(courseId, schoolYear, semester, page, size);
   }
 
   @GetMapping("/{id}")
