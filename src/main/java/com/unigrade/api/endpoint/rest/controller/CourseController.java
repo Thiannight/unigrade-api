@@ -37,8 +37,7 @@ public class CourseController {
   }
 
   @PostMapping
-  public ResponseEntity<Course> create(@Valid @RequestBody Course course)
-      throws ConflictException {
+  public ResponseEntity<Course> create(@Valid @RequestBody Course course) throws ConflictException {
     Course created = service.create(course);
     return ResponseEntity.created(URI.create("/courses/" + created.id())).body(created);
   }
