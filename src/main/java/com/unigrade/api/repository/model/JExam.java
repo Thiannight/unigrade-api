@@ -37,7 +37,7 @@ public class JExam {
   @Column(name = "exam_date", nullable = false)
   private Instant examDate;
 
-  @Column(precision = 5, scale = 4, nullable = false)
+  @Column(precision = 5, scale = 2, nullable = false)
   private BigDecimal coefficient;
 
   @ManyToOne(fetch = FetchType.LAZY)

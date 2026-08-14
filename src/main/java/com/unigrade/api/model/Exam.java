@@ -12,5 +12,5 @@ import lombok.Builder;
 public record Exam(
     UUID id,
     @NotNull Instant examDate,
-    @NotNull @DecimalMin("0") @DecimalMax("1") BigDecimal coefficient,
+    @NotNull @DecimalMin("0") @DecimalMax("100") BigDecimal coefficient,
     @NotNull UUID courseId) {}

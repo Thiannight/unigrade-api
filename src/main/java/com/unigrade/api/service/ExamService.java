@@ -1,5 +1,6 @@
 package com.unigrade.api.service;
 
+import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.ExamMapper;
 import com.unigrade.api.model.Exam;
@@ -7,6 +8,7 @@ import com.unigrade.api.repository.CourseRepository;
 import com.unigrade.api.repository.ExamRepository;
 import com.unigrade.api.repository.model.JCourse;
 import com.unigrade.api.repository.model.JExam;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,8 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class ExamService {
+
+  private static final BigDecimal MAX_TOTAL_COEFFICIENT = new BigDecimal("100");
 
   private final ExamRepository repository;
   private final CourseRepository courseRepository;
@@ -38,6 +42,7 @@ public class ExamService {
 
   public Exam create(UUID courseId, Exam exam) {
     JCourse course = findCourse(courseId);
+    validateTotalCoefficient(courseId, exam.coefficient(), null);
     return mapper.toDomain(repository.save(mapper.toEntity(exam, course)));
   }
 
@@ -46,6 +51,7 @@ public class ExamService {
     if (!repository.existsByIdAndCourseId(id, courseId)) {
       throw notFound(id);
     }
+    validateTotalCoefficient(courseId, exam.coefficient(), id);
     var withId = new Exam(id, exam.examDate(), exam.coefficient(), courseId);
     JExam saved = repository.save(mapper.toEntity(withId, course));
     return mapper.toDomain(saved);
@@ -56,6 +62,21 @@ public class ExamService {
       throw notFound(id);
     }
     repository.deleteById(id);
+  }
+
+  private void validateTotalCoefficient(
+      UUID courseId, BigDecimal newCoefficient, UUID excludeExamId) {
+    BigDecimal existingTotal =
+        repository.findByCourseId(courseId).stream()
+            .filter(e -> excludeExamId == null || !e.getId().equals(excludeExamId))
+            .map(JExam::getCoefficient)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal total = existingTotal.add(newCoefficient);
+    if (total.compareTo(MAX_TOTAL_COEFFICIENT) > 0) {
+      throw new BadRequestException(
+          "Total exam coefficient for this course would be " + total + "%, cannot exceed 100%");
+    }
   }
 
   private JCourse findCourse(UUID courseId) {
