@@ -79,6 +79,12 @@ public class UserService {
     repository.delete(repository.findById(id).orElseThrow(this::userNotFound));
   }
 
+  public void deactivate(String id) {
+    JUser user = repository.findById(id).orElseThrow(this::userNotFound);
+    user.setIsActive(false);
+    repository.save(user);
+  }
+
   private String generateId(Role role) {
     return switch (role) {
       case STUDENT -> generateStudentId();

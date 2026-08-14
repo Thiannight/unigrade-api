@@ -47,6 +47,12 @@ public class UserController {
   }
 
   @DeleteMapping("/{id}")
+  public ResponseEntity<Void> deactivate(@PathVariable String id) {
+    service.deactivate(id);
+    return ResponseEntity.noContent().build();
+  }
+
+  @DeleteMapping("/{id}/hard")
   public ResponseEntity<Void> delete(@PathVariable String id) {
     service.delete(id);
     return ResponseEntity.noContent().build();

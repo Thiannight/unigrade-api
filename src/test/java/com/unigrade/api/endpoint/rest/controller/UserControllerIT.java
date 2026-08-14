@@ -10,6 +10,7 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
+import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.HttpStatus.OK;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -67,7 +68,7 @@ class UserControllerIT extends FacadeIT {
     assertEquals(OK, updateResponse.getStatusCode());
     assertEquals("Ada-Bis", updateResponse.getBody().get("firstName").asText());
 
-    restTemplate.delete("/users/" + createdId);
+    restTemplate.delete("/users/" + createdId + "/hard");
 
     ResponseEntity<String> afterDelete =
         restTemplate.getForEntity("/users/" + createdId, String.class);
@@ -144,6 +145,39 @@ class UserControllerIT extends FacadeIT {
         restTemplate.exchange("/users/STD99999", DELETE, null, Void.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
+  }
+
+  @Test
+  void delete_default_softDeletes() {
+    String email = "soft-" + UUID.randomUUID() + "@unigrade.com";
+    ResponseEntity<JsonNode> createResponse =
+        restTemplate.postForEntity("/users", studentBody(email, "Ada"), JsonNode.class);
+    String createdId = createResponse.getBody().get("id").asText();
+
+    ResponseEntity<Void> deleteResponse =
+        restTemplate.exchange("/users/" + createdId, DELETE, null, Void.class);
+    assertEquals(NO_CONTENT, deleteResponse.getStatusCode());
+
+    ResponseEntity<JsonNode> getResponse =
+        restTemplate.getForEntity("/users/" + createdId, JsonNode.class);
+    assertEquals(OK, getResponse.getStatusCode());
+    assertFalse(getResponse.getBody().get("isActive").asBoolean());
+  }
+
+  @Test
+  void delete_hard_removes() {
+    String email = "hard-" + UUID.randomUUID() + "@unigrade.com";
+    ResponseEntity<JsonNode> createResponse =
+        restTemplate.postForEntity("/users", studentBody(email, "Ada"), JsonNode.class);
+    String createdId = createResponse.getBody().get("id").asText();
+
+    ResponseEntity<Void> deleteResponse =
+        restTemplate.exchange("/users/" + createdId + "/hard", DELETE, null, Void.class);
+    assertEquals(NO_CONTENT, deleteResponse.getStatusCode());
+
+    ResponseEntity<String> getResponse =
+        restTemplate.getForEntity("/users/" + createdId, String.class);
+    assertEquals(NOT_FOUND, getResponse.getStatusCode());
   }
 
   @Test

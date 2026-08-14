@@ -1,6 +1,7 @@
 package com.unigrade.api.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -166,6 +167,24 @@ class UserServiceTest {
     when(repository.findById(ID)).thenReturn(Optional.empty());
 
     assertThrows(NotFoundException.class, () -> service.delete(ID));
+  }
+
+  @Test
+  void deactivate_existing_setsInactive() {
+    JUser user = entity();
+    when(repository.findById(ID)).thenReturn(Optional.of(user));
+
+    service.deactivate(ID);
+
+    assertFalse(user.getIsActive());
+    verify(repository).save(user);
+  }
+
+  @Test
+  void deactivate_missing_throwsNotFound() {
+    when(repository.findById(ID)).thenReturn(Optional.empty());
+
+    assertThrows(NotFoundException.class, () -> service.deactivate(ID));
   }
 
   private User domain(String id) {
