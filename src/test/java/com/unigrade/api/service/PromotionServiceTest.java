@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.unigrade.api.exception.ConflictException;
+import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.PromotionMapper;
 import com.unigrade.api.model.Promotion;
 import com.unigrade.api.repository.PromotionRepository;
@@ -20,25 +22,24 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class PromotionServiceTest {
 
   private static final UUID ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
-  @Mock private PromotionRepository promotionRepository;
-  private final PromotionMapper promotionMapper = new PromotionMapper();
+  @Mock private PromotionRepository repository;
+  private final PromotionMapper mapper = new PromotionMapper();
   private PromotionService promotionService;
 
   @BeforeEach
   void setUp() {
-    promotionService = new PromotionService(promotionRepository, promotionMapper);
+    promotionService = new PromotionService(repository, mapper);
   }
 
   @Test
   void findAll_returnsMappedList() {
-    when(promotionRepository.findAll()).thenReturn(List.of(entity()));
+    when(repository.findAll()).thenReturn(List.of(entity()));
 
     List<Promotion> result = promotionService.findAll();
 
@@ -47,8 +48,8 @@ class PromotionServiceTest {
   }
 
   @Test
-  void findById_existing_returnsMapped() {
-    when(promotionRepository.findById(ID)).thenReturn(Optional.of(entity()));
+  void findById_existing_returnsMapped() throws NotFoundException {
+    when(repository.findById(ID)).thenReturn(Optional.of(entity()));
 
     Promotion result = promotionService.findById(ID);
 
@@ -57,22 +58,22 @@ class PromotionServiceTest {
 
   @Test
   void findById_missing_throwsNotFound() {
-    when(promotionRepository.findById(ID)).thenReturn(Optional.empty());
+    when(repository.findById(ID)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> promotionService.findById(ID))
-        .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("404");
+        .isInstanceOf(NotFoundException.class)
+        .hasMessageContaining("not found");
   }
 
   @Test
-  void create_validYears_saves() {
+  void create_validYears_saves() throws ConflictException {
     var domain = new Promotion(null, "PROMO-2026", (short) 2026, (short) 2029);
-    when(promotionRepository.save(any())).thenReturn(entity());
+    when(repository.save(any())).thenReturn(entity());
 
     Promotion result = promotionService.create(domain);
 
     assertThat(result.reference()).isEqualTo("PROMO-2026");
-    verify(promotionRepository).save(any());
+    verify(repository).save(any());
   }
 
   @Test
@@ -89,27 +90,24 @@ class PromotionServiceTest {
   @Test
   void create_duplicateConstraint_throwsConflict() {
     var domain = new Promotion(null, "PROMO-2026", (short) 2026, (short) 2029);
-    when(promotionRepository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
+    when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
 
-    assertThatThrownBy(() -> promotionService.create(domain))
-        .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("409");
+    assertThatThrownBy(() -> promotionService.create(domain)).isInstanceOf(ConflictException.class);
   }
 
   @Test
   void update_missing_throwsNotFound() {
-    when(promotionRepository.existsById(ID)).thenReturn(false);
+    when(repository.existsById(ID)).thenReturn(false);
     var domain = new Promotion(ID, "PROMO-2026", (short) 2026, (short) 2029);
 
     assertThatThrownBy(() -> promotionService.update(ID, domain))
-        .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("404");
+        .isInstanceOf(NotFoundException.class);
   }
 
   @Test
-  void update_existing_saves() {
-    when(promotionRepository.existsById(ID)).thenReturn(true);
-    when(promotionRepository.save(any())).thenReturn(entity());
+  void update_existing_saves() throws Exception {
+    when(repository.existsById(ID)).thenReturn(true);
+    when(repository.save(any())).thenReturn(entity());
     var domain = new Promotion(ID, "PROMO-2026", (short) 2026, (short) 2029);
 
     Promotion result = promotionService.update(ID, domain);
@@ -119,20 +117,18 @@ class PromotionServiceTest {
 
   @Test
   void delete_missing_throwsNotFound() {
-    when(promotionRepository.existsById(ID)).thenReturn(false);
+    when(repository.existsById(ID)).thenReturn(false);
 
-    assertThatThrownBy(() -> promotionService.delete(ID))
-        .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("404");
+    assertThatThrownBy(() -> promotionService.delete(ID)).isInstanceOf(NotFoundException.class);
   }
 
   @Test
-  void delete_existing_deletes() {
-    when(promotionRepository.existsById(ID)).thenReturn(true);
+  void delete_existing_deletes() throws NotFoundException {
+    when(repository.existsById(ID)).thenReturn(true);
 
     promotionService.delete(ID);
 
-    verify(promotionRepository).deleteById(ID);
+    verify(repository).deleteById(ID);
   }
 
   private JPromotion entity() {
