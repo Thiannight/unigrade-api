@@ -30,18 +30,18 @@ class PromotionServiceTest {
 
   @Mock private PromotionRepository repository;
   private final PromotionMapper mapper = new PromotionMapper();
-  private PromotionService promotionService;
+  private PromotionService service;
 
   @BeforeEach
   void setUp() {
-    promotionService = new PromotionService(repository, mapper);
+    service = new PromotionService(repository, mapper);
   }
 
   @Test
   void findAll_returnsMappedList() {
     when(repository.findAll()).thenReturn(List.of(entity()));
 
-    List<Promotion> result = promotionService.findAll();
+    List<Promotion> result = service.findAll();
 
     assertThat(result).hasSize(1);
     assertThat(result.get(0).reference()).isEqualTo("PROMO-2026");
@@ -51,7 +51,7 @@ class PromotionServiceTest {
   void findById_existing_returnsMapped() throws NotFoundException {
     when(repository.findById(ID)).thenReturn(Optional.of(entity()));
 
-    Promotion result = promotionService.findById(ID);
+    Promotion result = service.findById(ID);
 
     assertThat(result.id()).isEqualTo(ID);
   }
@@ -60,7 +60,7 @@ class PromotionServiceTest {
   void findById_missing_throwsNotFound() {
     when(repository.findById(ID)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> promotionService.findById(ID))
+    assertThatThrownBy(() -> service.findById(ID))
         .isInstanceOf(NotFoundException.class)
         .hasMessageContaining("not found");
   }
@@ -70,7 +70,7 @@ class PromotionServiceTest {
     var domain = new Promotion(null, "PROMO-2026", (short) 2026, (short) 2029);
     when(repository.save(any())).thenReturn(entity());
 
-    Promotion result = promotionService.create(domain);
+    Promotion result = service.create(domain);
 
     assertThat(result.reference()).isEqualTo("PROMO-2026");
     verify(repository).save(any());
@@ -92,7 +92,7 @@ class PromotionServiceTest {
     var domain = new Promotion(null, "PROMO-2026", (short) 2026, (short) 2029);
     when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
 
-    assertThatThrownBy(() -> promotionService.create(domain)).isInstanceOf(ConflictException.class);
+    assertThatThrownBy(() -> service.create(domain)).isInstanceOf(ConflictException.class);
   }
 
   @Test
@@ -100,8 +100,7 @@ class PromotionServiceTest {
     when(repository.existsById(ID)).thenReturn(false);
     var domain = new Promotion(ID, "PROMO-2026", (short) 2026, (short) 2029);
 
-    assertThatThrownBy(() -> promotionService.update(ID, domain))
-        .isInstanceOf(NotFoundException.class);
+    assertThatThrownBy(() -> service.update(ID, domain)).isInstanceOf(NotFoundException.class);
   }
 
   @Test
@@ -110,7 +109,7 @@ class PromotionServiceTest {
     when(repository.save(any())).thenReturn(entity());
     var domain = new Promotion(ID, "PROMO-2026", (short) 2026, (short) 2029);
 
-    Promotion result = promotionService.update(ID, domain);
+    Promotion result = service.update(ID, domain);
 
     assertThat(result.id()).isEqualTo(ID);
   }
@@ -119,14 +118,14 @@ class PromotionServiceTest {
   void delete_missing_throwsNotFound() {
     when(repository.existsById(ID)).thenReturn(false);
 
-    assertThatThrownBy(() -> promotionService.delete(ID)).isInstanceOf(NotFoundException.class);
+    assertThatThrownBy(() -> service.delete(ID)).isInstanceOf(NotFoundException.class);
   }
 
   @Test
   void delete_existing_deletes() throws NotFoundException {
     when(repository.existsById(ID)).thenReturn(true);
 
-    promotionService.delete(ID);
+    service.delete(ID);
 
     verify(repository).deleteById(ID);
   }
