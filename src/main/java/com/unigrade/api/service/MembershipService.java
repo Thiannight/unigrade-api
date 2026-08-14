@@ -1,0 +1,104 @@
+package com.unigrade.api.service;
+
+import com.unigrade.api.exception.BadRequestException;
+import com.unigrade.api.exception.ConflictException;
+import com.unigrade.api.exception.NotFoundException;
+import com.unigrade.api.mapper.MembershipMapper;
+import com.unigrade.api.model.Membership;
+import com.unigrade.api.model.dto.GroupAssignRequest;
+import com.unigrade.api.model.dto.GroupTransferRequest;
+import com.unigrade.api.repository.MembershipRepository;
+import com.unigrade.api.repository.StudentGroupRepository;
+import com.unigrade.api.repository.UserRepository;
+import com.unigrade.api.repository.model.JMembership;
+import com.unigrade.api.repository.model.JStudentGroup;
+import com.unigrade.api.repository.model.JUser;
+import com.unigrade.api.validation.MembershipValidator;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+public class MembershipService {
+
+  private final MembershipRepository repository;
+  private final StudentGroupRepository groupRepository;
+  private final UserRepository userRepository;
+  private final MembershipMapper mapper;
+  private final MembershipValidator validator;
+
+  @Transactional
+  public Membership assign(UUID groupId, GroupAssignRequest request) {
+    JStudentGroup group = resolveGroup(groupId);
+
+    JUser student = resolveStudent(request.studentId());
+    validator.validateStudent(student);
+
+    var membership = new Membership(null, groupId, request.studentId(), request.startDate(), null);
+    return mapper.toDomain(raceAwareSave(mapper.toEntity(membership, group, student)));
+  }
+
+  @Transactional
+  public Membership transfer(UUID groupId, String studentId, GroupTransferRequest request) {
+    LocalDate transferDate = request.transferDate();
+    UUID newGroupId = request.newGroupId();
+
+    if (groupId.equals(newGroupId)) {
+      throw new BadRequestException("Cannot transfer to same group");
+    }
+    JMembership membership =
+        repository
+            .findByGroupIdAndStudentIdAndEndDateIsNull(groupId, studentId)
+            .orElseThrow(() -> noActiveMembership(groupId, studentId));
+    validator.validateTransferDate(transferDate, membership.getStartDate());
+
+    membership.setEndDate(transferDate);
+    repository.saveAndFlush(membership);
+
+    return assign(newGroupId, new GroupAssignRequest(studentId, transferDate));
+  }
+
+  public List<Membership> getMembersAt(
+      UUID groupId, LocalDate date, boolean includeInactive, int page, int size) {
+    resolveGroup(groupId);
+    return repository
+        .findMembersAt(
+            groupId,
+            date,
+            includeInactive,
+            PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 20)))
+        .map(mapper::toDomain)
+        .toList();
+  }
+
+  private JMembership raceAwareSave(JMembership membership) {
+    try {
+      return repository.save(membership);
+    } catch (DataIntegrityViolationException e) {
+      throw new ConflictException("Student is already a member of a group");
+    }
+  }
+
+  private JStudentGroup resolveGroup(UUID groupId) {
+    return groupRepository
+        .findById(groupId)
+        .orElseThrow(() -> new NotFoundException("Group not found: " + groupId));
+  }
+
+  private JUser resolveStudent(String studentId) {
+    return userRepository
+        .findById(studentId)
+        .orElseThrow(() -> new NotFoundException("Student not found: " + studentId));
+  }
+
+  private NotFoundException noActiveMembership(UUID groupId, String studentId) {
+    return new NotFoundException(
+        "No active membership for student " + studentId + " in group " + groupId);
+  }
+}
