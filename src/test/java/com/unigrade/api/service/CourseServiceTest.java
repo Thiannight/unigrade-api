@@ -21,6 +21,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @ExtendWith(MockitoExtension.class)
 class CourseServiceTest {
@@ -37,17 +40,17 @@ class CourseServiceTest {
   }
 
   @Test
-  void findAll_returnsMappedList() {
-    when(repository.findAll()).thenReturn(List.of(entity()));
+  void findAll_returnsMappedPage() {
+    when(repository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(entity())));
 
-    List<Course> result = service.findAll();
+    var result = service.findAll(PageRequest.of(0, 20));
 
-    assertThat(result).hasSize(1);
-    assertThat(result.get(0).reference()).isEqualTo("CS101");
+    assertThat(result.getContent()).hasSize(1);
+    assertThat(result.getContent().get(0).reference()).isEqualTo("CS101");
   }
 
   @Test
-  void findById_existing_returnsMapped() throws NotFoundException {
+  void findById_existing_returnsMapped() {
     when(repository.findById(ID)).thenReturn(Optional.of(entity()));
 
     Course result = service.findById(ID);
@@ -65,7 +68,7 @@ class CourseServiceTest {
   }
 
   @Test
-  void create_saves() throws ConflictException {
+  void create_saves() {
     var domain = new Course(null, "CS101", "Intro to CS", (short) 6);
     when(repository.save(any())).thenReturn(entity());
 
@@ -92,7 +95,7 @@ class CourseServiceTest {
   }
 
   @Test
-  void update_existing_saves() throws Exception {
+  void update_existing_saves() {
     when(repository.existsById(ID)).thenReturn(true);
     when(repository.save(any())).thenReturn(entity());
     var domain = new Course(ID, "CS101", "Intro to CS", (short) 6);
@@ -110,7 +113,7 @@ class CourseServiceTest {
   }
 
   @Test
-  void delete_existing_deletes() throws NotFoundException {
+  void delete_existing_deletes() {
     when(repository.existsById(ID)).thenReturn(true);
 
     service.delete(ID);

@@ -48,7 +48,7 @@ class PromotionServiceTest {
   }
 
   @Test
-  void findById_existing_returnsMapped() throws NotFoundException {
+  void findById_existing_returnsMapped() {
     when(repository.findById(ID)).thenReturn(Optional.of(entity()));
 
     Promotion result = service.findById(ID);
@@ -66,7 +66,7 @@ class PromotionServiceTest {
   }
 
   @Test
-  void create_validYears_saves() throws ConflictException {
+  void create_validYears_saves() {
     var domain = new Promotion(null, "PROMO-2026", (short) 2026, (short) 2029);
     when(repository.save(any())).thenReturn(entity());
 
@@ -104,7 +104,7 @@ class PromotionServiceTest {
   }
 
   @Test
-  void update_existing_saves() throws Exception {
+  void update_existing_saves() {
     when(repository.existsById(ID)).thenReturn(true);
     when(repository.save(any())).thenReturn(entity());
     var domain = new Promotion(ID, "PROMO-2026", (short) 2026, (short) 2029);
@@ -122,7 +122,7 @@ class PromotionServiceTest {
   }
 
   @Test
-  void delete_existing_deletes() throws NotFoundException {
+  void delete_existing_deletes() {
     when(repository.existsById(ID)).thenReturn(true);
 
     service.delete(ID);

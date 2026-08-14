@@ -1,7 +1,5 @@
 package com.unigrade.api.endpoint.rest.controller;
 
-import com.unigrade.api.exception.ConflictException;
-import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.model.Promotion;
 import com.unigrade.api.service.PromotionService;
 import jakarta.validation.Valid;
@@ -32,25 +30,23 @@ public class PromotionController {
   }
 
   @GetMapping("/{id}")
-  public Promotion findById(@PathVariable UUID id) throws NotFoundException {
+  public Promotion findById(@PathVariable UUID id) {
     return service.findById(id);
   }
 
   @PostMapping
-  public ResponseEntity<Promotion> create(@Valid @RequestBody Promotion promotion)
-      throws ConflictException {
+  public ResponseEntity<Promotion> create(@Valid @RequestBody Promotion promotion) {
     Promotion created = service.create(promotion);
     return ResponseEntity.created(URI.create("/promotions/" + created.id())).body(created);
   }
 
   @PutMapping("/{id}")
-  public Promotion update(@PathVariable UUID id, @Valid @RequestBody Promotion promotion)
-      throws NotFoundException, ConflictException {
+  public Promotion update(@PathVariable UUID id, @Valid @RequestBody Promotion promotion) {
     return service.update(id, promotion);
   }
 
   @DeleteMapping("/{id}")
-  public ResponseEntity<Void> delete(@PathVariable UUID id) throws NotFoundException {
+  public ResponseEntity<Void> delete(@PathVariable UUID id) {
     service.delete(id);
     return ResponseEntity.noContent().build();
   }

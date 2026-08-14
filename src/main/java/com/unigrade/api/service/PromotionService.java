@@ -23,16 +23,15 @@ public class PromotionService {
     return repository.findAll().stream().map(mapper::toDomain).toList();
   }
 
-  public Promotion findById(UUID id) throws NotFoundException {
+  public Promotion findById(UUID id) {
     return repository.findById(id).map(mapper::toDomain).orElseThrow(() -> notFound(id));
   }
 
-  public Promotion create(Promotion promotion) throws ConflictException {
+  public Promotion create(Promotion promotion) {
     return saveAndMap(mapper.toEntity(promotion));
   }
 
-  public Promotion update(UUID id, Promotion promotion)
-      throws NotFoundException, ConflictException {
+  public Promotion update(UUID id, Promotion promotion) {
     if (!repository.existsById(id)) {
       throw notFound(id);
     }
@@ -41,14 +40,14 @@ public class PromotionService {
     return saveAndMap(mapper.toEntity(withId));
   }
 
-  public void delete(UUID id) throws NotFoundException {
+  public void delete(UUID id) {
     if (!repository.existsById(id)) {
       throw notFound(id);
     }
     repository.deleteById(id);
   }
 
-  private Promotion saveAndMap(JPromotion entity) throws ConflictException {
+  private Promotion saveAndMap(JPromotion entity) {
     try {
       return mapper.toDomain(repository.save(entity));
     } catch (DataIntegrityViolationException e) {

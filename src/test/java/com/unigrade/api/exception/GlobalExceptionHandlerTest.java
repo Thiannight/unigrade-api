@@ -2,13 +2,17 @@ package com.unigrade.api.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
 class GlobalExceptionHandlerTest {
@@ -19,12 +23,15 @@ class GlobalExceptionHandlerTest {
   void validationErrors_mapsToBadRequest() {
     var bindingResult = new BeanPropertyBindingResult(new Object(), "promotion");
     bindingResult.addError(new FieldError("promotion", "reference", "must not be blank"));
+    bindingResult.addError(new FieldError("promotion", "startYear", "must be positive"));
 
     ProblemDetail detail =
         handler.handleValidation(new MethodArgumentNotValidException(null, bindingResult));
 
     assertThat(detail.getStatus()).isEqualTo(400);
-    assertThat(detail.getDetail()).isEqualTo("must not be blank");
+    assertThat(detail.getDetail()).isEqualTo("Validation failed");
+    assertThat(detail.getProperties().get("errors"))
+        .isEqualTo(List.of("reference: must not be blank", "startYear: must be positive"));
   }
 
   @Test
@@ -32,6 +39,25 @@ class GlobalExceptionHandlerTest {
     ProblemDetail detail = handler.handleConflict(new DataIntegrityViolationException("dup"));
 
     assertThat(detail.getStatus()).isEqualTo(409);
+  }
+
+  @Test
+  void typeMismatch_mapsToBadRequest() {
+    var e = new MethodArgumentTypeMismatchException("pas-un-uuid", UUID.class, "id", null, null);
+
+    ProblemDetail detail = handler.handleTypeMismatch(e);
+
+    assertThat(detail.getStatus()).isEqualTo(400);
+    assertThat(detail.getDetail()).isEqualTo("Invalid value for parameter 'id'");
+  }
+
+  @Test
+  void unreadableBody_mapsToBadRequest() {
+    ProblemDetail detail =
+        handler.handleUnreadable(new HttpMessageNotReadableException("bad json", null, null));
+
+    assertThat(detail.getStatus()).isEqualTo(400);
+    assertThat(detail.getDetail()).isEqualTo("Malformed request body");
   }
 
   @Test

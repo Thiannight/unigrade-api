@@ -36,9 +36,9 @@ class CourseControllerIT extends FacadeIT {
     assertThat(getResponse.getStatusCode()).isEqualTo(OK);
     assertThat(getResponse.getBody().reference()).isEqualTo("CS-IT-101");
 
-    ResponseEntity<Course[]> listResponse = restTemplate.getForEntity("/courses", Course[].class);
+    ResponseEntity<JsonNode> listResponse = restTemplate.getForEntity("/courses", JsonNode.class);
     assertThat(listResponse.getStatusCode()).isEqualTo(OK);
-    assertThat(listResponse.getBody()).isNotEmpty();
+    assertThat(listResponse.getBody().get("content").size()).isGreaterThan(0);
 
     var toUpdate = new Course(null, "CS-IT-101-BIS", "Intro to Testing v2", (short) 8);
     restTemplate.put("/courses/" + createdId, toUpdate);
