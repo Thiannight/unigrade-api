@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.unigrade.api.exception.ConflictException;
+import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.CourseMapper;
 import com.unigrade.api.model.Course;
 import com.unigrade.api.repository.CourseRepository;
@@ -19,108 +21,101 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class CourseServiceTest {
 
   private static final UUID ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
-  @Mock private CourseRepository courseRepository;
-  private final CourseMapper courseMapper = new CourseMapper();
-  private CourseService courseService;
+  @Mock private CourseRepository repository;
+  private final CourseMapper mapper = new CourseMapper();
+  private CourseService service;
 
   @BeforeEach
   void setUp() {
-    courseService = new CourseService(courseRepository, courseMapper);
+    service = new CourseService(repository, mapper);
   }
 
   @Test
   void findAll_returnsMappedList() {
-    when(courseRepository.findAll()).thenReturn(List.of(entity()));
+    when(repository.findAll()).thenReturn(List.of(entity()));
 
-    List<Course> result = courseService.findAll();
+    List<Course> result = service.findAll();
 
     assertThat(result).hasSize(1);
     assertThat(result.get(0).reference()).isEqualTo("CS101");
   }
 
   @Test
-  void findById_existing_returnsMapped() {
-    when(courseRepository.findById(ID)).thenReturn(Optional.of(entity()));
+  void findById_existing_returnsMapped() throws NotFoundException {
+    when(repository.findById(ID)).thenReturn(Optional.of(entity()));
 
-    Course result = courseService.findById(ID);
+    Course result = service.findById(ID);
 
     assertThat(result.id()).isEqualTo(ID);
   }
 
   @Test
   void findById_missing_throwsNotFound() {
-    when(courseRepository.findById(ID)).thenReturn(Optional.empty());
+    when(repository.findById(ID)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> courseService.findById(ID))
-        .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("404");
+    assertThatThrownBy(() -> service.findById(ID))
+        .isInstanceOf(NotFoundException.class)
+        .hasMessageContaining("not found");
   }
 
   @Test
-  void create_saves() {
+  void create_saves() throws ConflictException {
     var domain = new Course(null, "CS101", "Intro to CS", (short) 6);
-    when(courseRepository.save(any())).thenReturn(entity());
+    when(repository.save(any())).thenReturn(entity());
 
-    Course result = courseService.create(domain);
+    Course result = service.create(domain);
 
     assertThat(result.reference()).isEqualTo("CS101");
-    verify(courseRepository).save(any());
+    verify(repository).save(any());
   }
 
   @Test
   void create_duplicateConstraint_throwsConflict() {
     var domain = new Course(null, "CS101", "Intro to CS", (short) 6);
-    when(courseRepository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
+    when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
 
-    assertThatThrownBy(() -> courseService.create(domain))
-        .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("409");
+    assertThatThrownBy(() -> service.create(domain)).isInstanceOf(ConflictException.class);
   }
 
   @Test
   void update_missing_throwsNotFound() {
-    when(courseRepository.existsById(ID)).thenReturn(false);
+    when(repository.existsById(ID)).thenReturn(false);
     var domain = new Course(ID, "CS101", "Intro to CS", (short) 6);
 
-    assertThatThrownBy(() -> courseService.update(ID, domain))
-        .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("404");
+    assertThatThrownBy(() -> service.update(ID, domain)).isInstanceOf(NotFoundException.class);
   }
 
   @Test
-  void update_existing_saves() {
-    when(courseRepository.existsById(ID)).thenReturn(true);
-    when(courseRepository.save(any())).thenReturn(entity());
+  void update_existing_saves() throws Exception {
+    when(repository.existsById(ID)).thenReturn(true);
+    when(repository.save(any())).thenReturn(entity());
     var domain = new Course(ID, "CS101", "Intro to CS", (short) 6);
 
-    Course result = courseService.update(ID, domain);
+    Course result = service.update(ID, domain);
 
     assertThat(result.id()).isEqualTo(ID);
   }
 
   @Test
   void delete_missing_throwsNotFound() {
-    when(courseRepository.existsById(ID)).thenReturn(false);
+    when(repository.existsById(ID)).thenReturn(false);
 
-    assertThatThrownBy(() -> courseService.delete(ID))
-        .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("404");
+    assertThatThrownBy(() -> service.delete(ID)).isInstanceOf(NotFoundException.class);
   }
 
   @Test
-  void delete_existing_deletes() {
-    when(courseRepository.existsById(ID)).thenReturn(true);
+  void delete_existing_deletes() throws NotFoundException {
+    when(repository.existsById(ID)).thenReturn(true);
 
-    courseService.delete(ID);
+    service.delete(ID);
 
-    verify(courseRepository).deleteById(ID);
+    verify(repository).deleteById(ID);
   }
 
   private JCourse entity() {

@@ -1,65 +1,60 @@
 package com.unigrade.api.service;
 
+import com.unigrade.api.exception.ConflictException;
+import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.CourseMapper;
 import com.unigrade.api.model.Course;
 import com.unigrade.api.repository.CourseRepository;
 import com.unigrade.api.repository.model.JCourse;
 import java.util.List;
 import java.util.UUID;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class CourseService {
 
-  private final CourseRepository courseRepository;
-  private final CourseMapper courseMapper;
+  private final CourseRepository repository;
+  private final CourseMapper mapper;
 
   public List<Course> findAll() {
-    return courseRepository.findAll().stream().map(courseMapper::toDomain).toList();
+    return repository.findAll().stream().map(mapper::toDomain).toList();
   }
 
-  public Course findById(UUID id) {
-    return courseRepository
-        .findById(id)
-        .map(courseMapper::toDomain)
-        .orElseThrow(() -> notFound(id));
+  public Course findById(UUID id) throws NotFoundException {
+    return repository.findById(id).map(mapper::toDomain).orElseThrow(() -> notFound(id));
   }
 
-  public Course create(Course course) {
-    var withoutId = new Course(null, course.reference(), course.title(), course.credits());
-    return saveAndMap(courseMapper.toEntity(withoutId));
+  public Course create(Course course) throws ConflictException {
+    return saveAndMap(mapper.toEntity(course));
   }
 
-  public Course update(UUID id, Course course) {
-    if (!courseRepository.existsById(id)) {
+  public Course update(UUID id, Course course) throws NotFoundException, ConflictException {
+    if (!repository.existsById(id)) {
       throw notFound(id);
     }
     var withId = new Course(id, course.reference(), course.title(), course.credits());
-    return saveAndMap(courseMapper.toEntity(withId));
+    return saveAndMap(mapper.toEntity(withId));
   }
 
-  public void delete(UUID id) {
-    if (!courseRepository.existsById(id)) {
+  public void delete(UUID id) throws NotFoundException {
+    if (!repository.existsById(id)) {
       throw notFound(id);
     }
-    courseRepository.deleteById(id);
+    repository.deleteById(id);
   }
 
-  private Course saveAndMap(JCourse entity) {
+  private Course saveAndMap(JCourse entity) throws ConflictException {
     try {
-      return courseMapper.toDomain(courseRepository.save(entity));
+      return mapper.toDomain(repository.save(entity));
     } catch (DataIntegrityViolationException e) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Course reference or title already exists", e);
+      throw new ConflictException("Course reference or title already exists");
     }
   }
 
-  private static ResponseStatusException notFound(UUID id) {
-    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found: " + id);
+  private static NotFoundException notFound(UUID id) {
+    return new NotFoundException("Course not found: " + id);
   }
 }

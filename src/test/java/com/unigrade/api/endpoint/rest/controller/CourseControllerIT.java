@@ -8,6 +8,7 @@ import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.OK;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.unigrade.api.conf.FacadeIT;
 import com.unigrade.api.model.Course;
 import java.util.UUID;
@@ -24,15 +25,14 @@ class CourseControllerIT extends FacadeIT {
   void crud_lifecycle() {
     var toCreate = new Course(null, "CS-IT-101", "Intro to Testing", (short) 6);
 
-    ResponseEntity<Course> createResponse =
-        restTemplate.postForEntity("/courses", toCreate, Course.class);
+    ResponseEntity<JsonNode> createResponse =
+        restTemplate.postForEntity("/courses", toCreate, JsonNode.class);
     assertThat(createResponse.getStatusCode()).isEqualTo(CREATED);
-    Course created = createResponse.getBody();
-    assertThat(created).isNotNull();
-    assertThat(created.id()).isNotNull();
+    assertThat(createResponse.getBody()).isNotNull();
+    UUID createdId = UUID.fromString(createResponse.getBody().get("id").asText());
 
     ResponseEntity<Course> getResponse =
-        restTemplate.getForEntity("/courses/" + created.id(), Course.class);
+        restTemplate.getForEntity("/courses/" + createdId, Course.class);
     assertThat(getResponse.getStatusCode()).isEqualTo(OK);
     assertThat(getResponse.getBody().reference()).isEqualTo("CS-IT-101");
 
@@ -40,18 +40,18 @@ class CourseControllerIT extends FacadeIT {
     assertThat(listResponse.getStatusCode()).isEqualTo(OK);
     assertThat(listResponse.getBody()).isNotEmpty();
 
-    var toUpdate = new Course(created.id(), "CS-IT-101-BIS", "Intro to Testing v2", (short) 8);
-    restTemplate.put("/courses/" + created.id(), toUpdate);
+    var toUpdate = new Course(null, "CS-IT-101-BIS", "Intro to Testing v2", (short) 8);
+    restTemplate.put("/courses/" + createdId, toUpdate);
 
     ResponseEntity<Course> afterUpdate =
-        restTemplate.getForEntity("/courses/" + created.id(), Course.class);
+        restTemplate.getForEntity("/courses/" + createdId, Course.class);
     assertThat(afterUpdate.getBody().reference()).isEqualTo("CS-IT-101-BIS");
     assertThat(afterUpdate.getBody().credits()).isEqualTo((short) 8);
 
-    restTemplate.delete("/courses/" + created.id());
+    restTemplate.delete("/courses/" + createdId);
 
     ResponseEntity<String> afterDelete =
-        restTemplate.getForEntity("/courses/" + created.id(), String.class);
+        restTemplate.getForEntity("/courses/" + createdId, String.class);
     assertThat(afterDelete.getStatusCode()).isEqualTo(NOT_FOUND);
   }
 
