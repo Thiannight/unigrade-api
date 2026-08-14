@@ -1,5 +1,6 @@
 package com.unigrade.api.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
@@ -16,6 +17,7 @@ public record Promotion(
     @NotNull @Positive Short startYear,
     @NotNull @Positive Short endYear) {
 
+  @JsonIgnore
   @AssertTrue(message = "startYear must be strictly before endYear")
   public boolean isYearRangeValid() {
     return startYear == null || endYear == null || startYear < endYear;
