@@ -14,6 +14,7 @@ public class ExamMapper {
         .examDate(entity.getExamDate())
         .coefficient(entity.getCoefficient())
         .courseId(entity.getCourse().getId())
+        .schoolYear(entity.getSchoolYear())
         .build();
   }
 
@@ -23,6 +24,7 @@ public class ExamMapper {
         .examDate(domain.examDate())
         .coefficient(domain.coefficient())
         .course(course)
+        .schoolYear(domain.schoolYear())
         .build();
   }
 }

@@ -14,7 +14,9 @@ public interface ExamRepository extends JpaRepository<JExam, UUID> {
 
   Page<JExam> findAllByCourseId(UUID courseId, Pageable pageable);
 
-  List<JExam> findByCourseId(UUID courseId);
+  Page<JExam> findAllByCourseIdAndSchoolYear(UUID courseId, Short schoolYear, Pageable pageable);
+
+  List<JExam> findByCourseIdAndSchoolYear(UUID courseId, Short schoolYear);
 
   Optional<JExam> findByIdAndCourseId(UUID id, UUID courseId);
 

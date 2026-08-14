@@ -20,7 +20,7 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "group_course",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "group_id"}))
+    uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "group_id", "school_year"}))
 @Getter
 @Setter
 @Builder
@@ -32,6 +32,9 @@ public class JGroupCourse {
   @GeneratedValue(strategy = GenerationType.UUID)
   @Column(length = 36)
   private UUID id;
+
+  @Column(name = "school_year", nullable = false)
+  private Short schoolYear;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "course_id", nullable = false)

@@ -31,7 +31,12 @@ class ExamControllerIT extends FacadeIT {
   void crud_lifecycle() {
     UUID courseId = createCourse("CS-EX-101", "Exam Lifecycle Course");
     var toCreate =
-        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("50.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("50.00"),
+            courseId,
+            (short) 2026);
 
     ResponseEntity<JsonNode> createResponse =
         restTemplate.postForEntity("/courses/" + courseId + "/exams", toCreate, JsonNode.class);
@@ -43,6 +48,7 @@ class ExamControllerIT extends FacadeIT {
         restTemplate.getForEntity("/courses/" + courseId + "/exams/" + createdId, Exam.class);
     assertEquals(OK, getResponse.getStatusCode());
     assertEquals(courseId, getResponse.getBody().courseId());
+    assertEquals((short) 2026, getResponse.getBody().schoolYear());
 
     ResponseEntity<Exam[]> listResponse =
         restTemplate.getForEntity("/courses/" + courseId + "/exams", Exam[].class);
@@ -50,7 +56,12 @@ class ExamControllerIT extends FacadeIT {
     assertFalse(listResponse.getBody().length == 0);
 
     var toUpdate =
-        new Exam(null, Instant.parse("2026-07-01T09:00:00Z"), new BigDecimal("75.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-07-01T09:00:00Z"),
+            new BigDecimal("75.00"),
+            courseId,
+            (short) 2026);
     restTemplate.put("/courses/" + courseId + "/exams/" + createdId, toUpdate);
 
     ResponseEntity<Exam> afterUpdate =
@@ -69,7 +80,11 @@ class ExamControllerIT extends FacadeIT {
     UUID missingCourseId = UUID.randomUUID();
     var invalid =
         new Exam(
-            null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("50.00"), missingCourseId);
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("50.00"),
+            missingCourseId,
+            (short) 2026);
 
     ResponseEntity<String> response =
         restTemplate.postForEntity("/courses/" + missingCourseId + "/exams", invalid, String.class);
@@ -81,7 +96,12 @@ class ExamControllerIT extends FacadeIT {
   void create_coefficientOutOfRange_returnsBadRequest() {
     UUID courseId = createCourse("CS-EX-102", "Exam Range Course");
     var invalid =
-        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("150.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("150.00"),
+            courseId,
+            (short) 2026);
 
     ResponseEntity<String> response =
         restTemplate.postForEntity("/courses/" + courseId + "/exams", invalid, String.class);
@@ -92,7 +112,7 @@ class ExamControllerIT extends FacadeIT {
   @Test
   void create_missingExamDate_returnsBadRequest() {
     UUID courseId = createCourse("CS-EX-103", "Exam Date Course");
-    var invalid = new Exam(null, null, new BigDecimal("50.00"), courseId);
+    var invalid = new Exam(null, null, new BigDecimal("50.00"), courseId, (short) 2026);
 
     ResponseEntity<String> response =
         restTemplate.postForEntity("/courses/" + courseId + "/exams", invalid, String.class);
@@ -101,14 +121,37 @@ class ExamControllerIT extends FacadeIT {
   }
 
   @Test
-  void create_totalCoefficientExceeds100_returnsBadRequest() {
+  void create_missingSchoolYear_returnsBadRequest() {
+    UUID courseId = createCourse("CS-EX-112", "Exam No Year Course");
+    var invalid =
+        new Exam(
+            null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("50.00"), courseId, null);
+
+    ResponseEntity<String> response =
+        restTemplate.postForEntity("/courses/" + courseId + "/exams", invalid, String.class);
+
+    assertEquals(BAD_REQUEST, response.getStatusCode());
+  }
+
+  @Test
+  void create_totalCoefficientExceeds100SameYear_returnsBadRequest() {
     UUID courseId = createCourse("CS-EX-109", "Exam Total Course");
     var first =
-        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("60.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("60.00"),
+            courseId,
+            (short) 2026);
     restTemplate.postForEntity("/courses/" + courseId + "/exams", first, JsonNode.class);
 
     var second =
-        new Exam(null, Instant.parse("2026-06-15T09:00:00Z"), new BigDecimal("50.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-06-15T09:00:00Z"),
+            new BigDecimal("50.00"),
+            courseId,
+            (short) 2026);
     ResponseEntity<String> response =
         restTemplate.postForEntity("/courses/" + courseId + "/exams", second, String.class);
 
@@ -119,15 +162,81 @@ class ExamControllerIT extends FacadeIT {
   void create_totalCoefficientExactly100_returnsCreated() {
     UUID courseId = createCourse("CS-EX-110", "Exam Total Exact Course");
     var first =
-        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("60.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("60.00"),
+            courseId,
+            (short) 2026);
     restTemplate.postForEntity("/courses/" + courseId + "/exams", first, JsonNode.class);
 
     var second =
-        new Exam(null, Instant.parse("2026-06-15T09:00:00Z"), new BigDecimal("40.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-06-15T09:00:00Z"),
+            new BigDecimal("40.00"),
+            courseId,
+            (short) 2026);
     ResponseEntity<JsonNode> response =
         restTemplate.postForEntity("/courses/" + courseId + "/exams", second, JsonNode.class);
 
     assertEquals(CREATED, response.getStatusCode());
+  }
+
+  @Test
+  void create_sameCourseDifferentSchoolYear_doesNotShareCoefficientBudget() {
+    UUID courseId = createCourse("CS-EX-113", "Exam Cross Year Course");
+    var year2026 =
+        new Exam(
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("60.00"),
+            courseId,
+            (short) 2026);
+    ResponseEntity<JsonNode> first =
+        restTemplate.postForEntity("/courses/" + courseId + "/exams", year2026, JsonNode.class);
+    assertEquals(CREATED, first.getStatusCode());
+
+    // Different school year — should NOT be blocked by 2026's 60% usage.
+    var year2028 =
+        new Exam(
+            null,
+            Instant.parse("2028-06-01T09:00:00Z"),
+            new BigDecimal("60.00"),
+            courseId,
+            (short) 2028);
+    ResponseEntity<JsonNode> second =
+        restTemplate.postForEntity("/courses/" + courseId + "/exams", year2028, JsonNode.class);
+
+    assertEquals(CREATED, second.getStatusCode());
+  }
+
+  @Test
+  void findAll_filtersBySchoolYear() {
+    UUID courseId = createCourse("CS-EX-114", "Exam Filter Course");
+    var year2026 =
+        new Exam(
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("50.00"),
+            courseId,
+            (short) 2026);
+    restTemplate.postForEntity("/courses/" + courseId + "/exams", year2026, JsonNode.class);
+    var year2028 =
+        new Exam(
+            null,
+            Instant.parse("2028-06-01T09:00:00Z"),
+            new BigDecimal("50.00"),
+            courseId,
+            (short) 2028);
+    restTemplate.postForEntity("/courses/" + courseId + "/exams", year2028, JsonNode.class);
+
+    ResponseEntity<Exam[]> response =
+        restTemplate.getForEntity("/courses/" + courseId + "/exams?schoolYear=2028", Exam[].class);
+
+    assertEquals(OK, response.getStatusCode());
+    assertEquals(1, response.getBody().length);
+    assertEquals((short) 2028, response.getBody()[0].schoolYear());
   }
 
   @Test
@@ -146,7 +255,12 @@ class ExamControllerIT extends FacadeIT {
     UUID courseId = createCourse("CS-EX-106", "Exam Wrong Course A");
     UUID otherCourseId = createCourse("CS-EX-107", "Exam Wrong Course B");
     var toCreate =
-        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("50.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("50.00"),
+            courseId,
+            (short) 2026);
     ResponseEntity<JsonNode> createResponse =
         restTemplate.postForEntity("/courses/" + courseId + "/exams", toCreate, JsonNode.class);
     UUID examId = UUID.fromString(createResponse.getBody().get("id").asText());
@@ -161,7 +275,12 @@ class ExamControllerIT extends FacadeIT {
   void update_missing_returnsNotFound() {
     UUID courseId = createCourse("CS-EX-104", "Exam Update Course");
     var toUpdate =
-        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("50.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("50.00"),
+            courseId,
+            (short) 2026);
 
     ResponseEntity<String> response =
         restTemplate.exchange(
@@ -177,17 +296,32 @@ class ExamControllerIT extends FacadeIT {
   void update_totalCoefficientExceeds100_returnsBadRequest() {
     UUID courseId = createCourse("CS-EX-111", "Exam Update Total Course");
     var first =
-        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("50.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("50.00"),
+            courseId,
+            (short) 2026);
     ResponseEntity<JsonNode> firstResponse =
         restTemplate.postForEntity("/courses/" + courseId + "/exams", first, JsonNode.class);
     UUID firstId = UUID.fromString(firstResponse.getBody().get("id").asText());
 
     var second =
-        new Exam(null, Instant.parse("2026-06-15T09:00:00Z"), new BigDecimal("30.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-06-15T09:00:00Z"),
+            new BigDecimal("30.00"),
+            courseId,
+            (short) 2026);
     restTemplate.postForEntity("/courses/" + courseId + "/exams", second, JsonNode.class);
 
     var updateFirst =
-        new Exam(null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("80.00"), courseId);
+        new Exam(
+            null,
+            Instant.parse("2026-06-01T09:00:00Z"),
+            new BigDecimal("80.00"),
+            courseId,
+            (short) 2026);
     ResponseEntity<String> response =
         restTemplate.exchange(
             "/courses/" + courseId + "/exams/" + firstId,

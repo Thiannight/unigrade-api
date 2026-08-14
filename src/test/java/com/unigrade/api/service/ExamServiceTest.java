@@ -35,6 +35,7 @@ class ExamServiceTest {
   private static final UUID OTHER_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
   private static final UUID COURSE_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
   private static final Instant EXAM_DATE = Instant.parse("2026-01-01T10:00:00Z");
+  private static final short SCHOOL_YEAR = 2026;
 
   @Mock private ExamRepository repository;
   @Mock private CourseRepository courseRepository;
@@ -47,28 +48,40 @@ class ExamServiceTest {
   }
 
   @Test
-  void findAll_existingCourse_returnsMappedList() {
+  void findAll_noSchoolYearFilter_returnsMappedList() {
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
     when(repository.findAllByCourseId(any(), any(Pageable.class)))
-        .thenReturn(new PageImpl<>(List.of(entity(ID, new BigDecimal("50.00")))));
+        .thenReturn(new PageImpl<>(List.of(entity(ID, new BigDecimal("50.00"), SCHOOL_YEAR))));
 
-    List<Exam> result = service.findAll(COURSE_ID, 0, 10);
+    List<Exam> result = service.findAll(COURSE_ID, null, 0, 10);
 
     assertEquals(1, result.size());
     assertEquals(COURSE_ID, result.get(0).courseId());
   }
 
   @Test
+  void findAll_withSchoolYearFilter_returnsMappedList() {
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.findAllByCourseIdAndSchoolYear(any(), any(), any(Pageable.class)))
+        .thenReturn(new PageImpl<>(List.of(entity(ID, new BigDecimal("50.00"), SCHOOL_YEAR))));
+
+    List<Exam> result = service.findAll(COURSE_ID, SCHOOL_YEAR, 0, 10);
+
+    assertEquals(1, result.size());
+    assertEquals(SCHOOL_YEAR, result.get(0).schoolYear());
+  }
+
+  @Test
   void findAll_missingCourse_throwsNotFound() {
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.empty());
 
-    assertThrows(NotFoundException.class, () -> service.findAll(COURSE_ID, 0, 10));
+    assertThrows(NotFoundException.class, () -> service.findAll(COURSE_ID, null, 0, 10));
   }
 
   @Test
   void findById_existing_returnsMapped() {
     when(repository.findByIdAndCourseId(ID, COURSE_ID))
-        .thenReturn(Optional.of(entity(ID, new BigDecimal("50.00"))));
+        .thenReturn(Optional.of(entity(ID, new BigDecimal("50.00"), SCHOOL_YEAR)));
 
     Exam result = service.findById(COURSE_ID, ID);
 
@@ -87,10 +100,10 @@ class ExamServiceTest {
 
   @Test
   void create_underTotal_saves() {
-    var domain = new Exam(null, EXAM_DATE, new BigDecimal("50.00"), COURSE_ID);
+    var domain = new Exam(null, EXAM_DATE, new BigDecimal("50.00"), COURSE_ID, SCHOOL_YEAR);
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
-    when(repository.findByCourseId(COURSE_ID)).thenReturn(List.of());
-    when(repository.save(any())).thenReturn(entity(ID, new BigDecimal("50.00")));
+    when(repository.findByCourseIdAndSchoolYear(COURSE_ID, SCHOOL_YEAR)).thenReturn(List.of());
+    when(repository.save(any())).thenReturn(entity(ID, new BigDecimal("50.00"), SCHOOL_YEAR));
 
     Exam result = service.create(COURSE_ID, domain);
 
@@ -100,29 +113,43 @@ class ExamServiceTest {
 
   @Test
   void create_missingCourse_throwsNotFound() {
-    var domain = new Exam(null, EXAM_DATE, new BigDecimal("50.00"), COURSE_ID);
+    var domain = new Exam(null, EXAM_DATE, new BigDecimal("50.00"), COURSE_ID, SCHOOL_YEAR);
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.empty());
 
     assertThrows(NotFoundException.class, () -> service.create(COURSE_ID, domain));
   }
 
   @Test
-  void create_totalExceeds100_throwsBadRequest() {
-    var domain = new Exam(null, EXAM_DATE, new BigDecimal("60.00"), COURSE_ID);
+  void create_totalExceeds100ForSameYear_throwsBadRequest() {
+    var domain = new Exam(null, EXAM_DATE, new BigDecimal("60.00"), COURSE_ID, SCHOOL_YEAR);
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
-    when(repository.findByCourseId(COURSE_ID))
-        .thenReturn(List.of(entity(OTHER_ID, new BigDecimal("50.00"))));
+    when(repository.findByCourseIdAndSchoolYear(COURSE_ID, SCHOOL_YEAR))
+        .thenReturn(List.of(entity(OTHER_ID, new BigDecimal("50.00"), SCHOOL_YEAR)));
 
     assertThrows(BadRequestException.class, () -> service.create(COURSE_ID, domain));
   }
 
   @Test
-  void create_totalExactly100_saves() {
-    var domain = new Exam(null, EXAM_DATE, new BigDecimal("50.00"), COURSE_ID);
+  void create_differentSchoolYear_doesNotCountTowardOtherYearTotal() {
+    short nextYear = (short) (SCHOOL_YEAR + 2);
+    var domain = new Exam(null, EXAM_DATE, new BigDecimal("60.00"), COURSE_ID, nextYear);
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
-    when(repository.findByCourseId(COURSE_ID))
-        .thenReturn(List.of(entity(OTHER_ID, new BigDecimal("50.00"))));
-    when(repository.save(any())).thenReturn(entity(ID, new BigDecimal("50.00")));
+    // 2026 already has 60% used up, but this exam is for 2028 — should not conflict
+    when(repository.findByCourseIdAndSchoolYear(COURSE_ID, nextYear)).thenReturn(List.of());
+    when(repository.save(any())).thenReturn(entity(ID, new BigDecimal("60.00"), nextYear));
+
+    Exam result = service.create(COURSE_ID, domain);
+
+    assertEquals(nextYear, result.schoolYear());
+  }
+
+  @Test
+  void create_totalExactly100_saves() {
+    var domain = new Exam(null, EXAM_DATE, new BigDecimal("50.00"), COURSE_ID, SCHOOL_YEAR);
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.findByCourseIdAndSchoolYear(COURSE_ID, SCHOOL_YEAR))
+        .thenReturn(List.of(entity(OTHER_ID, new BigDecimal("50.00"), SCHOOL_YEAR)));
+    when(repository.save(any())).thenReturn(entity(ID, new BigDecimal("50.00"), SCHOOL_YEAR));
 
     Exam result = service.create(COURSE_ID, domain);
 
@@ -133,12 +160,13 @@ class ExamServiceTest {
   void update_excludesItselfFromTotal_saves() {
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
     when(repository.existsByIdAndCourseId(ID, COURSE_ID)).thenReturn(true);
-    when(repository.findByCourseId(COURSE_ID))
+    when(repository.findByCourseIdAndSchoolYear(COURSE_ID, SCHOOL_YEAR))
         .thenReturn(
             List.of(
-                entity(ID, new BigDecimal("50.00")), entity(OTHER_ID, new BigDecimal("30.00"))));
-    when(repository.save(any())).thenReturn(entity(ID, new BigDecimal("70.00")));
-    var domain = new Exam(ID, EXAM_DATE, new BigDecimal("70.00"), COURSE_ID);
+                entity(ID, new BigDecimal("50.00"), SCHOOL_YEAR),
+                entity(OTHER_ID, new BigDecimal("30.00"), SCHOOL_YEAR)));
+    when(repository.save(any())).thenReturn(entity(ID, new BigDecimal("70.00"), SCHOOL_YEAR));
+    var domain = new Exam(ID, EXAM_DATE, new BigDecimal("70.00"), COURSE_ID, SCHOOL_YEAR);
 
     Exam result = service.update(COURSE_ID, ID, domain);
 
@@ -149,11 +177,12 @@ class ExamServiceTest {
   void update_totalExceeds100_throwsBadRequest() {
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
     when(repository.existsByIdAndCourseId(ID, COURSE_ID)).thenReturn(true);
-    when(repository.findByCourseId(COURSE_ID))
+    when(repository.findByCourseIdAndSchoolYear(COURSE_ID, SCHOOL_YEAR))
         .thenReturn(
             List.of(
-                entity(ID, new BigDecimal("50.00")), entity(OTHER_ID, new BigDecimal("30.00"))));
-    var domain = new Exam(ID, EXAM_DATE, new BigDecimal("80.00"), COURSE_ID);
+                entity(ID, new BigDecimal("50.00"), SCHOOL_YEAR),
+                entity(OTHER_ID, new BigDecimal("30.00"), SCHOOL_YEAR)));
+    var domain = new Exam(ID, EXAM_DATE, new BigDecimal("80.00"), COURSE_ID, SCHOOL_YEAR);
 
     assertThrows(BadRequestException.class, () -> service.update(COURSE_ID, ID, domain));
   }
@@ -162,7 +191,7 @@ class ExamServiceTest {
   void update_missingExam_throwsNotFound() {
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
     when(repository.existsByIdAndCourseId(ID, COURSE_ID)).thenReturn(false);
-    var domain = new Exam(ID, EXAM_DATE, new BigDecimal("50.00"), COURSE_ID);
+    var domain = new Exam(ID, EXAM_DATE, new BigDecimal("50.00"), COURSE_ID, SCHOOL_YEAR);
 
     assertThrows(NotFoundException.class, () -> service.update(COURSE_ID, ID, domain));
   }
@@ -170,7 +199,7 @@ class ExamServiceTest {
   @Test
   void update_missingCourse_throwsNotFound() {
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.empty());
-    var domain = new Exam(ID, EXAM_DATE, new BigDecimal("50.00"), COURSE_ID);
+    var domain = new Exam(ID, EXAM_DATE, new BigDecimal("50.00"), COURSE_ID, SCHOOL_YEAR);
 
     assertThrows(NotFoundException.class, () -> service.update(COURSE_ID, ID, domain));
   }
@@ -197,11 +226,12 @@ class ExamServiceTest {
     return c;
   }
 
-  private JExam entity(UUID id, BigDecimal coefficient) {
+  private JExam entity(UUID id, BigDecimal coefficient, short schoolYear) {
     var e = new JExam();
     e.setId(id);
     e.setExamDate(EXAM_DATE);
     e.setCoefficient(coefficient);
+    e.setSchoolYear(schoolYear);
     e.setCourse(course());
     return e;
   }

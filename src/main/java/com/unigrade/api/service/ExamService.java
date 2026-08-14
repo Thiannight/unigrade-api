@@ -12,7 +12,9 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,12 +27,14 @@ public class ExamService {
   private final CourseRepository courseRepository;
   private final ExamMapper mapper;
 
-  public List<Exam> findAll(UUID courseId, int page, int size) {
+  public List<Exam> findAll(UUID courseId, Short schoolYear, int page, int size) {
     findCourse(courseId);
-    return repository
-        .findAllByCourseId(courseId, PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 50)))
-        .map(mapper::toDomain)
-        .toList();
+    Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 50));
+    Page<JExam> result =
+        schoolYear == null
+            ? repository.findAllByCourseId(courseId, pageable)
+            : repository.findAllByCourseIdAndSchoolYear(courseId, schoolYear, pageable);
+    return result.map(mapper::toDomain).toList();
   }
 
   public Exam findById(UUID courseId, UUID id) {
@@ -42,7 +46,7 @@ public class ExamService {
 
   public Exam create(UUID courseId, Exam exam) {
     JCourse course = findCourse(courseId);
-    validateTotalCoefficient(courseId, exam.coefficient(), null);
+    validateTotalCoefficient(courseId, exam.schoolYear(), exam.coefficient(), null);
     return mapper.toDomain(repository.save(mapper.toEntity(exam, course)));
   }
 
@@ -51,8 +55,8 @@ public class ExamService {
     if (!repository.existsByIdAndCourseId(id, courseId)) {
       throw notFound(id);
     }
-    validateTotalCoefficient(courseId, exam.coefficient(), id);
-    var withId = new Exam(id, exam.examDate(), exam.coefficient(), courseId);
+    validateTotalCoefficient(courseId, exam.schoolYear(), exam.coefficient(), id);
+    var withId = new Exam(id, exam.examDate(), exam.coefficient(), courseId, exam.schoolYear());
     JExam saved = repository.save(mapper.toEntity(withId, course));
     return mapper.toDomain(saved);
   }
@@ -65,9 +69,9 @@ public class ExamService {
   }
 
   private void validateTotalCoefficient(
-      UUID courseId, BigDecimal newCoefficient, UUID excludeExamId) {
+      UUID courseId, Short schoolYear, BigDecimal newCoefficient, UUID excludeExamId) {
     BigDecimal existingTotal =
-        repository.findByCourseId(courseId).stream()
+        repository.findByCourseIdAndSchoolYear(courseId, schoolYear).stream()
             .filter(e -> excludeExamId == null || !e.getId().equals(excludeExamId))
             .map(JExam::getCoefficient)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -75,7 +79,11 @@ public class ExamService {
     BigDecimal total = existingTotal.add(newCoefficient);
     if (total.compareTo(MAX_TOTAL_COEFFICIENT) > 0) {
       throw new BadRequestException(
-          "Total exam coefficient for this course would be " + total + "%, cannot exceed 100%");
+          "Total exam coefficient for this course in school year "
+              + schoolYear
+              + " would be "
+              + total
+              + "%, cannot exceed 100%");
     }
   }
 

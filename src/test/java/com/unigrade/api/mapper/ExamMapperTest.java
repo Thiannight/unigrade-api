@@ -21,7 +21,8 @@ class ExamMapperTest {
     var entity = new JExam();
     entity.setId(UUID.fromString("22222222-2222-2222-2222-222222222222"));
     entity.setExamDate(Instant.parse("2026-01-01T10:00:00Z"));
-    entity.setCoefficient(new BigDecimal("0.5000"));
+    entity.setCoefficient(new BigDecimal("50.00"));
+    entity.setSchoolYear((short) 2026);
     entity.setCourse(course);
 
     Exam result = examMapper.toDomain(entity);
@@ -29,6 +30,7 @@ class ExamMapperTest {
     assertEquals(entity.getId(), result.id());
     assertEquals(entity.getExamDate(), result.examDate());
     assertEquals(entity.getCoefficient(), result.coefficient());
+    assertEquals(entity.getSchoolYear(), result.schoolYear());
     assertEquals(entity.getCourse().getId(), result.courseId());
   }
 
@@ -38,8 +40,9 @@ class ExamMapperTest {
         new Exam(
             UUID.fromString("33333333-3333-3333-3333-333333333333"),
             Instant.parse("2026-01-01T10:00:00Z"),
-            new BigDecimal("0.5000"),
-            UUID.fromString("11111111-1111-1111-1111-111111111111"));
+            new BigDecimal("50.00"),
+            UUID.fromString("11111111-1111-1111-1111-111111111111"),
+            (short) 2026);
     var course = new JCourse();
     course.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
 
@@ -48,6 +51,7 @@ class ExamMapperTest {
     assertEquals(domain.id(), result.getId());
     assertEquals(domain.examDate(), result.getExamDate());
     assertEquals(domain.coefficient(), result.getCoefficient());
+    assertEquals(domain.schoolYear(), result.getSchoolYear());
     assertEquals(course, result.getCourse());
   }
 }

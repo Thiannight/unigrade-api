@@ -40,6 +40,9 @@ public class JExam {
   @Column(precision = 5, scale = 2, nullable = false)
   private BigDecimal coefficient;
 
+  @Column(name = "school_year", nullable = false)
+  private Short schoolYear;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "course_id", nullable = false)
   private JCourse course;
