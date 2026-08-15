@@ -23,14 +23,14 @@ class TeacherCourseMapperTest {
     entity.setId(UUID.fromString("22222222-2222-2222-2222-222222222222"));
     entity.setCourse(course);
     entity.setTeacher(teacher);
-    entity.setSchoolYear((short) 2026);
+    entity.setPriority((byte) 2);
 
     TeacherCourse result = teacherCourseMapper.toDomain(entity);
 
     assertEquals(entity.getId(), result.id());
     assertEquals(entity.getCourse().getId(), result.courseId());
     assertEquals(entity.getTeacher().getId(), result.teacherId());
-    assertEquals(entity.getSchoolYear(), result.schoolYear());
+    assertEquals(entity.getPriority(), result.priority());
   }
 
   @Test
@@ -40,7 +40,7 @@ class TeacherCourseMapperTest {
             UUID.fromString("33333333-3333-3333-3333-333333333333"),
             UUID.fromString("11111111-1111-1111-1111-111111111111"),
             "TCR00001",
-            (short) 2026);
+            (byte) 2);
     var course = new JCourse();
     course.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
     var teacher = new JUser();
@@ -51,6 +51,6 @@ class TeacherCourseMapperTest {
     assertEquals(domain.id(), result.getId());
     assertEquals(course, result.getCourse());
     assertEquals(teacher, result.getTeacher());
-    assertEquals(domain.schoolYear(), result.getSchoolYear());
+    assertEquals(domain.priority(), result.getPriority());
   }
 }

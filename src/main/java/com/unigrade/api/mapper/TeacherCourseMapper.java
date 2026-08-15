@@ -14,7 +14,7 @@ public class TeacherCourseMapper {
         .id(entity.getId())
         .courseId(entity.getCourse().getId())
         .teacherId(entity.getTeacher().getId())
-        .schoolYear(entity.getSchoolYear())
+        .priority(entity.getPriority())
         .build();
   }
 
@@ -23,7 +23,7 @@ public class TeacherCourseMapper {
         .id(domain.id())
         .course(course)
         .teacher(teacher)
-        .schoolYear(domain.schoolYear())
+        .priority(domain.priority())
         .build();
   }
 }
