@@ -190,6 +190,39 @@ class TeacherCourseControllerIT extends FacadeIT {
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
 
+  @Test
+  void updatePriority_missingCourse_returnsNotFound() {
+    ResponseEntity<Void> response =
+        restTemplate.exchange(
+            "/courses/" + UUID.randomUUID() + "/teachers/TCR00001",
+            PUT,
+            new HttpEntity<>(Map.of("priority", 3)),
+            Void.class);
+
+    assertEquals(NOT_FOUND, response.getStatusCode());
+  }
+
+  @Test
+  void remove_missingAssignment_returnsNotFound() {
+    UUID courseId = createCourse("TC-IT-RM-NA", "Teacher Course IT Remove No Assign");
+    String teacherId = createTeacher("tc-it-rm-na-" + UUID.randomUUID() + "@unigrade.com", "Bob");
+
+    ResponseEntity<Void> response =
+        restTemplate.exchange(
+            "/courses/" + courseId + "/teachers/" + teacherId, DELETE, null, Void.class);
+
+    assertEquals(NOT_FOUND, response.getStatusCode());
+  }
+
+  @Test
+  void remove_missingCourse_returnsNotFound() {
+    ResponseEntity<Void> response =
+        restTemplate.exchange(
+            "/courses/" + UUID.randomUUID() + "/teachers/TCR00001", DELETE, null, Void.class);
+
+    assertEquals(NOT_FOUND, response.getStatusCode());
+  }
+
   private UUID createCourse(String reference, String title) {
     var course = new Course(null, reference, title, (short) 6);
     ResponseEntity<JsonNode> response =

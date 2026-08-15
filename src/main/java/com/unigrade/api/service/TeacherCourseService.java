@@ -66,6 +66,9 @@ public class TeacherCourseService {
   }
 
   private JTeacherCourse resolveAssignment(UUID courseId, String teacherId) {
+    if (!courseRepository.existsById(courseId)) {
+      throw new NotFoundException("Course not found: " + courseId);
+    }
     return repository
         .findByCourseIdAndTeacherId(courseId, teacherId)
         .orElseThrow(

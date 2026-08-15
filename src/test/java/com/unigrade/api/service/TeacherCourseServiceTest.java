@@ -157,6 +157,7 @@ class TeacherCourseServiceTest {
   @Test
   void updatePriority_updates() {
     var request = new TeacherPriorityRequest((byte) 4);
+    when(courseRepository.existsById(COURSE_ID)).thenReturn(true);
     when(repository.findByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
         .thenReturn(Optional.of(assignment((byte) 2)));
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -169,6 +170,7 @@ class TeacherCourseServiceTest {
   @Test
   void updatePriority_missingAssignment_throwsNotFound() {
     var request = new TeacherPriorityRequest((byte) 4);
+    when(courseRepository.existsById(COURSE_ID)).thenReturn(true);
     when(repository.findByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID)).thenReturn(Optional.empty());
 
     NotFoundException exception =
@@ -179,7 +181,20 @@ class TeacherCourseServiceTest {
   }
 
   @Test
+  void updatePriority_missingCourse_throwsNotFound() {
+    var request = new TeacherPriorityRequest((byte) 4);
+    when(courseRepository.existsById(COURSE_ID)).thenReturn(false);
+
+    NotFoundException exception =
+        assertThrows(
+            NotFoundException.class, () -> service.updatePriority(COURSE_ID, TEACHER_ID, request));
+
+    assertTrue(exception.getMessage().contains("Course not found"));
+  }
+
+  @Test
   void remove_deletes() {
+    when(courseRepository.existsById(COURSE_ID)).thenReturn(true);
     when(repository.findByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
         .thenReturn(Optional.of(assignment((byte) 2)));
 
@@ -190,12 +205,23 @@ class TeacherCourseServiceTest {
 
   @Test
   void remove_missingAssignment_throwsNotFound() {
+    when(courseRepository.existsById(COURSE_ID)).thenReturn(true);
     when(repository.findByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID)).thenReturn(Optional.empty());
 
     NotFoundException exception =
         assertThrows(NotFoundException.class, () -> service.remove(COURSE_ID, TEACHER_ID));
 
     assertTrue(exception.getMessage().contains("not assigned"));
+  }
+
+  @Test
+  void remove_missingCourse_throwsNotFound() {
+    when(courseRepository.existsById(COURSE_ID)).thenReturn(false);
+
+    NotFoundException exception =
+        assertThrows(NotFoundException.class, () -> service.remove(COURSE_ID, TEACHER_ID));
+
+    assertTrue(exception.getMessage().contains("Course not found"));
   }
 
   private JCourse course() {
