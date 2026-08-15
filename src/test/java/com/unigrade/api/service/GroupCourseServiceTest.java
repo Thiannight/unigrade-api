@@ -15,6 +15,7 @@ import com.unigrade.api.model.GroupCourse;
 import com.unigrade.api.model.dto.GroupCourseAssignRequest;
 import com.unigrade.api.model.dto.GroupCourseEndRequest;
 import com.unigrade.api.repository.CourseRepository;
+import com.unigrade.api.repository.ExamRepository;
 import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.StudentGroupRepository;
 import com.unigrade.api.repository.model.JCourse;
@@ -44,12 +45,15 @@ class GroupCourseServiceTest {
   @Mock private GroupCourseRepository repository;
   @Mock private StudentGroupRepository groupRepository;
   @Mock private CourseRepository courseRepository;
+  @Mock private ExamRepository examRepository;
   private final GroupCourseMapper mapper = new GroupCourseMapper();
   private GroupCourseService service;
 
   @BeforeEach
   void setUp() {
-    service = new GroupCourseService(repository, groupRepository, courseRepository, mapper);
+    service =
+        new GroupCourseService(
+            repository, groupRepository, courseRepository, examRepository, mapper);
   }
 
   @Test
@@ -151,6 +155,38 @@ class GroupCourseServiceTest {
     assertThrows(
         BadRequestException.class,
         () -> service.end(GROUP_ID, COURSE_ID, new GroupCourseEndRequest(START_DATE.minusDays(1))));
+  }
+
+  @Test
+  void delete_noExams_deletesActiveAssignment() {
+    JGroupCourse active = groupCourse();
+    when(repository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(active));
+    when(examRepository.existsByCourseId(COURSE_ID)).thenReturn(false);
+
+    service.delete(GROUP_ID, COURSE_ID);
+
+    verify(repository).delete(active);
+  }
+
+  @Test
+  void delete_examsExist_throwsConflict() {
+    when(repository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(groupCourse()));
+    when(examRepository.existsByCourseId(COURSE_ID)).thenReturn(true);
+
+    assertThrows(ConflictException.class, () -> service.delete(GROUP_ID, COURSE_ID));
+  }
+
+  @Test
+  void delete_noActiveAssignment_throwsNotFound() {
+    when(repository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.empty());
+
+    NotFoundException exception =
+        assertThrows(NotFoundException.class, () -> service.delete(GROUP_ID, COURSE_ID));
+
+    assertTrue(exception.getMessage().contains("No active course assignment"));
   }
 
   private JStudentGroup group() {

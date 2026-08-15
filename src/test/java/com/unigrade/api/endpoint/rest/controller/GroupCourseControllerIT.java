@@ -2,11 +2,13 @@ package com.unigrade.api.endpoint.rest.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.PUT;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
+import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.HttpStatus.OK;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -15,6 +17,11 @@ import com.unigrade.api.model.Course;
 import com.unigrade.api.model.GroupCourse;
 import com.unigrade.api.model.Promotion;
 import com.unigrade.api.model.StudentGroup;
+import com.unigrade.api.repository.CourseRepository;
+import com.unigrade.api.repository.ExamRepository;
+import com.unigrade.api.repository.model.JExam;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
@@ -27,6 +34,8 @@ import org.springframework.http.ResponseEntity;
 class GroupCourseControllerIT extends FacadeIT {
 
   @Autowired private TestRestTemplate restTemplate;
+  @Autowired private ExamRepository examRepository;
+  @Autowired private CourseRepository courseRepository;
 
   @Test
   void assign_list_end_lifecycle() {
@@ -169,6 +178,63 @@ class GroupCourseControllerIT extends FacadeIT {
     ResponseEntity<GroupCourse[]> activeResponse =
         restTemplate.getForEntity("/groups/" + groupId + "/courses", GroupCourse[].class);
     assertEquals(1, activeResponse.getBody().length);
+  }
+
+  @Test
+  void delete_noExams_removesAssignment() {
+    UUID groupId = createGroup("GC-DEL-1", (short) 2082, (short) 2083);
+    UUID courseId = createCourse("GC-DEL-101", "Deletable Course");
+
+    restTemplate.postForEntity(
+        "/groups/" + groupId + "/courses",
+        Map.of("courseId", courseId, "startDate", "2024-01-01"),
+        JsonNode.class);
+
+    ResponseEntity<Void> deleteResponse =
+        restTemplate.exchange(
+            "/groups/" + groupId + "/courses/" + courseId, DELETE, null, Void.class);
+    assertEquals(NO_CONTENT, deleteResponse.getStatusCode());
+
+    ResponseEntity<GroupCourse[]> activeResponse =
+        restTemplate.getForEntity("/groups/" + groupId + "/courses", GroupCourse[].class);
+    assertEquals(0, activeResponse.getBody().length);
+  }
+
+  @Test
+  void delete_noActiveAssignment_returnsNotFound() {
+    UUID groupId = createGroup("GC-DNA-1", (short) 2084, (short) 2085);
+    UUID courseId = createCourse("GC-DNA-101", "Never Assigned Course For Delete");
+
+    ResponseEntity<Void> response =
+        restTemplate.exchange(
+            "/groups/" + groupId + "/courses/" + courseId, DELETE, null, Void.class);
+
+    assertEquals(NOT_FOUND, response.getStatusCode());
+  }
+
+  @Test
+  void delete_examExistsForCourse_returnsConflict() {
+    UUID groupId = createGroup("GC-DEX-1", (short) 2086, (short) 2087);
+    UUID courseId = createCourse("GC-DEX-101", "Course With Exam");
+
+    restTemplate.postForEntity(
+        "/groups/" + groupId + "/courses",
+        Map.of("courseId", courseId, "startDate", "2024-01-01"),
+        JsonNode.class);
+
+    var exam =
+        JExam.builder()
+            .examDate(Instant.parse("2024-05-01T09:00:00Z"))
+            .coefficient(new BigDecimal("0.5000"))
+            .course(courseRepository.findById(courseId).orElseThrow())
+            .build();
+    examRepository.save(exam);
+
+    ResponseEntity<String> response =
+        restTemplate.exchange(
+            "/groups/" + groupId + "/courses/" + courseId, DELETE, null, String.class);
+
+    assertEquals(CONFLICT, response.getStatusCode());
   }
 
   private UUID createPromotion(String reference, Short startYear, Short endYear) {

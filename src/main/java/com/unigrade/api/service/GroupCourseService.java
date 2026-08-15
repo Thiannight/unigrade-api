@@ -8,6 +8,7 @@ import com.unigrade.api.model.GroupCourse;
 import com.unigrade.api.model.dto.GroupCourseAssignRequest;
 import com.unigrade.api.model.dto.GroupCourseEndRequest;
 import com.unigrade.api.repository.CourseRepository;
+import com.unigrade.api.repository.ExamRepository;
 import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.StudentGroupRepository;
 import com.unigrade.api.repository.model.JCourse;
@@ -26,6 +27,7 @@ public class GroupCourseService {
   private final GroupCourseRepository repository;
   private final StudentGroupRepository groupRepository;
   private final CourseRepository courseRepository;
+  private final ExamRepository examRepository;
   private final GroupCourseMapper mapper;
 
   public List<GroupCourse> findActiveByGroup(UUID groupId) {
@@ -57,6 +59,19 @@ public class GroupCourseService {
 
     active.setEndDate(request.endDate());
     return mapper.toDomain(repository.saveAndFlush(active));
+  }
+
+  public void delete(UUID groupId, UUID courseId) {
+    JGroupCourse active =
+        repository
+            .findByGroupIdAndCourseIdAndEndDateIsNull(groupId, courseId)
+            .orElseThrow(() -> noActiveAssignment(groupId, courseId));
+
+    if (examRepository.existsByCourseId(courseId)) {
+      throw new ConflictException("Cannot delete: exams exist for this course");
+    }
+
+    repository.delete(active);
   }
 
   private JGroupCourse raceAwareSave(JGroupCourse groupCourse) {

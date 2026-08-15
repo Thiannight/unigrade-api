@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,5 +46,11 @@ public class GroupCourseController {
       @PathVariable UUID courseId,
       @Valid @RequestBody GroupCourseEndRequest request) {
     return service.end(groupId, courseId, request);
+  }
+
+  @DeleteMapping("/{courseId}")
+  public ResponseEntity<Void> delete(@PathVariable UUID groupId, @PathVariable UUID courseId) {
+    service.delete(groupId, courseId);
+    return ResponseEntity.noContent().build();
   }
 }
