@@ -29,8 +29,8 @@ class MembershipControllerIT extends FacadeIT {
 
   @Test
   void assign_transfer_reassign_lifecycle() {
-    UUID groupA = createGroup("MEM-LIFE-1", (short) 2030, (short) 2031);
-    UUID groupB = createGroup("MEM-LIFE-2", (short) 2032, (short) 2033);
+    UUID groupA = createGroup("MEM-LIFE-1", (short) 2050, (short) 2051);
+    UUID groupB = createGroup("MEM-LIFE-2", (short) 2052, (short) 2053);
     String studentId = createUser("mem-life-" + UUID.randomUUID() + "@unigrade.com", "Ada");
 
     ResponseEntity<JsonNode> assignResponse =
@@ -88,7 +88,7 @@ class MembershipControllerIT extends FacadeIT {
 
   @Test
   void assign_notStudent_returnsBadRequest() {
-    UUID groupId = createGroup("MEM-NS-1", (short) 2034, (short) 2035);
+    UUID groupId = createGroup("MEM-NS-1", (short) 2054, (short) 2055);
     String teacherId =
         createUser("mem-ns-" + UUID.randomUUID() + "@unigrade.com", "Bob", "TEACHER");
 
@@ -103,7 +103,7 @@ class MembershipControllerIT extends FacadeIT {
 
   @Test
   void assign_inactiveStudent_returnsBadRequest() {
-    UUID groupId = createGroup("MEM-IN-1", (short) 2036, (short) 2037);
+    UUID groupId = createGroup("MEM-IN-1", (short) 2056, (short) 2057);
     String studentId = createUser("mem-in-" + UUID.randomUUID() + "@unigrade.com", "Ada");
 
     restTemplate.delete("/users/" + studentId);
@@ -119,7 +119,7 @@ class MembershipControllerIT extends FacadeIT {
 
   @Test
   void assign_duplicate_returnsBadRequest() {
-    UUID groupId = createGroup("MEM-DUP-1", (short) 2038, (short) 2039);
+    UUID groupId = createGroup("MEM-DUP-1", (short) 2058, (short) 2059);
     String studentId = createUser("mem-dup-" + UUID.randomUUID() + "@unigrade.com", "Ada");
 
     restTemplate.postForEntity(
@@ -146,7 +146,7 @@ class MembershipControllerIT extends FacadeIT {
 
   @Test
   void transfer_noActiveMembership_returnsNotFound() {
-    UUID groupId = createGroup("MEM-NM-1", (short) 2040, (short) 2041);
+    UUID groupId = createGroup("MEM-NM-1", (short) 2060, (short) 2061);
     String studentId = createUser("mem-nm-" + UUID.randomUUID() + "@unigrade.com", "Ada");
 
     ResponseEntity<Void> response =
@@ -163,7 +163,7 @@ class MembershipControllerIT extends FacadeIT {
 
   @Test
   void getMembersAt_excludesInactiveUnlessRequested() {
-    UUID groupId = createGroup("MEM-IA-1", (short) 2042, (short) 2043);
+    UUID groupId = createGroup("MEM-IA-1", (short) 2062, (short) 2063);
     String studentId = createUser("mem-ia-" + UUID.randomUUID() + "@unigrade.com", "Ada");
 
     restTemplate.postForEntity(

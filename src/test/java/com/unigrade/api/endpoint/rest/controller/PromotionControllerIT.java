@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.OK;
 
@@ -27,6 +29,7 @@ class PromotionControllerIT extends FacadeIT {
 
     ResponseEntity<JsonNode> createResponse =
         restTemplate.postForEntity("/promotions", toCreate, JsonNode.class);
+    assertEquals(CREATED, createResponse.getStatusCode());
     assertNotNull(createResponse.getBody());
     UUID createdId = UUID.fromString(createResponse.getBody().get("id").asText());
 
@@ -83,6 +86,8 @@ class PromotionControllerIT extends FacadeIT {
     var duplicate = new Promotion(null, "PROMO-IT-DUP", (short) 2041, (short) 2044);
     ResponseEntity<String> response =
         restTemplate.postForEntity("/promotions", duplicate, String.class);
+
+    assertEquals(CONFLICT, response.getStatusCode());
   }
 
   @Test
