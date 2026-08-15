@@ -14,10 +14,18 @@ public class GroupCourseMapper {
         .id(entity.getId())
         .courseId(entity.getCourse().getId())
         .groupId(entity.getGroup().getId())
+        .startDate(entity.getStartDate())
+        .endDate(entity.getEndDate())
         .build();
   }
 
   public JGroupCourse toEntity(GroupCourse domain, JCourse course, JStudentGroup group) {
-    return JGroupCourse.builder().id(domain.id()).course(course).group(group).build();
+    return JGroupCourse.builder()
+        .id(domain.id())
+        .course(course)
+        .group(group)
+        .startDate(domain.startDate())
+        .endDate(domain.endDate())
+        .build();
   }
 }
