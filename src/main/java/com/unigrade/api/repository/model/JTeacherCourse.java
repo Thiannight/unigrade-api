@@ -20,7 +20,7 @@ import lombok.Setter;
 @Entity
 @Table(
     name = "teacher_course",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "teacher_id", "school_year"}))
+    uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "teacher_id"}))
 @Getter
 @Setter
 @Builder
@@ -41,6 +41,6 @@ public class JTeacherCourse {
   @JoinColumn(name = "teacher_id", nullable = false)
   private JUser teacher;
 
-  @Column(name = "school_year", nullable = false)
-  private Short schoolYear;
+  @Column(name = "priority", nullable = false)
+  private Byte priority;
 }

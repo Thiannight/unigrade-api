@@ -1,5 +1,7 @@
 package com.unigrade.api.model;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -12,4 +14,4 @@ public record TeacherCourse(
     UUID id,
     @NotNull UUID courseId,
     @NotBlank @Pattern(regexp = "(TCR)\\d{5}") String teacherId,
-    @NotNull @Positive Short schoolYear) {}
+    @NotNull @Positive @Min(1) @Max(5) Byte priority) {}
