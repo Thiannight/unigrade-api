@@ -1,8 +1,8 @@
 package com.unigrade.api.mapper;
 
 import com.unigrade.api.model.Exam;
-import com.unigrade.api.repository.model.JCourse;
 import com.unigrade.api.repository.model.JExam;
+import com.unigrade.api.repository.model.JGroupCourse;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -13,20 +13,16 @@ public class ExamMapper {
         .id(entity.getId())
         .examDate(entity.getExamDate())
         .coefficient(entity.getCoefficient())
-        .courseId(entity.getCourse().getId())
-        .schoolYear(entity.getSchoolYear())
-        .semester(entity.getSemester())
+        .groupCourseId(entity.getGroupCourse().getId())
         .build();
   }
 
-  public JExam toEntity(Exam domain, JCourse course) {
+  public JExam toEntity(Exam domain, JGroupCourse groupCourse) {
     return JExam.builder()
         .id(domain.id())
         .examDate(domain.examDate())
         .coefficient(domain.coefficient())
-        .course(course)
-        .schoolYear(domain.schoolYear())
-        .semester(domain.semester())
+        .groupCourse(groupCourse)
         .build();
   }
 }

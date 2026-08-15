@@ -1,1 +1,0 @@
-ALTER TABLE exam ALTER COLUMN coefficient TYPE NUMERIC(5,2);

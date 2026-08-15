@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/courses/{courseId}/exams")
+@RequestMapping("/group-courses/{groupCourseId}/exams")
 @RequiredArgsConstructor
 public class ExamController {
 
@@ -27,35 +27,35 @@ public class ExamController {
 
   @GetMapping
   public List<Exam> findAll(
-      @PathVariable UUID courseId,
-      @RequestParam(required = false) Short schoolYear,
-      @RequestParam(required = false) Short semester,
+      @PathVariable UUID groupCourseId,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {
-    return service.findAll(courseId, schoolYear, semester, page, size);
+    return service.findAll(groupCourseId, page, size);
   }
 
   @GetMapping("/{id}")
-  public Exam findById(@PathVariable UUID courseId, @PathVariable UUID id) {
-    return service.findById(courseId, id);
+  public Exam findById(@PathVariable UUID groupCourseId, @PathVariable UUID id) {
+    return service.findById(groupCourseId, id);
   }
 
   @PostMapping
-  public ResponseEntity<Exam> create(@PathVariable UUID courseId, @Valid @RequestBody Exam exam) {
-    Exam created = service.create(courseId, exam);
-    return ResponseEntity.created(URI.create("/courses/" + courseId + "/exams/" + created.id()))
+  public ResponseEntity<Exam> create(
+      @PathVariable UUID groupCourseId, @Valid @RequestBody Exam exam) {
+    Exam created = service.create(groupCourseId, exam);
+    return ResponseEntity.created(
+            URI.create("/group-courses/" + groupCourseId + "/exams/" + created.id()))
         .body(created);
   }
 
   @PutMapping("/{id}")
   public Exam update(
-      @PathVariable UUID courseId, @PathVariable UUID id, @Valid @RequestBody Exam exam) {
-    return service.update(courseId, id, exam);
+      @PathVariable UUID groupCourseId, @PathVariable UUID id, @Valid @RequestBody Exam exam) {
+    return service.update(groupCourseId, id, exam);
   }
 
   @DeleteMapping("/{id}")
-  public ResponseEntity<Void> delete(@PathVariable UUID courseId, @PathVariable UUID id) {
-    service.delete(courseId, id);
+  public ResponseEntity<Void> delete(@PathVariable UUID groupCourseId, @PathVariable UUID id) {
+    service.delete(groupCourseId, id);
     return ResponseEntity.noContent().build();
   }
 }

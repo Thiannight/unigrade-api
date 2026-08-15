@@ -12,8 +12,15 @@ import static org.springframework.http.HttpStatus.OK;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.unigrade.api.conf.FacadeIT;
-import com.unigrade.api.model.Course;
 import com.unigrade.api.model.Exam;
+import com.unigrade.api.repository.CourseRepository;
+import com.unigrade.api.repository.GroupCourseRepository;
+import com.unigrade.api.repository.PromotionRepository;
+import com.unigrade.api.repository.StudentGroupRepository;
+import com.unigrade.api.repository.model.JCourse;
+import com.unigrade.api.repository.model.JGroupCourse;
+import com.unigrade.api.repository.model.JPromotion;
+import com.unigrade.api.repository.model.JStudentGroup;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -26,321 +33,201 @@ import org.springframework.http.ResponseEntity;
 class ExamControllerIT extends FacadeIT {
 
   @Autowired private TestRestTemplate restTemplate;
+  @Autowired private CourseRepository courseRepository;
+  @Autowired private PromotionRepository promotionRepository;
+  @Autowired private StudentGroupRepository studentGroupRepository;
+  @Autowired private GroupCourseRepository groupCourseRepository;
 
   @Test
   void crud_lifecycle() {
-    UUID courseId = createCourse("CS-EX-101", "Exam Lifecycle Course");
+    UUID groupCourseId = createGroupCourse("CS-EX-101", "PROMO-EX-101", "A1");
     var toCreate =
         new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("50.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
+            null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.5000"), groupCourseId);
 
     ResponseEntity<JsonNode> createResponse =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", toCreate, JsonNode.class);
+        restTemplate.postForEntity(
+            "/group-courses/" + groupCourseId + "/exams", toCreate, JsonNode.class);
     assertEquals(CREATED, createResponse.getStatusCode());
     assertNotNull(createResponse.getBody());
     UUID createdId = UUID.fromString(createResponse.getBody().get("id").asText());
 
     ResponseEntity<Exam> getResponse =
-        restTemplate.getForEntity("/courses/" + courseId + "/exams/" + createdId, Exam.class);
+        restTemplate.getForEntity(
+            "/group-courses/" + groupCourseId + "/exams/" + createdId, Exam.class);
     assertEquals(OK, getResponse.getStatusCode());
-    assertEquals(courseId, getResponse.getBody().courseId());
-    assertEquals((short) 2026, getResponse.getBody().schoolYear());
-    assertEquals((short) 1, getResponse.getBody().semester());
+    assertEquals(groupCourseId, getResponse.getBody().groupCourseId());
 
     ResponseEntity<Exam[]> listResponse =
-        restTemplate.getForEntity("/courses/" + courseId + "/exams", Exam[].class);
+        restTemplate.getForEntity("/group-courses/" + groupCourseId + "/exams", Exam[].class);
     assertEquals(OK, listResponse.getStatusCode());
     assertFalse(listResponse.getBody().length == 0);
 
     var toUpdate =
         new Exam(
-            null,
-            Instant.parse("2026-07-01T09:00:00Z"),
-            new BigDecimal("75.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
-    restTemplate.put("/courses/" + courseId + "/exams/" + createdId, toUpdate);
+            null, Instant.parse("2026-07-01T09:00:00Z"), new BigDecimal("0.7500"), groupCourseId);
+    restTemplate.put("/group-courses/" + groupCourseId + "/exams/" + createdId, toUpdate);
 
     ResponseEntity<Exam> afterUpdate =
-        restTemplate.getForEntity("/courses/" + courseId + "/exams/" + createdId, Exam.class);
-    assertEquals(new BigDecimal("75.00"), afterUpdate.getBody().coefficient());
+        restTemplate.getForEntity(
+            "/group-courses/" + groupCourseId + "/exams/" + createdId, Exam.class);
+    assertEquals(new BigDecimal("0.7500"), afterUpdate.getBody().coefficient());
 
-    restTemplate.delete("/courses/" + courseId + "/exams/" + createdId);
+    restTemplate.delete("/group-courses/" + groupCourseId + "/exams/" + createdId);
 
     ResponseEntity<String> afterDelete =
-        restTemplate.getForEntity("/courses/" + courseId + "/exams/" + createdId, String.class);
+        restTemplate.getForEntity(
+            "/group-courses/" + groupCourseId + "/exams/" + createdId, String.class);
     assertEquals(NOT_FOUND, afterDelete.getStatusCode());
   }
 
   @Test
-  void create_missingCourse_returnsNotFound() {
-    UUID missingCourseId = UUID.randomUUID();
+  void create_missingGroupCourse_returnsNotFound() {
     var invalid =
         new Exam(
             null,
             Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("50.00"),
-            missingCourseId,
-            (short) 2026,
-            (short) 1);
+            new BigDecimal("0.5000"),
+            UUID.randomUUID());
 
     ResponseEntity<String> response =
-        restTemplate.postForEntity("/courses/" + missingCourseId + "/exams", invalid, String.class);
+        restTemplate.postForEntity(
+            "/group-courses/" + UUID.randomUUID() + "/exams", invalid, String.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
 
   @Test
   void create_coefficientOutOfRange_returnsBadRequest() {
-    UUID courseId = createCourse("CS-EX-102", "Exam Range Course");
+    UUID groupCourseId = createGroupCourse("CS-EX-102", "PROMO-EX-102", "A1");
     var invalid =
         new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("150.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
+            null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("1.5000"), groupCourseId);
 
     ResponseEntity<String> response =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", invalid, String.class);
+        restTemplate.postForEntity(
+            "/group-courses/" + groupCourseId + "/exams", invalid, String.class);
 
     assertEquals(BAD_REQUEST, response.getStatusCode());
   }
 
   @Test
   void create_missingExamDate_returnsBadRequest() {
-    UUID courseId = createCourse("CS-EX-103", "Exam Date Course");
-    var invalid = new Exam(null, null, new BigDecimal("50.00"), courseId, (short) 2026, (short) 1);
+    UUID groupCourseId = createGroupCourse("CS-EX-103", "PROMO-EX-103", "A1");
+    var invalid = new Exam(null, null, new BigDecimal("0.5000"), groupCourseId);
 
     ResponseEntity<String> response =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", invalid, String.class);
+        restTemplate.postForEntity(
+            "/group-courses/" + groupCourseId + "/exams", invalid, String.class);
 
     assertEquals(BAD_REQUEST, response.getStatusCode());
   }
 
   @Test
-  void create_missingSchoolYear_returnsBadRequest() {
-    UUID courseId = createCourse("CS-EX-112", "Exam No Year Course");
-    var invalid =
-        new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("50.00"),
-            courseId,
-            null,
-            (short) 1);
-
-    ResponseEntity<String> response =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", invalid, String.class);
-
-    assertEquals(BAD_REQUEST, response.getStatusCode());
-  }
-
-  @Test
-  void create_missingSemester_returnsBadRequest() {
-    UUID courseId = createCourse("CS-EX-115", "Exam No Semester Course");
-    var invalid =
-        new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("50.00"),
-            courseId,
-            (short) 2026,
-            null);
-
-    ResponseEntity<String> response =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", invalid, String.class);
-
-    assertEquals(BAD_REQUEST, response.getStatusCode());
-  }
-
-  @Test
-  void create_semesterOutOfRange_returnsBadRequest() {
-    UUID courseId = createCourse("CS-EX-116", "Exam Bad Semester Course");
-    var invalid =
-        new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("50.00"),
-            courseId,
-            (short) 2026,
-            (short) 3);
-
-    ResponseEntity<String> response =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", invalid, String.class);
-
-    assertEquals(BAD_REQUEST, response.getStatusCode());
-  }
-
-  @Test
-  void create_totalCoefficientExceeds100SameSemester_returnsBadRequest() {
-    UUID courseId = createCourse("CS-EX-109", "Exam Total Course");
+  void create_totalCoefficientExceeds1_returnsBadRequest() {
+    UUID groupCourseId = createGroupCourse("CS-EX-109", "PROMO-EX-109", "A1");
     var first =
         new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("60.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
-    restTemplate.postForEntity("/courses/" + courseId + "/exams", first, JsonNode.class);
+            null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.6000"), groupCourseId);
+    restTemplate.postForEntity("/group-courses/" + groupCourseId + "/exams", first, JsonNode.class);
 
     var second =
         new Exam(
-            null,
-            Instant.parse("2026-06-15T09:00:00Z"),
-            new BigDecimal("50.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
+            null, Instant.parse("2026-06-15T09:00:00Z"), new BigDecimal("0.5000"), groupCourseId);
     ResponseEntity<String> response =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", second, String.class);
+        restTemplate.postForEntity(
+            "/group-courses/" + groupCourseId + "/exams", second, String.class);
 
     assertEquals(BAD_REQUEST, response.getStatusCode());
   }
 
   @Test
-  void create_totalCoefficientExactly100_returnsCreated() {
-    UUID courseId = createCourse("CS-EX-110", "Exam Total Exact Course");
+  void create_totalCoefficientExactly1_returnsCreated() {
+    UUID groupCourseId = createGroupCourse("CS-EX-110", "PROMO-EX-110", "A1");
     var first =
         new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("60.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
-    restTemplate.postForEntity("/courses/" + courseId + "/exams", first, JsonNode.class);
+            null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.6000"), groupCourseId);
+    restTemplate.postForEntity("/group-courses/" + groupCourseId + "/exams", first, JsonNode.class);
 
     var second =
         new Exam(
-            null,
-            Instant.parse("2026-06-15T09:00:00Z"),
-            new BigDecimal("40.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
+            null, Instant.parse("2026-06-15T09:00:00Z"), new BigDecimal("0.4000"), groupCourseId);
     ResponseEntity<JsonNode> response =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", second, JsonNode.class);
+        restTemplate.postForEntity(
+            "/group-courses/" + groupCourseId + "/exams", second, JsonNode.class);
 
     assertEquals(CREATED, response.getStatusCode());
   }
 
   @Test
-  void create_sameCourseYearDifferentSemester_doesNotShareCoefficientBudget() {
-    UUID courseId = createCourse("CS-EX-117", "Exam Cross Semester Course");
-    var semester1 =
+  void differentGroupCourse_sameCourse_doesNotShareCoefficientBudget() {
+    UUID courseId = createCourse("CS-EX-118");
+    UUID promotionId = createPromotion("PROMO-EX-118");
+    UUID groupCourseK1 =
+        linkGroupCourse(courseId, createStudentGroup(promotionId, "K1"), (short) 2026, (short) 1);
+    UUID groupCourseK2 =
+        linkGroupCourse(courseId, createStudentGroup(promotionId, "K2"), (short) 2026, (short) 1);
+
+    var examK1 =
         new Exam(
-            null,
-            Instant.parse("2026-01-15T09:00:00Z"),
-            new BigDecimal("60.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
-    ResponseEntity<JsonNode> first =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", semester1, JsonNode.class);
-    assertEquals(CREATED, first.getStatusCode());
+            null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.8000"), groupCourseK1);
+    ResponseEntity<JsonNode> firstResponse =
+        restTemplate.postForEntity(
+            "/group-courses/" + groupCourseK1 + "/exams", examK1, JsonNode.class);
+    assertEquals(CREATED, firstResponse.getStatusCode());
 
-    var semester2 =
+    // K2 est une offre distincte du même cours — ne doit pas être limité par les
+    // 0.8 déjà pris par K1.
+    var examK2 =
         new Exam(
-            null,
-            Instant.parse("2026-06-15T09:00:00Z"),
-            new BigDecimal("60.00"),
-            courseId,
-            (short) 2026,
-            (short) 2);
-    ResponseEntity<JsonNode> second =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", semester2, JsonNode.class);
+            null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.8000"), groupCourseK2);
+    ResponseEntity<JsonNode> secondResponse =
+        restTemplate.postForEntity(
+            "/group-courses/" + groupCourseK2 + "/exams", examK2, JsonNode.class);
 
-    assertEquals(CREATED, second.getStatusCode());
-  }
-
-  @Test
-  void findAll_filtersBySchoolYearAndSemester() {
-    UUID courseId = createCourse("CS-EX-114", "Exam Filter Course");
-    var semester1 =
-        new Exam(
-            null,
-            Instant.parse("2026-01-15T09:00:00Z"),
-            new BigDecimal("50.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
-    restTemplate.postForEntity("/courses/" + courseId + "/exams", semester1, JsonNode.class);
-    var semester2 =
-        new Exam(
-            null,
-            Instant.parse("2026-06-15T09:00:00Z"),
-            new BigDecimal("50.00"),
-            courseId,
-            (short) 2026,
-            (short) 2);
-    restTemplate.postForEntity("/courses/" + courseId + "/exams", semester2, JsonNode.class);
-
-    ResponseEntity<Exam[]> response =
-        restTemplate.getForEntity(
-            "/courses/" + courseId + "/exams?schoolYear=2026&semester=2", Exam[].class);
-
-    assertEquals(OK, response.getStatusCode());
-    assertEquals(1, response.getBody().length);
-    assertEquals((short) 2, response.getBody()[0].semester());
+    assertEquals(CREATED, secondResponse.getStatusCode());
   }
 
   @Test
   void getById_missing_returnsNotFound() {
-    UUID courseId = createCourse("CS-EX-105", "Exam Get Course");
+    UUID groupCourseId = createGroupCourse("CS-EX-105", "PROMO-EX-105", "A1");
 
     ResponseEntity<String> response =
         restTemplate.getForEntity(
-            "/courses/" + courseId + "/exams/" + UUID.randomUUID(), String.class);
+            "/group-courses/" + groupCourseId + "/exams/" + UUID.randomUUID(), String.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
 
   @Test
-  void getById_wrongCourse_returnsNotFound() {
-    UUID courseId = createCourse("CS-EX-106", "Exam Wrong Course A");
-    UUID otherCourseId = createCourse("CS-EX-107", "Exam Wrong Course B");
+  void getById_wrongGroupCourse_returnsNotFound() {
+    UUID groupCourseA = createGroupCourse("CS-EX-106", "PROMO-EX-106", "A1");
+    UUID groupCourseB = createGroupCourse("CS-EX-107", "PROMO-EX-107", "A1");
     var toCreate =
         new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("50.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
+            null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.5000"), groupCourseA);
     ResponseEntity<JsonNode> createResponse =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", toCreate, JsonNode.class);
+        restTemplate.postForEntity(
+            "/group-courses/" + groupCourseA + "/exams", toCreate, JsonNode.class);
     UUID examId = UUID.fromString(createResponse.getBody().get("id").asText());
 
     ResponseEntity<String> response =
-        restTemplate.getForEntity("/courses/" + otherCourseId + "/exams/" + examId, String.class);
+        restTemplate.getForEntity(
+            "/group-courses/" + groupCourseB + "/exams/" + examId, String.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
 
   @Test
   void update_missing_returnsNotFound() {
-    UUID courseId = createCourse("CS-EX-104", "Exam Update Course");
+    UUID groupCourseId = createGroupCourse("CS-EX-104", "PROMO-EX-104", "A1");
     var toUpdate =
         new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("50.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
+            null, Instant.parse("2026-06-01T09:00:00Z"), new BigDecimal("0.5000"), groupCourseId);
 
     ResponseEntity<String> response =
         restTemplate.exchange(
-            "/courses/" + courseId + "/exams/" + UUID.randomUUID(),
+            "/group-courses/" + groupCourseId + "/exams/" + UUID.randomUUID(),
             PUT,
             new HttpEntity<>(toUpdate),
             String.class);
@@ -349,63 +236,67 @@ class ExamControllerIT extends FacadeIT {
   }
 
   @Test
-  void update_totalCoefficientExceeds100_returnsBadRequest() {
-    UUID courseId = createCourse("CS-EX-111", "Exam Update Total Course");
-    var first =
-        new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("50.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
-    ResponseEntity<JsonNode> firstResponse =
-        restTemplate.postForEntity("/courses/" + courseId + "/exams", first, JsonNode.class);
-    UUID firstId = UUID.fromString(firstResponse.getBody().get("id").asText());
-
-    var second =
-        new Exam(
-            null,
-            Instant.parse("2026-06-15T09:00:00Z"),
-            new BigDecimal("30.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
-    restTemplate.postForEntity("/courses/" + courseId + "/exams", second, JsonNode.class);
-
-    var updateFirst =
-        new Exam(
-            null,
-            Instant.parse("2026-06-01T09:00:00Z"),
-            new BigDecimal("80.00"),
-            courseId,
-            (short) 2026,
-            (short) 1);
-    ResponseEntity<String> response =
-        restTemplate.exchange(
-            "/courses/" + courseId + "/exams/" + firstId,
-            PUT,
-            new HttpEntity<>(updateFirst),
-            String.class);
-
-    assertEquals(BAD_REQUEST, response.getStatusCode());
-  }
-
-  @Test
   void delete_missing_returnsNotFound() {
-    UUID courseId = createCourse("CS-EX-108", "Exam Delete Course");
+    UUID groupCourseId = createGroupCourse("CS-EX-108", "PROMO-EX-108", "A1");
 
     ResponseEntity<Void> response =
         restTemplate.exchange(
-            "/courses/" + courseId + "/exams/" + UUID.randomUUID(), DELETE, null, Void.class);
+            "/group-courses/" + groupCourseId + "/exams/" + UUID.randomUUID(),
+            DELETE,
+            null,
+            Void.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
 
-  private UUID createCourse(String reference, String title) {
-    var course = new Course(null, reference, title, (short) 6);
-    ResponseEntity<JsonNode> response =
-        restTemplate.postForEntity("/courses", course, JsonNode.class);
-    return UUID.fromString(response.getBody().get("id").asText());
+  private static final java.util.concurrent.atomic.AtomicInteger YEAR_OFFSET =
+      new java.util.concurrent.atomic.AtomicInteger(0);
+
+  private UUID createCourse(String reference) {
+    var course =
+        JCourse.builder()
+            .reference(reference)
+            .title(reference + " title")
+            .credits((short) 6)
+            .build();
+    return courseRepository.save(course).getId();
+  }
+
+  private UUID createPromotion(String reference) {
+    short startYear = (short) (3000 + YEAR_OFFSET.getAndIncrement());
+    var promotion =
+        JPromotion.builder()
+            .reference(reference)
+            .startYear(startYear)
+            .endYear((short) (startYear + 3))
+            .build();
+    return promotionRepository.save(promotion).getId();
+  }
+
+  private UUID createStudentGroup(UUID promotionId, String reference) {
+    var promotion = promotionRepository.findById(promotionId).orElseThrow();
+    var group = JStudentGroup.builder().reference(reference).promotion(promotion).build();
+    return studentGroupRepository.save(group).getId();
+  }
+
+  private UUID linkGroupCourse(UUID courseId, UUID groupId, short schoolYear, short semester) {
+    var course = courseRepository.findById(courseId).orElseThrow();
+    var group = studentGroupRepository.findById(groupId).orElseThrow();
+    var groupCourse =
+        JGroupCourse.builder()
+            .course(course)
+            .group(group)
+            .schoolYear(schoolYear)
+            .semester(semester)
+            .build();
+    return groupCourseRepository.save(groupCourse).getId();
+  }
+
+  private UUID createGroupCourse(
+      String courseReference, String promotionReference, String groupReference) {
+    UUID courseId = createCourse(courseReference);
+    UUID promotionId = createPromotion(promotionReference);
+    UUID groupId = createStudentGroup(promotionId, groupReference);
+    return linkGroupCourse(courseId, groupId, (short) 2026, (short) 1);
   }
 }

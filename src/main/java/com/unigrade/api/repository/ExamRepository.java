@@ -12,17 +12,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ExamRepository extends JpaRepository<JExam, UUID> {
 
-  Page<JExam> findAllByCourseId(UUID courseId, Pageable pageable);
+  Page<JExam> findAllByGroupCourseId(UUID groupCourseId, Pageable pageable);
 
-  Page<JExam> findAllByCourseIdAndSchoolYear(UUID courseId, Short schoolYear, Pageable pageable);
+  List<JExam> findByGroupCourseId(UUID groupCourseId);
 
-  Page<JExam> findAllByCourseIdAndSchoolYearAndSemester(
-      UUID courseId, Short schoolYear, Short semester, Pageable pageable);
+  Optional<JExam> findByIdAndGroupCourseId(UUID id, UUID groupCourseId);
 
-  List<JExam> findByCourseIdAndSchoolYearAndSemester(
-      UUID courseId, Short schoolYear, Short semester);
-
-  Optional<JExam> findByIdAndCourseId(UUID id, UUID courseId);
-
-  boolean existsByIdAndCourseId(UUID id, UUID courseId);
+  boolean existsByIdAndGroupCourseId(UUID id, UUID groupCourseId);
 }

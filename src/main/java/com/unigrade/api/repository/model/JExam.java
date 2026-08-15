@@ -37,18 +37,12 @@ public class JExam {
   @Column(name = "exam_date", nullable = false)
   private Instant examDate;
 
-  @Column(precision = 5, scale = 2, nullable = false)
+  @Column(precision = 5, scale = 4, nullable = false)
   private BigDecimal coefficient;
 
-  @Column(name = "school_year", nullable = false)
-  private Short schoolYear;
-
-  @Column(nullable = false)
-  private Short semester;
-
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "course_id", nullable = false)
-  private JCourse course;
+  @JoinColumn(name = "group_course_id", nullable = false)
+  private JGroupCourse groupCourse;
 
   @OneToMany(mappedBy = "exam")
   private List<JGrade> grades;
