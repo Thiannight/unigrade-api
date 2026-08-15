@@ -1,6 +1,5 @@
 package com.unigrade.api.service;
 
-import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.exception.ConflictException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.MembershipMapper;
@@ -49,24 +48,28 @@ public class MembershipService {
     LocalDate transferDate = request.transferDate();
     UUID newGroupId = request.newGroupId();
 
-    if (groupId.equals(newGroupId)) {
-      throw new BadRequestException("Cannot transfer to same group");
-    }
-    JMembership membership =
+    JUser student = resolveStudent(studentId);
+    JStudentGroup group = resolveGroup(newGroupId);
+    JMembership oldMembership =
         repository
             .findByGroupIdAndStudentIdAndEndDateIsNull(groupId, studentId)
             .orElseThrow(() -> noActiveMembership(groupId, studentId));
-    validator.validateTransferDate(transferDate, membership.getStartDate());
 
-    membership.setEndDate(transferDate);
-    repository.saveAndFlush(membership);
+    validator.validateTransfer(student, oldMembership, request);
 
-    return assign(newGroupId, new GroupAssignRequest(studentId, transferDate));
+    oldMembership.setEndDate(transferDate);
+    repository.saveAndFlush(oldMembership);
+
+    var membership = new Membership(null, newGroupId, studentId, transferDate, null);
+    return mapper.toDomain(raceAwareSave(mapper.toEntity(membership, group, student)));
   }
 
   public List<Membership> getMembersAt(
       UUID groupId, LocalDate date, boolean includeInactive, int page, int size) {
-    resolveGroup(groupId);
+    if (!groupRepository.existsById(groupId)) {
+      throw new NotFoundException("Group not found: " + groupId);
+    }
+
     return repository
         .findMembersAt(
             groupId,

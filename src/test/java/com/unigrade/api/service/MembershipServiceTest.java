@@ -144,13 +144,11 @@ class MembershipServiceTest {
   @Test
   void transfer_movesStudent() {
     JMembership membership = membership();
-    JStudentGroup newGroup = new JStudentGroup();
-    newGroup.setId(NEW_GROUP_ID);
     JUser student = student();
     when(repository.findByGroupIdAndStudentIdAndEndDateIsNull(GROUP_ID, STUDENT_ID))
         .thenReturn(Optional.of(membership));
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-    when(groupRepository.findById(NEW_GROUP_ID)).thenReturn(Optional.of(newGroup));
+    when(groupRepository.findById(NEW_GROUP_ID)).thenReturn(Optional.of(newGroup()));
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
 
     Membership result =
@@ -163,9 +161,40 @@ class MembershipServiceTest {
   }
 
   @Test
+  void transfer_missingUser_throwsNotFound() {
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.empty());
+
+    NotFoundException exception =
+        assertThrows(
+            NotFoundException.class,
+            () ->
+                service.transfer(
+                    GROUP_ID, STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE)));
+
+    assertTrue(exception.getMessage().contains("Student not found"));
+  }
+
+  @Test
+  void transfer_missingGroup_throwsNotFound() {
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    when(groupRepository.findById(NEW_GROUP_ID)).thenReturn(Optional.empty());
+
+    NotFoundException exception =
+        assertThrows(
+            NotFoundException.class,
+            () ->
+                service.transfer(
+                    GROUP_ID, STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE)));
+
+    assertTrue(exception.getMessage().contains("Group not found"));
+  }
+
+  @Test
   void transfer_noActiveMembership_throwsNotFound() {
     when(repository.findByGroupIdAndStudentIdAndEndDateIsNull(GROUP_ID, STUDENT_ID))
         .thenReturn(Optional.empty());
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    when(groupRepository.findById(NEW_GROUP_ID)).thenReturn(Optional.of(newGroup()));
 
     NotFoundException exception =
         assertThrows(
@@ -179,6 +208,11 @@ class MembershipServiceTest {
 
   @Test
   void transfer_toSameGroup_throwsBadRequest() {
+    when(repository.findByGroupIdAndStudentIdAndEndDateIsNull(GROUP_ID, STUDENT_ID))
+        .thenReturn(Optional.of(membership()));
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
+
     BadRequestException exception =
         assertThrows(
             BadRequestException.class,
@@ -193,6 +227,8 @@ class MembershipServiceTest {
   void transfer_dateBeforeStart_throwsBadRequest() {
     when(repository.findByGroupIdAndStudentIdAndEndDateIsNull(GROUP_ID, STUDENT_ID))
         .thenReturn(Optional.of(membership()));
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    when(groupRepository.findById(NEW_GROUP_ID)).thenReturn(Optional.of(newGroup()));
 
     assertThrows(
         BadRequestException.class,
@@ -206,13 +242,11 @@ class MembershipServiceTest {
   @Test
   void transfer_assignRace_throwsConflict() {
     JMembership membership = membership();
-    JStudentGroup newGroup = new JStudentGroup();
-    newGroup.setId(NEW_GROUP_ID);
     JUser student = student();
     when(repository.findByGroupIdAndStudentIdAndEndDateIsNull(GROUP_ID, STUDENT_ID))
         .thenReturn(Optional.of(membership));
     when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
-    when(groupRepository.findById(NEW_GROUP_ID)).thenReturn(Optional.of(newGroup));
+    when(groupRepository.findById(NEW_GROUP_ID)).thenReturn(Optional.of(newGroup()));
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
 
     assertThrows(
@@ -224,7 +258,7 @@ class MembershipServiceTest {
 
   @Test
   void getMembersAt_returnsMappedList() {
-    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
+    when(groupRepository.existsById(GROUP_ID)).thenReturn(true);
     when(repository.findMembersAt(any(), any(), anyBoolean(), any(Pageable.class)))
         .thenReturn(new PageImpl<>(List.of(membership())));
 
@@ -236,8 +270,6 @@ class MembershipServiceTest {
 
   @Test
   void getMembersAt_missingGroup_throwsNotFound() {
-    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.empty());
-
     assertThrows(
         NotFoundException.class, () -> service.getMembersAt(GROUP_ID, END_DATE, false, 0, 20));
   }
@@ -245,6 +277,12 @@ class MembershipServiceTest {
   private JStudentGroup group() {
     var group = new JStudentGroup();
     group.setId(GROUP_ID);
+    return group;
+  }
+
+  private JStudentGroup newGroup() {
+    var group = new JStudentGroup();
+    group.setId(NEW_GROUP_ID);
     return group;
   }
 
