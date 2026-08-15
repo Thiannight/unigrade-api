@@ -1,0 +1,177 @@
+package com.unigrade.api.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.unigrade.api.exception.BadRequestException;
+import com.unigrade.api.exception.ConflictException;
+import com.unigrade.api.exception.NotFoundException;
+import com.unigrade.api.mapper.GroupCourseMapper;
+import com.unigrade.api.model.GroupCourse;
+import com.unigrade.api.model.dto.GroupCourseAssignRequest;
+import com.unigrade.api.model.dto.GroupCourseEndRequest;
+import com.unigrade.api.repository.CourseRepository;
+import com.unigrade.api.repository.GroupCourseRepository;
+import com.unigrade.api.repository.StudentGroupRepository;
+import com.unigrade.api.repository.model.JCourse;
+import com.unigrade.api.repository.model.JGroupCourse;
+import com.unigrade.api.repository.model.JStudentGroup;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+
+@ExtendWith(MockitoExtension.class)
+class GroupCourseServiceTest {
+
+  private static final UUID GROUP_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+  private static final UUID COURSE_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+  private static final UUID GROUP_COURSE_ID =
+      UUID.fromString("33333333-3333-3333-3333-333333333333");
+  private static final LocalDate START_DATE = LocalDate.of(2024, 1, 1);
+  private static final LocalDate END_DATE = LocalDate.of(2024, 6, 1);
+
+  @Mock private GroupCourseRepository repository;
+  @Mock private StudentGroupRepository groupRepository;
+  @Mock private CourseRepository courseRepository;
+  private final GroupCourseMapper mapper = new GroupCourseMapper();
+  private GroupCourseService service;
+
+  @BeforeEach
+  void setUp() {
+    service = new GroupCourseService(repository, groupRepository, courseRepository, mapper);
+  }
+
+  @Test
+  void findActiveByGroup_returnsMappedList() {
+    when(groupRepository.existsById(GROUP_ID)).thenReturn(true);
+    when(repository.findAllByGroupIdAndEndDateIsNull(GROUP_ID)).thenReturn(List.of(groupCourse()));
+
+    List<GroupCourse> result = service.findActiveByGroup(GROUP_ID);
+
+    assertEquals(1, result.size());
+    assertEquals(COURSE_ID, result.get(0).courseId());
+  }
+
+  @Test
+  void findActiveByGroup_missingGroup_throwsNotFound() {
+    when(groupRepository.existsById(GROUP_ID)).thenReturn(false);
+
+    assertThrows(NotFoundException.class, () -> service.findActiveByGroup(GROUP_ID));
+  }
+
+  @Test
+  void assign_saves() {
+    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.save(any())).thenReturn(groupCourse());
+
+    GroupCourse result = service.assign(GROUP_ID, request);
+
+    assertEquals(COURSE_ID, result.courseId());
+    verify(repository).save(any());
+  }
+
+  @Test
+  void assign_missingGroup_throwsNotFound() {
+    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.empty());
+
+    NotFoundException exception =
+        assertThrows(NotFoundException.class, () -> service.assign(GROUP_ID, request));
+
+    assertTrue(exception.getMessage().contains("Group not found"));
+  }
+
+  @Test
+  void assign_missingCourse_throwsNotFound() {
+    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.empty());
+
+    NotFoundException exception =
+        assertThrows(NotFoundException.class, () -> service.assign(GROUP_ID, request));
+
+    assertTrue(exception.getMessage().contains("Course not found"));
+  }
+
+  @Test
+  void assign_duplicateActiveConstraintRace_throwsConflict() {
+    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
+
+    assertThrows(ConflictException.class, () -> service.assign(GROUP_ID, request));
+  }
+
+  @Test
+  void end_closesActiveAssignment() {
+    JGroupCourse active = groupCourse();
+    when(repository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(active));
+    when(repository.saveAndFlush(active)).thenReturn(active);
+
+    GroupCourse result = service.end(GROUP_ID, COURSE_ID, new GroupCourseEndRequest(END_DATE));
+
+    assertEquals(END_DATE, active.getEndDate());
+    assertEquals(END_DATE, result.endDate());
+    verify(repository).saveAndFlush(active);
+  }
+
+  @Test
+  void end_noActiveAssignment_throwsNotFound() {
+    when(repository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.empty());
+
+    NotFoundException exception =
+        assertThrows(
+            NotFoundException.class,
+            () -> service.end(GROUP_ID, COURSE_ID, new GroupCourseEndRequest(END_DATE)));
+
+    assertTrue(exception.getMessage().contains("No active course assignment"));
+  }
+
+  @Test
+  void end_dateBeforeStart_throwsBadRequest() {
+    when(repository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(groupCourse()));
+
+    assertThrows(
+        BadRequestException.class,
+        () -> service.end(GROUP_ID, COURSE_ID, new GroupCourseEndRequest(START_DATE.minusDays(1))));
+  }
+
+  private JStudentGroup group() {
+    var group = new JStudentGroup();
+    group.setId(GROUP_ID);
+    return group;
+  }
+
+  private JCourse course() {
+    var course = new JCourse();
+    course.setId(COURSE_ID);
+    return course;
+  }
+
+  private JGroupCourse groupCourse() {
+    return JGroupCourse.builder()
+        .id(GROUP_COURSE_ID)
+        .group(group())
+        .course(course())
+        .startDate(START_DATE)
+        .endDate(null)
+        .build();
+  }
+}

@@ -9,7 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,9 +18,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(
-    name = "group_course",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "group_id"}))
+@Table(name = "group_course")
 @Getter
 @Setter
 @Builder
@@ -40,4 +38,10 @@ public class JGroupCourse {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "group_id", nullable = false)
   private JStudentGroup group;
+
+  @Column(name = "start_date", nullable = false)
+  private LocalDate startDate;
+
+  @Column(name = "end_date")
+  private LocalDate endDate;
 }
