@@ -8,8 +8,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -44,4 +46,7 @@ public class JGroupCourse {
 
   @Column(name = "end_date")
   private LocalDate endDate;
+
+  @OneToMany(mappedBy = "groupCourse")
+  private List<JExam> exams;
 }

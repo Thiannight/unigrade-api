@@ -41,8 +41,8 @@ public class JExam {
   private BigDecimal coefficient;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "course_id", nullable = false)
-  private JCourse course;
+  @JoinColumn(name = "group_course_id", nullable = false)
+  private JGroupCourse groupCourse;
 
   @OneToMany(mappedBy = "exam")
   private List<JGrade> grades;

@@ -8,5 +8,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ExamRepository extends JpaRepository<JExam, UUID> {
 
-  boolean existsByCourseId(UUID courseId);
+  boolean existsByGroupCourseId(UUID groupCourseId);
 }

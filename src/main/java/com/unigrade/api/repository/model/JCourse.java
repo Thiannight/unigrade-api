@@ -45,9 +45,6 @@ public class JCourse {
   private Short credits;
 
   @OneToMany(mappedBy = "course")
-  private List<JExam> exams;
-
-  @OneToMany(mappedBy = "course")
   private List<JGroupCourse> groupCourses;
 
   @OneToMany(mappedBy = "course")

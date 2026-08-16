@@ -162,7 +162,7 @@ class GroupCourseServiceTest {
     JGroupCourse active = groupCourse();
     when(repository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(active));
-    when(examRepository.existsByCourseId(COURSE_ID)).thenReturn(false);
+    when(examRepository.existsByGroupCourseId(GROUP_COURSE_ID)).thenReturn(false);
 
     service.delete(GROUP_ID, COURSE_ID);
 
@@ -173,7 +173,7 @@ class GroupCourseServiceTest {
   void delete_examsExist_throwsConflict() {
     when(repository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(groupCourse()));
-    when(examRepository.existsByCourseId(COURSE_ID)).thenReturn(true);
+    when(examRepository.existsByGroupCourseId(GROUP_COURSE_ID)).thenReturn(true);
 
     assertThrows(ConflictException.class, () -> service.delete(GROUP_ID, COURSE_ID));
   }

@@ -67,8 +67,8 @@ public class GroupCourseService {
             .findByGroupIdAndCourseIdAndEndDateIsNull(groupId, courseId)
             .orElseThrow(() -> noActiveAssignment(groupId, courseId));
 
-    if (examRepository.existsByCourseId(courseId)) {
-      throw new ConflictException("Cannot delete: exams exist for this course");
+    if (examRepository.existsByGroupCourseId(active.getId())) {
+      throw new ConflictException("Cannot delete: exams exist for this course assignment");
     }
 
     repository.delete(active);
