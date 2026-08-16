@@ -138,6 +138,40 @@ class ExamControllerIT extends FacadeIT {
   }
 
   @Test
+  void create_examsCoefficientExceedingOne_returnsBadRequest() {
+    UUID groupId = createGroup("EX-GRP-7", (short) 2102, (short) 2103);
+    UUID courseId = createCourse("EX-IT-107", "Exam Course IT Coefficient Budget");
+    assignCourse(groupId, courseId, "2024-01-01");
+    createExam(groupId, courseId, "2024-05-01T09:00:00Z", 0.6);
+
+    ResponseEntity<String> response =
+        restTemplate.postForEntity(
+            "/groups/" + groupId + "/courses/" + courseId + "/exams",
+            Map.of("examDate", "2024-05-02T09:00:00Z", "coefficient", 0.5),
+            String.class);
+
+    assertEquals(BAD_REQUEST, response.getStatusCode());
+  }
+
+  @Test
+  void update_examCoefficientExceedingOne_returnsBadRequest() {
+    UUID groupId = createGroup("EX-GRP-8", (short) 2104, (short) 2105);
+    UUID courseId = createCourse("EX-IT-108", "Exam Course IT Update Budget");
+    assignCourse(groupId, courseId, "2024-01-01");
+    createExam(groupId, courseId, "2024-05-01T09:00:00Z", 0.6);
+    String examId = createExam(groupId, courseId, "2024-05-02T09:00:00Z", 0.4);
+
+    ResponseEntity<String> response =
+        restTemplate.exchange(
+            "/groups/" + groupId + "/courses/" + courseId + "/exams/" + examId,
+            PUT,
+            new HttpEntity<>(Map.of("examDate", "2024-05-02T09:00:00Z", "coefficient", 0.5)),
+            String.class);
+
+    assertEquals(BAD_REQUEST, response.getStatusCode());
+  }
+
+  @Test
   void update_missingExam_returnsNotFound() {
     UUID groupId = createGroup("EX-GRP-5", (short) 2098, (short) 2099);
     UUID courseId = createCourse("EX-IT-105", "Exam Course IT Missing Exam");

@@ -85,6 +85,7 @@ class ExamServiceTest {
   void create_saves() {
     when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
+    when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID)).thenReturn(BigDecimal.ZERO);
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     Exam result = service.create(GROUP_ID, COURSE_ID, new ExamRequest(EXAM_DATE, COEFFICIENT));
@@ -93,6 +94,37 @@ class ExamServiceTest {
     assertEquals(COEFFICIENT, result.coefficient());
     assertEquals(GROUP_COURSE_ID, result.groupCourseId());
     verify(repository).save(any());
+  }
+
+  @Test
+  void create_coefficientAtBudget_saves() {
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID))
+        .thenReturn(new BigDecimal("0.5000"));
+    when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Exam result = service.create(GROUP_ID, COURSE_ID, new ExamRequest(EXAM_DATE, COEFFICIENT));
+
+    assertEquals(COEFFICIENT, result.coefficient());
+    verify(repository).save(any());
+  }
+
+  @Test
+  void create_coefficientOverBudget_throwsBadRequest() {
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID))
+        .thenReturn(new BigDecimal("0.6000"));
+
+    BadRequestException exception =
+        assertThrows(
+            BadRequestException.class,
+            () ->
+                service.create(
+                    GROUP_ID, COURSE_ID, new ExamRequest(EXAM_DATE, new BigDecimal("0.5000"))));
+
+    assertTrue(exception.getMessage().contains("exceed 1"));
   }
 
   @Test
@@ -130,6 +162,7 @@ class ExamServiceTest {
     when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
     when(repository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID)).thenReturn(COEFFICIENT);
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     Exam result =
@@ -138,6 +171,43 @@ class ExamServiceTest {
     assertEquals(COEFFICIENT, result.coefficient());
     assertEquals(EXAM_ID, result.id());
     verify(repository).save(any());
+  }
+
+  @Test
+  void update_coefficientWithinBudget_updates() {
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(repository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID))
+        .thenReturn(new BigDecimal("0.6000"));
+    when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Exam result =
+        service.update(
+            GROUP_ID, COURSE_ID, EXAM_ID, new ExamRequest(EXAM_DATE, new BigDecimal("0.4000")));
+
+    assertEquals(new BigDecimal("0.4000"), result.coefficient());
+    verify(repository).save(any());
+  }
+
+  @Test
+  void update_coefficientOverBudget_throwsBadRequest() {
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(repository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID)).thenReturn(BigDecimal.ONE);
+
+    BadRequestException exception =
+        assertThrows(
+            BadRequestException.class,
+            () ->
+                service.update(
+                    GROUP_ID,
+                    COURSE_ID,
+                    EXAM_ID,
+                    new ExamRequest(EXAM_DATE, new BigDecimal("0.7000"))));
+
+    assertTrue(exception.getMessage().contains("exceed 1"));
   }
 
   @Test

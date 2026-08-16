@@ -11,6 +11,7 @@ import com.unigrade.api.repository.GradeRepository;
 import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.model.JExam;
 import com.unigrade.api.repository.model.JGroupCourse;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -40,6 +41,8 @@ public class ExamService {
   public Exam create(UUID groupId, UUID courseId, ExamRequest request) {
     JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
     checkExamBeforeCourseEnd(assignment, request.examDate());
+    checkCoefficientTotal(
+        repository.sumCoefficientByGroupCourseId(assignment.getId()).add(request.coefficient()));
     var exam = new Exam(null, assignment.getId(), request.examDate(), request.coefficient());
     return mapper.toDomain(repository.save(mapper.toEntity(exam, assignment)));
   }
@@ -49,6 +52,11 @@ public class ExamService {
     JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
     JExam exam = resolveExam(assignment, examId);
     checkExamBeforeCourseEnd(assignment, request.examDate());
+    checkCoefficientTotal(
+        repository
+            .sumCoefficientByGroupCourseId(assignment.getId())
+            .subtract(exam.getCoefficient())
+            .add(request.coefficient()));
     exam.setExamDate(request.examDate());
     exam.setCoefficient(request.coefficient());
     return mapper.toDomain(repository.save(exam));
@@ -78,6 +86,13 @@ public class ExamService {
         .findById(examId)
         .filter(exam -> assignment.getId().equals(exam.getGroupCourse().getId()))
         .orElseThrow(() -> new NotFoundException("Exam not found: " + examId));
+  }
+
+  private void checkCoefficientTotal(BigDecimal total) {
+    if (total.compareTo(BigDecimal.ONE) > 0) {
+      throw new BadRequestException(
+          "Course exams coefficient total exceed 1. Current = %d".formatted(total.intValue()));
+    }
   }
 
   private void checkExamBeforeCourseEnd(JGroupCourse assignment, Instant examDate) {
