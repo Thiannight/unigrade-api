@@ -91,12 +91,12 @@ public class ExamService {
   private void checkCoefficientTotal(BigDecimal total) {
     if (total.compareTo(BigDecimal.ONE) > 0) {
       throw new BadRequestException(
-          "Course exams coefficient total exceed 1. Current = %d".formatted(total.intValue()));
+          "Course exams coefficient total exceed 1. Current = %s".formatted(total.toPlainString()));
     }
   }
 
   private void checkExamBeforeCourseEnd(JGroupCourse assignment, Instant examDate) {
-    LocalDate date = examDate.atZone(ZoneId.systemDefault()).toLocalDate();
+    LocalDate date = examDate.atZone(ZoneId.of("UTC")).toLocalDate();
     if (date.isBefore(assignment.getStartDate())) {
       throw new BadRequestException(
           "Exam date must not be before the course assignment start date");
