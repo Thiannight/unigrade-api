@@ -2,6 +2,7 @@ package com.unigrade.api.repository;
 
 import com.unigrade.api.repository.model.JMembership;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -15,6 +16,8 @@ import org.springframework.stereotype.Repository;
 public interface MembershipRepository extends JpaRepository<JMembership, UUID> {
 
   Optional<JMembership> findByGroupIdAndStudentIdAndEndDateIsNull(UUID groupId, String studentId);
+
+  List<JMembership> findByStudentIdOrderByStartDateAsc(String studentId);
 
   @Query(
       """
