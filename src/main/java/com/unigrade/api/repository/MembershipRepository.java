@@ -29,4 +29,18 @@ public interface MembershipRepository extends JpaRepository<JMembership, UUID> {
       @Param("date") LocalDate date,
       @Param("includeInactive") boolean includeInactive,
       Pageable pageable);
+
+  @Query(
+      """
+      SELECT CASE WHEN COUNT(m) > 0 THEN TRUE ELSE FALSE END
+      FROM JMembership m
+      WHERE m.group.id = :groupId
+        AND m.student.id = :studentId
+        AND m.startDate <= :date
+        AND (m.endDate IS NULL OR m.endDate > :date)
+      """)
+  boolean existsByGroupIdAndStudentIdAt(
+      @Param("groupId") UUID groupId,
+      @Param("studentId") String studentId,
+      @Param("date") LocalDate date);
 }

@@ -43,11 +43,11 @@ class GradeMapperTest {
     var domain =
         new Grade(
             UUID.fromString("33333333-3333-3333-3333-333333333333"),
+            UUID.fromString("11111111-1111-1111-1111-111111111111"),
             15.5f,
             Instant.parse("2026-01-01T10:00:00Z"),
             "Midterm",
-            "STD00001",
-            UUID.fromString("11111111-1111-1111-1111-111111111111"));
+            "STD00001");
     var student = new JUser();
     student.setId("STD00001");
     var exam = new JExam();
