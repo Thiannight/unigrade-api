@@ -43,6 +43,7 @@ class ExamServiceTest {
   private static final Instant EXAM_DATE = Instant.parse("2024-03-01T09:00:00Z");
   private static final Instant BEFORE_START = Instant.parse("2023-12-01T09:00:00Z");
   private static final Instant AFTER_END = Instant.parse("2024-07-01T09:00:00Z");
+  private static final BigDecimal COEFFICIENT = new BigDecimal("0.5000");
 
   @Mock private ExamRepository repository;
   @Mock private GroupCourseRepository groupCourseRepository;
@@ -82,8 +83,42 @@ class ExamServiceTest {
   }
 
   @Test
-  void create_saves() {
+  void findById_existing_returnsMapped() {
     when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(repository.findByIdAndGroupCourseId(EXAM_ID, GROUP_COURSE_ID))
+        .thenReturn(Optional.of(exam()));
+
+    Exam result = service.findById(GROUP_ID, COURSE_ID, EXAM_ID);
+
+    assertEquals(EXAM_ID, result.id());
+    assertEquals(GROUP_COURSE_ID, result.groupCourseId());
+  }
+
+  @Test
+  void findById_missingExam_throwsNotFound() {
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(repository.findByIdAndGroupCourseId(EXAM_ID, GROUP_COURSE_ID))
+        .thenReturn(Optional.empty());
+
+    NotFoundException exception =
+        assertThrows(NotFoundException.class, () -> service.findById(GROUP_ID, COURSE_ID, EXAM_ID));
+
+    assertTrue(exception.getMessage().contains("Exam not found"));
+  }
+
+  @Test
+  void findById_noActiveAssignment_throwsNotFound() {
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.empty());
+
+    assertThrows(NotFoundException.class, () -> service.findById(GROUP_ID, COURSE_ID, EXAM_ID));
+  }
+
+  @Test
+  void create_saves() {
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
     when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID)).thenReturn(BigDecimal.ZERO);
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -97,8 +132,21 @@ class ExamServiceTest {
   }
 
   @Test
+  void create_coefficientNormalizedToStoredScale() {
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID)).thenReturn(BigDecimal.ZERO);
+    when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Exam result =
+        service.create(GROUP_ID, COURSE_ID, new ExamRequest(EXAM_DATE, new BigDecimal("0.5")));
+
+    assertEquals(new BigDecimal("0.5000"), result.coefficient());
+  }
+
+  @Test
   void create_coefficientAtBudget_saves() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
     when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID))
         .thenReturn(new BigDecimal("0.5000"));
@@ -112,7 +160,7 @@ class ExamServiceTest {
 
   @Test
   void create_coefficientOverBudget_throwsBadRequest() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
     when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID))
         .thenReturn(new BigDecimal("0.6000"));
@@ -129,7 +177,7 @@ class ExamServiceTest {
 
   @Test
   void create_noActiveAssignment_throwsNotFound() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.empty());
 
     assertThrows(
@@ -139,7 +187,7 @@ class ExamServiceTest {
 
   @Test
   void create_dateBeforeStart_throwsBadRequest() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
 
     assertThrows(
@@ -149,7 +197,7 @@ class ExamServiceTest {
 
   @Test
   void create_dateAfterEnd_throwsBadRequest() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
 
     assertThrows(
@@ -159,10 +207,12 @@ class ExamServiceTest {
 
   @Test
   void update_updatesExam() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(repository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
-    when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID)).thenReturn(COEFFICIENT);
+    when(repository.findByIdAndGroupCourseId(EXAM_ID, GROUP_COURSE_ID))
+        .thenReturn(Optional.of(exam()));
+    when(repository.sumCoefficientByGroupCourseIdExcluding(GROUP_COURSE_ID, EXAM_ID))
+        .thenReturn(BigDecimal.ZERO);
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     Exam result =
@@ -175,10 +225,11 @@ class ExamServiceTest {
 
   @Test
   void update_coefficientWithinBudget_updates() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(repository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
-    when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID))
+    when(repository.findByIdAndGroupCourseId(EXAM_ID, GROUP_COURSE_ID))
+        .thenReturn(Optional.of(exam()));
+    when(repository.sumCoefficientByGroupCourseIdExcluding(GROUP_COURSE_ID, EXAM_ID))
         .thenReturn(new BigDecimal("0.6000"));
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -192,10 +243,12 @@ class ExamServiceTest {
 
   @Test
   void update_coefficientOverBudget_throwsBadRequest() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(repository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
-    when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID)).thenReturn(BigDecimal.ONE);
+    when(repository.findByIdAndGroupCourseId(EXAM_ID, GROUP_COURSE_ID))
+        .thenReturn(Optional.of(exam()));
+    when(repository.sumCoefficientByGroupCourseIdExcluding(GROUP_COURSE_ID, EXAM_ID))
+        .thenReturn(new BigDecimal("0.6000"));
 
     BadRequestException exception =
         assertThrows(
@@ -212,9 +265,10 @@ class ExamServiceTest {
 
   @Test
   void update_missingExam_throwsNotFound() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(repository.findById(EXAM_ID)).thenReturn(Optional.empty());
+    when(repository.findByIdAndGroupCourseId(EXAM_ID, GROUP_COURSE_ID))
+        .thenReturn(Optional.empty());
 
     NotFoundException exception =
         assertThrows(
@@ -227,26 +281,11 @@ class ExamServiceTest {
   }
 
   @Test
-  void update_examOfAnotherAssignment_throwsNotFound() {
-    var other = new JGroupCourse();
-    other.setId(UUID.fromString("55555555-5555-5555-5555-555555555555"));
-    var otherExam = exam();
-    otherExam.setGroupCourse(other);
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
-        .thenReturn(Optional.of(assignment()));
-    when(repository.findById(EXAM_ID)).thenReturn(Optional.of(otherExam));
-
-    assertThrows(
-        NotFoundException.class,
-        () ->
-            service.update(GROUP_ID, COURSE_ID, EXAM_ID, new ExamRequest(EXAM_DATE, COEFFICIENT)));
-  }
-
-  @Test
   void update_dateBeforeStart_throwsBadRequest() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(repository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(repository.findByIdAndGroupCourseId(EXAM_ID, GROUP_COURSE_ID))
+        .thenReturn(Optional.of(exam()));
 
     assertThrows(
         BadRequestException.class,
@@ -256,10 +295,22 @@ class ExamServiceTest {
   }
 
   @Test
+  void update_noActiveAssignment_throwsNotFound() {
+    when(groupCourseRepository.findActiveForUpdate(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.empty());
+
+    assertThrows(
+        NotFoundException.class,
+        () ->
+            service.update(GROUP_ID, COURSE_ID, EXAM_ID, new ExamRequest(EXAM_DATE, COEFFICIENT)));
+  }
+
+  @Test
   void delete_deletes() {
     when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(repository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(repository.findByIdAndGroupCourseId(EXAM_ID, GROUP_COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(gradeRepository.existsByExamId(EXAM_ID)).thenReturn(false);
 
     service.delete(GROUP_ID, COURSE_ID, EXAM_ID);
@@ -271,7 +322,8 @@ class ExamServiceTest {
   void delete_gradesExist_throwsConflict() {
     when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(repository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(repository.findByIdAndGroupCourseId(EXAM_ID, GROUP_COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(gradeRepository.existsByExamId(EXAM_ID)).thenReturn(true);
 
     assertThrows(ConflictException.class, () -> service.delete(GROUP_ID, COURSE_ID, EXAM_ID));
@@ -281,7 +333,16 @@ class ExamServiceTest {
   void delete_missingExam_throwsNotFound() {
     when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(repository.findById(EXAM_ID)).thenReturn(Optional.empty());
+    when(repository.findByIdAndGroupCourseId(EXAM_ID, GROUP_COURSE_ID))
+        .thenReturn(Optional.empty());
+
+    assertThrows(NotFoundException.class, () -> service.delete(GROUP_ID, COURSE_ID, EXAM_ID));
+  }
+
+  @Test
+  void delete_noActiveAssignment_throwsNotFound() {
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.empty());
 
     assertThrows(NotFoundException.class, () -> service.delete(GROUP_ID, COURSE_ID, EXAM_ID));
   }
@@ -304,6 +365,4 @@ class ExamServiceTest {
         .groupCourse(groupCourse)
         .build();
   }
-
-  private static final BigDecimal COEFFICIENT = new BigDecimal("0.5000");
 }
