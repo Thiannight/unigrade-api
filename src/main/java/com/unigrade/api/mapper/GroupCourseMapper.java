@@ -14,6 +14,7 @@ public class GroupCourseMapper {
         .id(entity.getId())
         .courseId(entity.getCourse().getId())
         .groupId(entity.getGroup().getId())
+        .semester(entity.getSemester())
         .startDate(entity.getStartDate())
         .endDate(entity.getEndDate())
         .build();
@@ -24,6 +25,7 @@ public class GroupCourseMapper {
         .id(domain.id())
         .course(course)
         .group(group)
+        .semester(domain.semester())
         .startDate(domain.startDate())
         .endDate(domain.endDate())
         .build();

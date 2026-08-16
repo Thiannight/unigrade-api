@@ -43,7 +43,9 @@ public class GroupCourseService {
     JStudentGroup group = resolveGroup(groupId);
     JCourse course = resolveCourse(request.courseId());
 
-    var groupCourse = new GroupCourse(null, groupId, request.courseId(), request.startDate(), null);
+    var groupCourse =
+        new GroupCourse(
+            null, groupId, request.courseId(), request.semester(), request.startDate(), null);
     return mapper.toDomain(raceAwareSave(mapper.toEntity(groupCourse, course, group)));
   }
 

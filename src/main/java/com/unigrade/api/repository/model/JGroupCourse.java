@@ -1,7 +1,10 @@
 package com.unigrade.api.repository.model;
 
+import com.unigrade.api.model.Semester;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -46,6 +49,10 @@ public class JGroupCourse {
 
   @Column(name = "end_date")
   private LocalDate endDate;
+
+  @Enumerated(EnumType.STRING)
+  @Column(length = 10, nullable = false)
+  private Semester semester;
 
   @OneToMany(mappedBy = "groupCourse")
   private List<JExam> exams;

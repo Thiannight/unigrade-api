@@ -12,6 +12,7 @@ import com.unigrade.api.exception.ConflictException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.GroupCourseMapper;
 import com.unigrade.api.model.GroupCourse;
+import com.unigrade.api.model.Semester;
 import com.unigrade.api.model.dto.GroupCourseAssignRequest;
 import com.unigrade.api.model.dto.GroupCourseEndRequest;
 import com.unigrade.api.repository.CourseRepository;
@@ -41,6 +42,7 @@ class GroupCourseServiceTest {
       UUID.fromString("33333333-3333-3333-3333-333333333333");
   private static final LocalDate START_DATE = LocalDate.of(2024, 1, 1);
   private static final LocalDate END_DATE = LocalDate.of(2024, 6, 1);
+  private static final Semester SEMESTER = Semester.S3;
 
   @Mock private GroupCourseRepository repository;
   @Mock private StudentGroupRepository groupRepository;
@@ -76,7 +78,7 @@ class GroupCourseServiceTest {
 
   @Test
   void assign_saves() {
-    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
     when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
     when(repository.save(any())).thenReturn(groupCourse());
@@ -89,7 +91,7 @@ class GroupCourseServiceTest {
 
   @Test
   void assign_missingGroup_throwsNotFound() {
-    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
     when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.empty());
 
     NotFoundException exception =
@@ -100,7 +102,7 @@ class GroupCourseServiceTest {
 
   @Test
   void assign_missingCourse_throwsNotFound() {
-    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
     when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.empty());
 
@@ -112,7 +114,7 @@ class GroupCourseServiceTest {
 
   @Test
   void assign_duplicateActiveConstraintRace_throwsConflict() {
-    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
     when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
     when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
@@ -206,6 +208,7 @@ class GroupCourseServiceTest {
         .id(GROUP_COURSE_ID)
         .group(group())
         .course(course())
+        .semester(SEMESTER)
         .startDate(START_DATE)
         .endDate(null)
         .build();
