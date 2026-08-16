@@ -78,6 +78,65 @@ class ExamControllerIT extends FacadeIT {
   }
 
   @Test
+  void getById_returnsExam() {
+    UUID groupId = createGroup("EX-GET-1", (short) 2130, (short) 2131);
+    UUID courseId = createCourse("EX-IT-GET", "Exam Course IT GetById");
+    assignCourse(groupId, courseId, "2024-01-01");
+    String examId = createExam(groupId, courseId, "2024-05-01T09:00:00Z", 0.5);
+
+    ResponseEntity<JsonNode> response =
+        restTemplate.getForEntity(
+            "/groups/" + groupId + "/courses/" + courseId + "/exams/" + examId, JsonNode.class);
+
+    assertEquals(OK, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertEquals(examId, response.getBody().get("id").asText());
+    assertEquals(0.5, response.getBody().get("coefficient").decimalValue().doubleValue());
+  }
+
+  @Test
+  void getById_missingExam_returnsNotFound() {
+    UUID groupId = createGroup("EX-GET-2", (short) 2132, (short) 2133);
+    UUID courseId = createCourse("EX-IT-GET2", "Exam Course IT GetById Missing");
+    assignCourse(groupId, courseId, "2024-01-01");
+
+    ResponseEntity<String> response =
+        restTemplate.getForEntity(
+            "/groups/" + groupId + "/courses/" + courseId + "/exams/" + UUID.randomUUID(),
+            String.class);
+
+    assertEquals(NOT_FOUND, response.getStatusCode());
+  }
+
+  @Test
+  void getById_noActiveAssignment_returnsNotFound() {
+    UUID groupId = createGroup("EX-GET-3", (short) 2134, (short) 2135);
+    UUID courseId = createCourse("EX-IT-GET3", "Exam Course IT GetById No Assignment");
+
+    ResponseEntity<String> response =
+        restTemplate.getForEntity(
+            "/groups/" + groupId + "/courses/" + courseId + "/exams/" + UUID.randomUUID(),
+            String.class);
+
+    assertEquals(NOT_FOUND, response.getStatusCode());
+  }
+
+  @Test
+  void create_zeroCoefficient_returnsBadRequest() {
+    UUID groupId = createGroup("EX-GRP-ZERO", (short) 2136, (short) 2137);
+    UUID courseId = createCourse("EX-IT-ZERO", "Exam Course IT Zero Coefficient");
+    assignCourse(groupId, courseId, "2024-01-01");
+
+    ResponseEntity<String> response =
+        restTemplate.postForEntity(
+            "/groups/" + groupId + "/courses/" + courseId + "/exams",
+            Map.of("examDate", "2024-05-01T09:00:00Z", "coefficient", 0),
+            String.class);
+
+    assertEquals(BAD_REQUEST, response.getStatusCode());
+  }
+
+  @Test
   void create_noActiveAssignment_returnsNotFound() {
     UUID groupId = createGroup("EX-GRP-2", (short) 2092, (short) 2093);
     UUID courseId = createCourse("EX-IT-102", "Exam Course IT No Assignment");
@@ -169,6 +228,24 @@ class ExamControllerIT extends FacadeIT {
             String.class);
 
     assertEquals(BAD_REQUEST, response.getStatusCode());
+  }
+
+  @Test
+  void update_sameExamCoefficientUnchanged_succeeds() {
+    UUID groupId = createGroup("EX-GRP-9", (short) 2106, (short) 2107);
+    UUID courseId = createCourse("EX-IT-109", "Exam Course IT Update Same Coefficient");
+    assignCourse(groupId, courseId, "2024-01-01");
+    String examId = createExam(groupId, courseId, "2024-05-01T09:00:00Z", 1.0);
+
+    ResponseEntity<JsonNode> response =
+        restTemplate.exchange(
+            "/groups/" + groupId + "/courses/" + courseId + "/exams/" + examId,
+            PUT,
+            new HttpEntity<>(Map.of("examDate", "2024-05-03T09:00:00Z", "coefficient", 1.0)),
+            JsonNode.class);
+
+    assertEquals(OK, response.getStatusCode());
+    assertEquals("2024-05-03T09:00:00Z", response.getBody().get("examDate").asText());
   }
 
   @Test

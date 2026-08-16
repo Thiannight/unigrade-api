@@ -30,6 +30,12 @@ public class ExamController {
     return service.findByGroupAndCourse(groupId, courseId);
   }
 
+  @GetMapping("/{examId}")
+  public Exam findById(
+      @PathVariable UUID groupId, @PathVariable UUID courseId, @PathVariable UUID examId) {
+    return service.findById(groupId, courseId, examId);
+  }
+
   @PostMapping
   public ResponseEntity<Exam> create(
       @PathVariable UUID groupId,

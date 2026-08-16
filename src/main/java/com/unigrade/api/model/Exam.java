@@ -14,4 +14,4 @@ public record Exam(
     @JsonProperty(access = JsonProperty.Access.READ_ONLY) UUID id,
     @JsonProperty(access = JsonProperty.Access.READ_ONLY) UUID groupCourseId,
     @NotNull Instant examDate,
-    @NotNull @DecimalMin("0") @DecimalMax("1") BigDecimal coefficient) {}
+    @NotNull @DecimalMin(value = "0", inclusive = false) @DecimalMax("1") BigDecimal coefficient) {}

@@ -12,9 +12,10 @@ import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.model.JExam;
 import com.unigrade.api.repository.model.JGroupCourse;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class ExamService {
+
+  private static final int COEFFICIENT_SCALE = 4;
 
   private final ExamRepository repository;
   private final GroupCourseRepository groupCourseRepository;
@@ -37,13 +40,21 @@ public class ExamService {
         .toList();
   }
 
+  public Exam findById(UUID groupId, UUID courseId, UUID examId) {
+    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
+    return mapper.toDomain(resolveExam(assignment, examId));
+  }
+
   @Transactional
   public Exam create(UUID groupId, UUID courseId, ExamRequest request) {
     JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
     checkExamBeforeCourseEnd(assignment, request.examDate());
+
+    BigDecimal coefficient = normalize(request.coefficient());
     checkCoefficientTotal(
-        repository.sumCoefficientByGroupCourseId(assignment.getId()).add(request.coefficient()));
-    var exam = new Exam(null, assignment.getId(), request.examDate(), request.coefficient());
+        repository.sumCoefficientByGroupCourseId(assignment.getId()).add(coefficient));
+
+    var exam = new Exam(null, assignment.getId(), request.examDate(), coefficient);
     return mapper.toDomain(repository.save(mapper.toEntity(exam, assignment)));
   }
 
@@ -52,13 +63,15 @@ public class ExamService {
     JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
     JExam exam = resolveExam(assignment, examId);
     checkExamBeforeCourseEnd(assignment, request.examDate());
+
+    BigDecimal coefficient = normalize(request.coefficient());
     checkCoefficientTotal(
         repository
-            .sumCoefficientByGroupCourseId(assignment.getId())
-            .subtract(exam.getCoefficient())
-            .add(request.coefficient()));
+            .sumCoefficientByGroupCourseIdExcluding(assignment.getId(), examId)
+            .add(coefficient));
+
     exam.setExamDate(request.examDate());
-    exam.setCoefficient(request.coefficient());
+    exam.setCoefficient(coefficient);
     return mapper.toDomain(repository.save(exam));
   }
 
@@ -75,16 +88,12 @@ public class ExamService {
   private JGroupCourse resolveActiveAssignment(UUID groupId, UUID courseId) {
     return groupCourseRepository
         .findByGroupIdAndCourseIdAndEndDateIsNull(groupId, courseId)
-        .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "No active course assignment for course " + courseId + " in group " + groupId));
+        .orElseThrow(() -> noActiveAssignment(groupId, courseId));
   }
 
   private JExam resolveExam(JGroupCourse assignment, UUID examId) {
     return repository
-        .findById(examId)
-        .filter(exam -> assignment.getId().equals(exam.getGroupCourse().getId()))
+        .findByIdAndGroupCourseId(examId, assignment.getId())
         .orElseThrow(() -> new NotFoundException("Exam not found: " + examId));
   }
 
@@ -96,7 +105,7 @@ public class ExamService {
   }
 
   private void checkExamBeforeCourseEnd(JGroupCourse assignment, Instant examDate) {
-    LocalDate date = examDate.atZone(ZoneId.of("UTC")).toLocalDate();
+    LocalDate date = examDate.atZone(ZoneOffset.UTC).toLocalDate();
     if (date.isBefore(assignment.getStartDate())) {
       throw new BadRequestException(
           "Exam date must not be before the course assignment start date");
@@ -104,5 +113,14 @@ public class ExamService {
     if (assignment.getEndDate() != null && date.isAfter(assignment.getEndDate())) {
       throw new BadRequestException("Exam date must not be after the course assignment end date");
     }
+  }
+
+  private BigDecimal normalize(BigDecimal coefficient) {
+    return coefficient.setScale(COEFFICIENT_SCALE, RoundingMode.HALF_UP);
+  }
+
+  private NotFoundException noActiveAssignment(UUID groupId, UUID courseId) {
+    return new NotFoundException(
+        "No active course assignment for course " + courseId + " in group " + groupId);
   }
 }
