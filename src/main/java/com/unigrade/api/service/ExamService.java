@@ -47,7 +47,7 @@ public class ExamService {
 
   @Transactional
   public Exam create(UUID groupId, UUID courseId, ExamRequest request) {
-    JGroupCourse assignment = resolveActiveAssignmentForUpdate(groupId, courseId);
+    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
     checkExamBeforeCourseEnd(assignment, request.examDate());
 
     BigDecimal coefficient = normalize(request.coefficient());
@@ -60,7 +60,7 @@ public class ExamService {
 
   @Transactional
   public Exam update(UUID groupId, UUID courseId, UUID examId, ExamRequest request) {
-    JGroupCourse assignment = resolveActiveAssignmentForUpdate(groupId, courseId);
+    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
     JExam exam = resolveExam(assignment, examId);
     checkExamBeforeCourseEnd(assignment, request.examDate());
 
@@ -88,12 +88,6 @@ public class ExamService {
   private JGroupCourse resolveActiveAssignment(UUID groupId, UUID courseId) {
     return groupCourseRepository
         .findByGroupIdAndCourseIdAndEndDateIsNull(groupId, courseId)
-        .orElseThrow(() -> noActiveAssignment(groupId, courseId));
-  }
-
-  private JGroupCourse resolveActiveAssignmentForUpdate(UUID groupId, UUID courseId) {
-    return groupCourseRepository
-        .findActiveForUpdate(groupId, courseId)
         .orElseThrow(() -> noActiveAssignment(groupId, courseId));
   }
 
