@@ -17,8 +17,8 @@ import com.unigrade.api.model.Course;
 import com.unigrade.api.model.GroupCourse;
 import com.unigrade.api.model.Promotion;
 import com.unigrade.api.model.StudentGroup;
-import com.unigrade.api.repository.CourseRepository;
 import com.unigrade.api.repository.ExamRepository;
+import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.model.JExam;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -35,7 +35,7 @@ class GroupCourseControllerIT extends FacadeIT {
 
   @Autowired private TestRestTemplate restTemplate;
   @Autowired private ExamRepository examRepository;
-  @Autowired private CourseRepository courseRepository;
+  @Autowired private GroupCourseRepository groupCourseRepository;
 
   @Test
   void assign_list_end_lifecycle() {
@@ -226,7 +226,10 @@ class GroupCourseControllerIT extends FacadeIT {
         JExam.builder()
             .examDate(Instant.parse("2024-05-01T09:00:00Z"))
             .coefficient(new BigDecimal("0.5000"))
-            .course(courseRepository.findById(courseId).orElseThrow())
+            .groupCourse(
+                groupCourseRepository
+                    .findByGroupIdAndCourseIdAndEndDateIsNull(groupId, courseId)
+                    .orElseThrow())
             .build();
     examRepository.save(exam);
 

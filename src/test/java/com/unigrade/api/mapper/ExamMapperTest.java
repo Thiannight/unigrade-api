@@ -3,8 +3,8 @@ package com.unigrade.api.mapper;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.unigrade.api.model.Exam;
-import com.unigrade.api.repository.model.JCourse;
 import com.unigrade.api.repository.model.JExam;
+import com.unigrade.api.repository.model.JGroupCourse;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -15,21 +15,21 @@ class ExamMapperTest {
 
   @Test
   void toDomain_mapsEntityToRecord() {
-    var course = new JCourse();
-    course.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
+    var groupCourse = new JGroupCourse();
+    groupCourse.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
 
     var entity = new JExam();
     entity.setId(UUID.fromString("22222222-2222-2222-2222-222222222222"));
     entity.setExamDate(Instant.parse("2026-01-01T10:00:00Z"));
     entity.setCoefficient(new BigDecimal("0.5000"));
-    entity.setCourse(course);
+    entity.setGroupCourse(groupCourse);
 
     Exam result = examMapper.toDomain(entity);
 
     assertEquals(entity.getId(), result.id());
     assertEquals(entity.getExamDate(), result.examDate());
     assertEquals(entity.getCoefficient(), result.coefficient());
-    assertEquals(entity.getCourse().getId(), result.courseId());
+    assertEquals(entity.getGroupCourse().getId(), result.groupCourseId());
   }
 
   @Test
@@ -37,17 +37,17 @@ class ExamMapperTest {
     var domain =
         new Exam(
             UUID.fromString("33333333-3333-3333-3333-333333333333"),
+            UUID.fromString("11111111-1111-1111-1111-111111111111"),
             Instant.parse("2026-01-01T10:00:00Z"),
-            new BigDecimal("0.5000"),
-            UUID.fromString("11111111-1111-1111-1111-111111111111"));
-    var course = new JCourse();
-    course.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
+            new BigDecimal("0.5000"));
+    var groupCourse = new JGroupCourse();
+    groupCourse.setId(UUID.fromString("11111111-1111-1111-1111-111111111111"));
 
-    JExam result = examMapper.toEntity(domain, course);
+    JExam result = examMapper.toEntity(domain, groupCourse);
 
     assertEquals(domain.id(), result.getId());
     assertEquals(domain.examDate(), result.getExamDate());
     assertEquals(domain.coefficient(), result.getCoefficient());
-    assertEquals(course, result.getCourse());
+    assertEquals(groupCourse, result.getGroupCourse());
   }
 }

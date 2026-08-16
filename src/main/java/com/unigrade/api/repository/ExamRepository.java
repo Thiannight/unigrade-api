@@ -1,12 +1,22 @@
 package com.unigrade.api.repository;
 
 import com.unigrade.api.repository.model.JExam;
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ExamRepository extends JpaRepository<JExam, UUID> {
 
-  boolean existsByCourseId(UUID courseId);
+  boolean existsByGroupCourseId(UUID groupCourseId);
+
+  List<JExam> findByGroupCourseIdOrderByExamDateAsc(UUID groupCourseId);
+
+  @Query(
+      "SELECT COALESCE(SUM(e.coefficient), 0) FROM JExam e WHERE e.groupCourse.id = :groupCourseId")
+  BigDecimal sumCoefficientByGroupCourseId(@Param("groupCourseId") UUID groupCourseId);
 }
