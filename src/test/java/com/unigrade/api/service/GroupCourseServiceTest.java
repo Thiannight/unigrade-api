@@ -81,12 +81,40 @@ class GroupCourseServiceTest {
     var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
     when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.sumCreditsByGroupIdAndSemester(GROUP_ID, SEMESTER)).thenReturn(0L);
     when(repository.save(any())).thenReturn(groupCourse());
 
     GroupCourse result = service.assign(GROUP_ID, request);
 
     assertEquals(COURSE_ID, result.courseId());
     verify(repository).save(any());
+  }
+
+  @Test
+  void assign_atSemesterCreditCap_saves() {
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
+    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.sumCreditsByGroupIdAndSemester(GROUP_ID, SEMESTER)).thenReturn(24L);
+    when(repository.save(any())).thenReturn(groupCourse());
+
+    GroupCourse result = service.assign(GROUP_ID, request);
+
+    assertEquals(COURSE_ID, result.courseId());
+    verify(repository).save(any());
+  }
+
+  @Test
+  void assign_exceedsSemesterCreditCap_throwsBadRequest() {
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
+    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.sumCreditsByGroupIdAndSemester(GROUP_ID, SEMESTER)).thenReturn(25L);
+
+    BadRequestException exception =
+        assertThrows(BadRequestException.class, () -> service.assign(GROUP_ID, request));
+
+    assertTrue(exception.getMessage().contains("Semester credit limit exceeded"));
   }
 
   @Test
@@ -117,6 +145,7 @@ class GroupCourseServiceTest {
     var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
     when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.sumCreditsByGroupIdAndSemester(GROUP_ID, SEMESTER)).thenReturn(0L);
     when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
 
     assertThrows(ConflictException.class, () -> service.assign(GROUP_ID, request));
@@ -200,6 +229,7 @@ class GroupCourseServiceTest {
   private JCourse course() {
     var course = new JCourse();
     course.setId(COURSE_ID);
+    course.setCredits((short) 6);
     return course;
   }
 
