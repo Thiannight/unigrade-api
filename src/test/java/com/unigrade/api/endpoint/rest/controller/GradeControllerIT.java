@@ -1,6 +1,8 @@
 package com.unigrade.api.endpoint.rest.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.springframework.http.HttpMethod.PUT;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -17,6 +19,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.ResponseEntity;
 
 class GradeControllerIT extends FacadeIT {
@@ -65,6 +68,7 @@ class GradeControllerIT extends FacadeIT {
     ResponseEntity<JsonNode[]> listResponse =
         restTemplate.getForEntity(gradesUrl(groupId, courseId, examId), JsonNode[].class);
     assertEquals(OK, listResponse.getStatusCode());
+    assertNotNull(listResponse.getBody());
     assertEquals(2, listResponse.getBody().length);
     assertEquals(12.0, listResponse.getBody()[0].get("score").decimalValue().doubleValue());
     assertEquals(16.5, listResponse.getBody()[1].get("score").decimalValue().doubleValue());
@@ -72,11 +76,13 @@ class GradeControllerIT extends FacadeIT {
     ResponseEntity<JsonNode[]> filtered =
         restTemplate.getForEntity(
             gradesUrl(groupId, courseId, examId) + "?studentId=" + studentId, JsonNode[].class);
+    assertNotNull(filtered.getBody());
     assertEquals(2, filtered.getBody().length);
 
     ResponseEntity<JsonNode[]> otherFiltered =
         restTemplate.getForEntity(
             gradesUrl(groupId, courseId, examId) + "?studentId=STD99999", JsonNode[].class);
+    assertNotNull(otherFiltered.getBody());
     assertEquals(0, otherFiltered.getBody().length);
   }
 
@@ -222,6 +228,38 @@ class GradeControllerIT extends FacadeIT {
     assertEquals(NOT_FOUND, response.getStatusCode());
   }
 
+  @Test
+  void grade_afterAssignmentEnded_succeeds() {
+    UUID groupId = createGroup("GR-GRP-8", (short) 2124, (short) 2125);
+    UUID courseId = createCourse("GR-IT-108", "Grade Course IT Ended Assignment");
+    assignCourse(groupId, courseId, "2024-01-01");
+    String studentId = createStudent("gr-it-ended-" + UUID.randomUUID() + "@unigrade.com");
+    createMembership(groupId, studentId, "2024-01-01");
+
+    String examId = createExam(groupId, courseId, "2024-05-01T09:00:00Z");
+
+    restTemplate.exchange(
+        "/groups/" + groupId + "/courses/" + courseId,
+        PUT,
+        new HttpEntity<>(Map.of("endDate", "2024-06-01")),
+        JsonNode.class);
+
+    ResponseEntity<JsonNode> gradeResponse =
+        restTemplate.postForEntity(
+            gradesUrl(groupId, courseId, examId),
+            Map.of(
+                "score",
+                12.0,
+                "gradeDate",
+                "2024-07-01T09:00:00Z",
+                "reason",
+                "Late grade",
+                "studentId",
+                studentId),
+            JsonNode.class);
+    assertEquals(CREATED, gradeResponse.getStatusCode());
+  }
+
   private String createExam(UUID groupId, UUID courseId, String examDate) {
     ResponseEntity<JsonNode> response =
         restTemplate.postForEntity(
@@ -229,6 +267,7 @@ class GradeControllerIT extends FacadeIT {
             Map.of("examDate", examDate, "coefficient", 0.5),
             JsonNode.class);
     assertEquals(CREATED, response.getStatusCode());
+    assertNotNull(response.getBody());
     return response.getBody().get("id").asText();
   }
 
@@ -269,6 +308,7 @@ class GradeControllerIT extends FacadeIT {
             "STUDENT");
     ResponseEntity<JsonNode> response = restTemplate.postForEntity("/users", body, JsonNode.class);
     assertEquals(CREATED, response.getStatusCode());
+    assertNotNull(response.getBody());
     return response.getBody().get("id").asText();
   }
 
@@ -287,6 +327,7 @@ class GradeControllerIT extends FacadeIT {
     ResponseEntity<JsonNode> response =
         restTemplate.postForEntity("/groups", group, JsonNode.class);
     assertEquals(CREATED, response.getStatusCode());
+    assertNotNull(response.getBody());
     return UUID.fromString(response.getBody().get("id").asText());
   }
 
@@ -295,6 +336,7 @@ class GradeControllerIT extends FacadeIT {
     ResponseEntity<JsonNode> response =
         restTemplate.postForEntity("/courses", course, JsonNode.class);
     assertEquals(CREATED, response.getStatusCode());
+    assertNotNull(response.getBody());
     return UUID.fromString(response.getBody().get("id").asText());
   }
 }

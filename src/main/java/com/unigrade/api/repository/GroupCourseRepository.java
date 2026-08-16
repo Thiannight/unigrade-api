@@ -24,7 +24,6 @@ public interface GroupCourseRepository extends JpaRepository<JGroupCourse, UUID>
       SELECT COALESCE(SUM(gc.course.credits), 0) FROM JGroupCourse gc
       WHERE gc.group.id = :groupId
         AND gc.semester = :semester
-        AND gc.endDate IS NULL
       """)
   Long sumCreditsByGroupIdAndSemester(
       @Param("groupId") UUID groupId, @Param("semester") Semester semester);

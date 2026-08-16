@@ -16,9 +16,9 @@ import com.unigrade.api.model.Role;
 import com.unigrade.api.model.dto.GradeRequest;
 import com.unigrade.api.repository.ExamRepository;
 import com.unigrade.api.repository.GradeRepository;
-import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.MembershipRepository;
 import com.unigrade.api.repository.UserRepository;
+import com.unigrade.api.repository.model.JCourse;
 import com.unigrade.api.repository.model.JExam;
 import com.unigrade.api.repository.model.JGrade;
 import com.unigrade.api.repository.model.JGroupCourse;
@@ -51,7 +51,6 @@ class GradeServiceTest {
   private static final Instant GRADE_DATE = Instant.parse("2024-03-02T09:00:00Z");
 
   @Mock private GradeRepository repository;
-  @Mock private GroupCourseRepository groupCourseRepository;
   @Mock private ExamRepository examRepository;
   @Mock private UserRepository userRepository;
   @Mock private MembershipRepository membershipRepository;
@@ -61,46 +60,52 @@ class GradeServiceTest {
   @BeforeEach
   void setUp() {
     service =
-        new GradeService(
-            repository,
-            groupCourseRepository,
-            examRepository,
-            userRepository,
-            membershipRepository,
-            mapper);
+        new GradeService(repository, examRepository, userRepository, membershipRepository, mapper);
   }
 
   @Test
   void findByExam_returnsMappedList() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
-        .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(repository.findByExamIdOrderByGradeDateAsc(EXAM_ID)).thenReturn(List.of(grade()));
 
     List<Grade> result = service.findByExam(GROUP_ID, COURSE_ID, EXAM_ID, null);
 
     assertEquals(1, result.size());
-    assertEquals(GRADE_ID, result.get(0).id());
-    assertEquals(STUDENT_ID, result.get(0).studentId());
+    assertEquals(GRADE_ID, result.getFirst().id());
+    assertEquals(STUDENT_ID, result.getFirst().studentId());
   }
 
   @Test
   void findByExam_filtersByStudentId() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
-        .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(repository.findByExamIdOrderByGradeDateAsc(EXAM_ID))
         .thenReturn(List.of(grade(), gradeOf(OTHER_STUDENT_ID)));
 
     List<Grade> result = service.findByExam(GROUP_ID, COURSE_ID, EXAM_ID, STUDENT_ID);
 
     assertEquals(1, result.size());
-    assertEquals(STUDENT_ID, result.get(0).studentId());
+    assertEquals(STUDENT_ID, result.getFirst().studentId());
   }
 
   @Test
-  void findByExam_noActiveAssignment_throwsNotFound() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+  void findByExam_wrongGroupCourse_throwsNotFound() {
+    UUID wrongGroupId = UUID.randomUUID();
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, wrongGroupId, COURSE_ID))
+        .thenReturn(Optional.empty());
+
+    assertThrows(
+        NotFoundException.class, () -> service.findByExam(wrongGroupId, COURSE_ID, EXAM_ID, null));
+  }
+
+  @Test
+  void findByExam_missingExam_throwsNotFound() {
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
         .thenReturn(Optional.empty());
 
     assertThrows(
@@ -108,23 +113,10 @@ class GradeServiceTest {
   }
 
   @Test
-  void findByExam_missingExam_throwsNotFound() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
-        .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.empty());
-
-    NotFoundException exception =
-        assertThrows(
-            NotFoundException.class, () -> service.findByExam(GROUP_ID, COURSE_ID, EXAM_ID, null));
-
-    assertTrue(exception.getMessage().contains("Exam not found"));
-  }
-
-  @Test
   void grade_saves() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
-        .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
     when(membershipRepository.existsByGroupIdAndStudentIdAt(
             eq(GROUP_ID), eq(STUDENT_ID), any(LocalDate.class)))
@@ -142,9 +134,9 @@ class GradeServiceTest {
 
   @Test
   void grade_missingStudent_throwsNotFound() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
-        .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.empty());
 
     NotFoundException exception =
@@ -158,9 +150,9 @@ class GradeServiceTest {
   void grade_notStudentRole_throwsBadRequest() {
     var teacher = student();
     teacher.setRole(Role.TEACHER);
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
-        .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(teacher));
 
     assertThrows(
@@ -171,9 +163,9 @@ class GradeServiceTest {
   void grade_inactiveStudent_throwsBadRequest() {
     var inactive = student();
     inactive.setIsActive(false);
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
-        .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(inactive));
 
     assertThrows(
@@ -182,9 +174,9 @@ class GradeServiceTest {
 
   @Test
   void grade_notMemberAtExamDate_throwsBadRequest() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
-        .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
     when(membershipRepository.existsByGroupIdAndStudentIdAt(
             eq(GROUP_ID), eq(STUDENT_ID), any(LocalDate.class)))
@@ -200,28 +192,19 @@ class GradeServiceTest {
 
   @Test
   void grade_missingExam_throwsNotFound() {
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
-        .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.empty());
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.empty());
 
     assertThrows(
         NotFoundException.class, () -> service.grade(GROUP_ID, COURSE_ID, EXAM_ID, request()));
   }
 
-  private JGroupCourse assignment() {
-    var group = new JStudentGroup();
-    group.setId(GROUP_ID);
-    return JGroupCourse.builder()
-        .id(GROUP_COURSE_ID)
-        .group(group)
-        .startDate(LocalDate.of(2024, 1, 1))
-        .endDate(null)
-        .build();
-  }
-
   private JExam exam() {
-    var groupCourse = new JGroupCourse();
-    groupCourse.setId(GROUP_COURSE_ID);
+    var group = JStudentGroup.builder().id(GROUP_ID).build();
+    var course = JCourse.builder().id(COURSE_ID).build();
+    var groupCourse =
+        JGroupCourse.builder().id(GROUP_COURSE_ID).group(group).course(course).build();
     return JExam.builder()
         .id(EXAM_ID)
         .examDate(EXAM_DATE)

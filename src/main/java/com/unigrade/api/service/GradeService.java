@@ -8,7 +8,6 @@ import com.unigrade.api.model.Role;
 import com.unigrade.api.model.dto.GradeRequest;
 import com.unigrade.api.repository.ExamRepository;
 import com.unigrade.api.repository.GradeRepository;
-import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.MembershipRepository;
 import com.unigrade.api.repository.UserRepository;
 import com.unigrade.api.repository.model.JExam;
@@ -29,15 +28,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class GradeService {
 
   private final GradeRepository repository;
-  private final GroupCourseRepository groupCourseRepository;
   private final ExamRepository examRepository;
   private final UserRepository userRepository;
   private final MembershipRepository membershipRepository;
   private final GradeMapper mapper;
 
   public List<Grade> findByExam(UUID groupId, UUID courseId, UUID examId, String studentId) {
-    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
-    JExam exam = resolveExam(assignment, examId);
+    JExam exam = resolveExam(groupId, courseId, examId);
     List<JGrade> grades = repository.findByExamIdOrderByGradeDateAsc(exam.getId());
     if (studentId != null) {
       grades = grades.stream().filter(g -> g.getStudent().getId().equals(studentId)).toList();
@@ -47,10 +44,9 @@ public class GradeService {
 
   @Transactional
   public Grade grade(UUID groupId, UUID courseId, UUID examId, GradeRequest request) {
-    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
-    JExam exam = resolveExam(assignment, examId);
+    JExam exam = resolveExam(groupId, courseId, examId);
     JUser student = resolveStudent(request.studentId());
-    checkMembershipAtExamDate(assignment, student.getId(), exam.getExamDate());
+    checkMembershipAtExamDate(exam.getGroupCourse(), student.getId(), exam.getExamDate());
     var grade =
         new Grade(
             null,
@@ -62,19 +58,9 @@ public class GradeService {
     return mapper.toDomain(repository.save(mapper.toEntity(grade, student, exam)));
   }
 
-  private JGroupCourse resolveActiveAssignment(UUID groupId, UUID courseId) {
-    return groupCourseRepository
-        .findByGroupIdAndCourseIdAndEndDateIsNull(groupId, courseId)
-        .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "No active course assignment for course " + courseId + " in group " + groupId));
-  }
-
-  private JExam resolveExam(JGroupCourse assignment, UUID examId) {
+  private JExam resolveExam(UUID groupId, UUID courseId, UUID examId) {
     return examRepository
-        .findById(examId)
-        .filter(exam -> assignment.getId().equals(exam.getGroupCourse().getId()))
+        .findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(examId, groupId, courseId)
         .orElseThrow(() -> new NotFoundException("Exam not found: " + examId));
   }
 
