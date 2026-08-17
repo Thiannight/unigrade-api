@@ -25,7 +25,7 @@ public class UserController {
 
   private final UserService service;
 
-  @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
+  @PreAuthorize("hasRole('ADMIN')")
   @GetMapping
   public List<User> findAll(
       @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
