@@ -129,7 +129,8 @@ class StudentReportIT extends SecuredFacadeIT {
     JsonNode body = response.getBody();
     assertNotNull(body);
     assertEquals(0, body.get("levels").size());
-    assertEquals("COMPLETE", body.get("status").asText());
+    assertEquals("TEMPORARY", body.get("status").asText());
+    assertEquals(180, body.get("requiredCredits").asInt());
     assertTrue(body.get("overallAverage").isNull());
   }
 

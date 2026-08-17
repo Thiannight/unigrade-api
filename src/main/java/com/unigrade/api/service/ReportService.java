@@ -75,13 +75,19 @@ public class ReportService {
 
     List<CourseReportEntry> allCourses =
         levelReports.stream().flatMap(lr -> lr.courses().stream()).toList();
-    ReportStatus status =
-        levelReports.stream().anyMatch(lr -> lr.status() == ReportStatus.TEMPORARY)
-            ? ReportStatus.TEMPORARY
-            : ReportStatus.COMPLETE;
-
     long totalCredits = levelReports.stream().mapToLong(LevelReport::totalCredits).sum();
-    long requiredCredits = levelReports.stream().mapToLong(LevelReport::requiredCredits).sum();
+    int expectedLevels = (levelFilter != null) ? 1 : Level.values().length;
+    long requiredCredits = (long) expectedLevels * PER_LEVEL_CREDIT;
+
+    ReportStatus status;
+    if (levelReports.size() < expectedLevels) {
+      status = ReportStatus.TEMPORARY;
+    } else {
+      status =
+          levelReports.stream().anyMatch(lr -> lr.status() == ReportStatus.TEMPORARY)
+              ? ReportStatus.TEMPORARY
+              : ReportStatus.COMPLETE;
+    }
 
     return new StudentReport(
         studentId,
@@ -101,6 +107,14 @@ public class ReportService {
       JStudentGroup group = membership.getGroup();
       JPromotion promotion = group.getPromotion();
       for (JGroupCourse groupCourse : groupCourseRepository.findAllByGroupId(group.getId())) {
+
+        if ((membership.getEndDate() != null
+                && groupCourse.getStartDate().isAfter(membership.getEndDate()))
+            || (groupCourse.getEndDate() != null
+                && membership.getStartDate().isAfter(groupCourse.getEndDate()))) {
+          continue;
+        }
+
         participationsByLevel
             .computeIfAbsent(groupCourse.getSemester().level(), level -> new ArrayList<>())
             .add(new CourseParticipation(group, promotion, groupCourse));

@@ -148,7 +148,7 @@ class ReportServiceTest {
     assertEquals(new BigDecimal("13.60"), report.overallAverage());
     assertEquals(ReportStatus.TEMPORARY, report.status());
     assertEquals(6, report.totalCredits());
-    assertEquals(60, report.requiredCredits());
+    assertEquals(180, report.requiredCredits());
   }
 
   @Test
@@ -174,8 +174,29 @@ class ReportServiceTest {
     StudentReport report = service.generate(STUDENT_ID, null);
 
     assertTrue(report.levels().isEmpty());
-    assertEquals(ReportStatus.COMPLETE, report.status());
+    assertEquals(ReportStatus.TEMPORARY, report.status());
+    assertEquals(180, report.requiredCredits());
     assertNull(report.overallAverage());
+  }
+
+  @Test
+  void generate_onlyL1Data_reportShows180RequiredAndTemporary() {
+    JUser student = student();
+    JGroupCourse l1Course =
+        groupCourse(GROUP_COURSE_ID_1, GROUP_ID_1, Semester.S1, promotion("P-2024", (short) 2024));
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
+        .thenReturn(List.of(membership(GROUP_ID_1, student, promotion("P-2024", (short) 2024))));
+    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1)).thenReturn(List.of(l1Course));
+    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_1))
+        .thenReturn(List.of());
+
+    StudentReport report = service.generate(STUDENT_ID, null);
+
+    assertEquals(1, report.levels().size());
+    assertEquals(Level.L1, report.levels().getFirst().level());
+    assertEquals(180, report.requiredCredits());
+    assertEquals(ReportStatus.TEMPORARY, report.status());
   }
 
   @Test
@@ -277,6 +298,7 @@ class ReportServiceTest {
                     .credits((short) 6)
                     .build())
             .semester(Semester.S4)
+            .startDate(LocalDate.of(2024, 1, 1))
             .build();
     JGroupCourse g2Course =
         JGroupCourse.builder()
@@ -290,6 +312,7 @@ class ReportServiceTest {
                     .credits((short) 6)
                     .build())
             .semester(Semester.S4)
+            .startDate(LocalDate.of(2024, 1, 1))
             .build();
     JExam examNew = exam(examIdNew, "2024-07-01T09:00:00Z", "1.0");
 
@@ -415,6 +438,7 @@ class ReportServiceTest {
                 .credits((short) 6)
                 .build())
         .semester(semester)
+        .startDate(LocalDate.of(2024, 1, 1))
         .build();
   }
 
