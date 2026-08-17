@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.unigrade.api.exception.BadRequestException;
+import com.unigrade.api.exception.ForbiddenException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.model.Level;
 import com.unigrade.api.model.ReportStatus;
@@ -36,11 +37,14 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @ExtendWith(MockitoExtension.class)
 class ReportServiceTest {
@@ -77,6 +81,22 @@ class ReportServiceTest {
             groupCourseRepository,
             examRepository,
             gradeRepository);
+    loginAs("ADMIN001", Role.ADMIN);
+  }
+
+  @AfterEach
+  void tearDown() {
+    SecurityContextHolder.clearContext();
+  }
+
+  private void loginAs(String id, Role role) {
+    var principal = new JUser();
+    principal.setId(id);
+    principal.setRole(role);
+    principal.setIsActive(true);
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
   }
 
   @Test
@@ -323,6 +343,31 @@ class ReportServiceTest {
 
     assertEquals(1, report.levels().size());
     assertEquals(Level.L2, report.levels().getFirst().level());
+  }
+
+  @Test
+  void generate_studentViewingOwnReport_isAllowed() {
+    loginAs(STUDENT_ID, Role.STUDENT);
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID)).thenReturn(List.of());
+
+    StudentReport report = service.generate(STUDENT_ID, null);
+
+    assertEquals(STUDENT_ID, report.studentId());
+  }
+
+  @Test
+  void generate_studentViewingOtherStudent_throwsForbidden() {
+    loginAs("OTHER001", Role.STUDENT);
+
+    assertThrows(ForbiddenException.class, () -> service.generate(STUDENT_ID, null));
+  }
+
+  @Test
+  void generate_teacherViewingReport_throwsForbidden() {
+    loginAs("TEACHER001", Role.TEACHER);
+
+    assertThrows(ForbiddenException.class, () -> service.generate(STUDENT_ID, null));
   }
 
   private JUser student() {

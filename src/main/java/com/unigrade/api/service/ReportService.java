@@ -1,6 +1,7 @@
 package com.unigrade.api.service;
 
 import com.unigrade.api.exception.BadRequestException;
+import com.unigrade.api.exception.ForbiddenException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.model.CourseReportEntry;
 import com.unigrade.api.model.ExamScore;
@@ -20,6 +21,7 @@ import com.unigrade.api.repository.model.JMembership;
 import com.unigrade.api.repository.model.JPromotion;
 import com.unigrade.api.repository.model.JStudentGroup;
 import com.unigrade.api.repository.model.JUser;
+import com.unigrade.api.security.SecurityUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -49,6 +51,7 @@ public class ReportService {
 
   @Transactional(readOnly = true)
   public StudentReport generate(String studentId, Level levelFilter) {
+    requireCanViewReport(studentId);
     JUser student = resolveStudent(studentId);
 
     List<JMembership> memberships =
@@ -224,6 +227,17 @@ public class ReportService {
       throw new BadRequestException("Only students can have a report");
     }
     return student;
+  }
+
+  private void requireCanViewReport(String studentId) {
+    JUser current = SecurityUtils.currentUser();
+    if (current.getRole() == Role.ADMIN) {
+      return;
+    }
+    if (current.getRole() == Role.STUDENT && current.getId().equals(studentId)) {
+      return;
+    }
+    throw new ForbiddenException("You are not allowed to view this report");
   }
 
   private record CourseParticipation(
