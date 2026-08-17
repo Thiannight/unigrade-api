@@ -5,6 +5,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -61,6 +63,16 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ForbiddenException.class)
   public ProblemDetail handleForbidden(ForbiddenException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+  }
+
+  @ExceptionHandler(AccessDeniedException.class)
+  public ProblemDetail handleAccessDenied(AccessDeniedException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Access denied");
+  }
+
+  @ExceptionHandler(AuthenticationException.class)
+  public ProblemDetail handleAuthentication(AuthenticationException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Authentication failed");
   }
 
   @ExceptionHandler(ResponseStatusException.class)

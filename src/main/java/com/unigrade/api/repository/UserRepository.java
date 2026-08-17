@@ -9,6 +9,8 @@ import org.springframework.stereotype.Repository;
 public interface UserRepository extends JpaRepository<JUser, String> {
   Optional<JUser> findFirstByIdStartingWithOrderByIdDesc(String idPrefix);
 
+  Optional<JUser> findByEmail(String email);
+
   boolean existsByEmail(String email);
 
   boolean existsByEmailAndIdNot(String email, String id);
