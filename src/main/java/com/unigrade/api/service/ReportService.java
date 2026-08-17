@@ -47,7 +47,7 @@ public class ReportService {
 
   @Transactional(readOnly = true)
   public StudentReport generate(String studentId) {
-    resolveStudent(studentId);
+    JUser student = resolveStudent(studentId);
 
     List<JMembership> memberships =
         membershipRepository.findByStudentIdOrderByStartDateAsc(studentId);
@@ -67,7 +67,12 @@ public class ReportService {
       allCourses.addAll(levelReport.courses());
     }
 
-    return new StudentReport(studentId, levelReports, average(allCourses));
+    return new StudentReport(
+        studentId,
+        student.getFirstName(),
+        student.getLastName(),
+        levelReports,
+        average(allCourses));
   }
 
   private Map<Level, List<CourseParticipation>> collectCourseParticipations(

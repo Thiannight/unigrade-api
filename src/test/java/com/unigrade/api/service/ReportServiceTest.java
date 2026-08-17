@@ -106,6 +106,8 @@ class ReportServiceTest {
     StudentReport report = service.generate(STUDENT_ID);
 
     assertEquals(STUDENT_ID, report.studentId());
+    assertEquals("Alice", report.firstName());
+    assertEquals("Dupont", report.lastName());
     assertEquals(1, report.levels().size());
     assertEquals(Level.L2, report.levels().getFirst().level());
     assertEquals(1, report.levels().getFirst().courses().size());
@@ -292,7 +294,12 @@ class ReportServiceTest {
   }
 
   private JUser student() {
-    return JUser.builder().id(STUDENT_ID).role(Role.STUDENT).build();
+    return JUser.builder()
+        .id(STUDENT_ID)
+        .role(Role.STUDENT)
+        .firstName("Alice")
+        .lastName("Dupont")
+        .build();
   }
 
   private JMembership membership(UUID groupId, JUser student, JPromotion promotion) {

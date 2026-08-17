@@ -39,12 +39,14 @@ class StudentReportIT extends FacadeIT {
     grade(groupId, courseId, exam2Id, studentId, 16.0, "2024-06-02T09:00:00Z");
 
     ResponseEntity<JsonNode> response =
-        restTemplate.getForEntity("/students/" + studentId + "/report", JsonNode.class);
+        restTemplate.getForEntity("/students/" + studentId + "/report?json=true", JsonNode.class);
 
     assertEquals(OK, response.getStatusCode());
     JsonNode body = response.getBody();
     assertNotNull(body);
     assertEquals(studentId, body.get("studentId").asText());
+    assertEquals("Ada", body.get("firstName").asText());
+    assertEquals("Lovelace", body.get("lastName").asText());
     assertEquals(1, body.get("levels").size());
     assertEquals("L2", body.get("levels").get(0).get("level").asText());
     assertEquals(
@@ -98,7 +100,7 @@ class StudentReportIT extends FacadeIT {
     grade(newGroupId, newCourseId, newExamId, studentId, 14.0, "2025-05-02T09:00:00Z");
 
     ResponseEntity<JsonNode> response =
-        restTemplate.getForEntity("/students/" + studentId + "/report", JsonNode.class);
+        restTemplate.getForEntity("/students/" + studentId + "/report?json=true", JsonNode.class);
 
     assertEquals(OK, response.getStatusCode());
     JsonNode body = response.getBody();
@@ -119,13 +121,33 @@ class StudentReportIT extends FacadeIT {
     String studentId = createStudent("rep-it-nomember-" + UUID.randomUUID() + "@unigrade.com");
 
     ResponseEntity<JsonNode> response =
-        restTemplate.getForEntity("/students/" + studentId + "/report", JsonNode.class);
+        restTemplate.getForEntity("/students/" + studentId + "/report?json=true", JsonNode.class);
 
     assertEquals(OK, response.getStatusCode());
     JsonNode body = response.getBody();
     assertNotNull(body);
     assertEquals(0, body.get("levels").size());
     assertTrue(body.get("overallAverage").isNull());
+  }
+
+  @Test
+  void report_default_returnsPdf() {
+    String uid = UUID.randomUUID().toString().substring(0, 8);
+    UUID groupId = createGroup("PP-" + uid, (short) 2310, (short) 2311);
+    UUID courseId = createCourse("PC-" + uid, "Report Course PDF");
+    assignCourse(groupId, courseId, "2024-01-01", "S3");
+    String studentId = createStudent("rep-it-pdf-" + UUID.randomUUID() + "@unigrade.com");
+    createMembership(groupId, studentId, "2024-01-01");
+    String examId = createExam(groupId, courseId, "2024-05-01T09:00:00Z", 1.0);
+    grade(groupId, courseId, examId, studentId, 14.0, "2024-05-02T09:00:00Z");
+
+    ResponseEntity<byte[]> response =
+        restTemplate.getForEntity("/students/" + studentId + "/report", byte[].class);
+
+    assertEquals(OK, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertTrue(response.getBody().length > 0);
+    assertEquals("application/pdf", response.getHeaders().getContentType().toString());
   }
 
   @Test
