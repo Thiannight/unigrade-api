@@ -37,7 +37,7 @@ class SecurityUtilsTest {
 
   @Test
   void currentUser_returnsPrincipal() {
-    AppUserPrincipal principal = principal();
+    JUser principal = principal();
     var authentication =
         new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
     SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -45,17 +45,16 @@ class SecurityUtilsTest {
     assertSame(principal, SecurityUtils.currentUser());
   }
 
-  private AppUserPrincipal principal() {
-    return new AppUserPrincipal(
-        JUser.builder()
-            .id("STD00001")
-            .firstName("Ada")
-            .lastName("Lovelace")
-            .birthDate(LocalDate.of(2000, 1, 1))
-            .email("ada@unigrade.com")
-            .password("secret")
-            .isActive(true)
-            .role(Role.STUDENT)
-            .build());
+  private JUser principal() {
+    return JUser.builder()
+        .id("STD00001")
+        .firstName("Ada")
+        .lastName("Lovelace")
+        .birthDate(LocalDate.of(2000, 1, 1))
+        .email("ada@unigrade.com")
+        .password("secret")
+        .isActive(true)
+        .role(Role.STUDENT)
+        .build();
   }
 }

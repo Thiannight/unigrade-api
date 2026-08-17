@@ -2,7 +2,7 @@ package com.unigrade.api.endpoint.rest.controller;
 
 import com.unigrade.api.model.dto.LoginRequest;
 import com.unigrade.api.model.dto.LoginResponse;
-import com.unigrade.api.security.AppUserPrincipal;
+import com.unigrade.api.repository.model.JUser;
 import com.unigrade.api.security.JwtService;
 import jakarta.validation.Valid;
 import java.util.Map;
@@ -28,7 +28,7 @@ public class AuthController {
         authenticationManager.authenticate(
             new UsernamePasswordAuthenticationToken(request.userId(), request.password()));
 
-    var principal = (AppUserPrincipal) authentication.getPrincipal();
+    var principal = (JUser) authentication.getPrincipal();
     String token =
         jwtService.generateToken(
             principal.getUsername(),

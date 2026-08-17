@@ -17,7 +17,6 @@ import com.unigrade.api.repository.model.JExam;
 import com.unigrade.api.repository.model.JGrade;
 import com.unigrade.api.repository.model.JGroupCourse;
 import com.unigrade.api.repository.model.JUser;
-import com.unigrade.api.security.AppUserPrincipal;
 import com.unigrade.api.security.SecurityUtils;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -74,7 +73,7 @@ public class GradeService {
   }
 
   private String restrictToAllowedStudent(UUID courseId, String requestedStudentId) {
-    AppUserPrincipal current = SecurityUtils.currentUser();
+    JUser current = SecurityUtils.currentUser();
     if (current.getRole() == Role.STUDENT) {
       if (requestedStudentId != null && !requestedStudentId.equals(current.getId())) {
         throw new ForbiddenException("Students can only view their own grades");
@@ -89,7 +88,7 @@ public class GradeService {
   }
 
   private void requireCanGrade(UUID courseId) {
-    AppUserPrincipal current = SecurityUtils.currentUser();
+    JUser current = SecurityUtils.currentUser();
     if (current.getRole() == Role.STUDENT) {
       throw new ForbiddenException("Students cannot grade exams");
     }

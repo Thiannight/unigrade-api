@@ -26,7 +26,6 @@ import com.unigrade.api.repository.model.JGrade;
 import com.unigrade.api.repository.model.JGroupCourse;
 import com.unigrade.api.repository.model.JStudentGroup;
 import com.unigrade.api.repository.model.JUser;
-import com.unigrade.api.security.AppUserPrincipal;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -87,7 +86,7 @@ class GradeServiceTest {
   }
 
   private void loginAs(String id, Role role) {
-    var principal = new AppUserPrincipal(userStub(id, role));
+    var principal = userStub(id, role);
     SecurityContextHolder.getContext()
         .setAuthentication(
             new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));

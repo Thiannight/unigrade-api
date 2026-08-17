@@ -12,15 +12,24 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class UserService {
+public class UserService implements UserDetailsService {
   private final UserRepository repository;
   private final UserMapper mapper;
   private final PasswordEncoder passwordEncoder;
+
+  @Override
+  public JUser loadUserByUsername(String id) throws UsernameNotFoundException {
+    return repository
+        .findById(id)
+        .orElseThrow(() -> new UsernameNotFoundException("User not found: " + id));
+  }
 
   public List<User> findAll(int page, int size) {
     return repository

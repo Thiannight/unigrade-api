@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.unigrade.api.model.Role;
 import com.unigrade.api.repository.model.JUser;
+import com.unigrade.api.service.UserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,7 +24,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 class JwtAuthenticationFilterTest {
 
   private final JwtService jwtService = mock(JwtService.class);
-  private final AppUserDetailsService userDetailsService = mock(AppUserDetailsService.class);
+  private final UserService userDetailsService = mock(UserService.class);
   private final JwtAuthenticationFilter filter =
       new JwtAuthenticationFilter(jwtService, userDetailsService);
   private final HttpServletRequest request = mock(HttpServletRequest.class);
@@ -57,7 +58,7 @@ class JwtAuthenticationFilterTest {
 
   @Test
   void validToken_authenticates() throws Exception {
-    AppUserPrincipal principal = principal(true);
+    JUser principal = principal(true);
     when(request.getHeader("Authorization")).thenReturn("Bearer token");
     when(jwtService.extractSubject("token")).thenReturn("STD00001");
     when(userDetailsService.loadUserByUsername("STD00001")).thenReturn(principal);
@@ -120,7 +121,7 @@ class JwtAuthenticationFilterTest {
 
   @Test
   void existingAuthentication_skipsReAuthentication() throws Exception {
-    AppUserPrincipal principal = principal(true);
+    JUser principal = principal(true);
     SecurityContextHolder.getContext()
         .setAuthentication(
             new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
@@ -132,17 +133,16 @@ class JwtAuthenticationFilterTest {
     verify(chain).doFilter(request, response);
   }
 
-  private AppUserPrincipal principal(boolean active) {
-    return new AppUserPrincipal(
-        JUser.builder()
-            .id("STD00001")
-            .firstName("Ada")
-            .lastName("Lovelace")
-            .birthDate(LocalDate.of(2000, 1, 1))
-            .email("STD00001")
-            .password("secret")
-            .isActive(active)
-            .role(Role.STUDENT)
-            .build());
+  private JUser principal(boolean active) {
+    return JUser.builder()
+        .id("STD00001")
+        .firstName("Ada")
+        .lastName("Lovelace")
+        .birthDate(LocalDate.of(2000, 1, 1))
+        .email("STD00001")
+        .password("secret")
+        .isActive(active)
+        .role(Role.STUDENT)
+        .build();
   }
 }

@@ -2,6 +2,7 @@ package com.unigrade.api.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -23,6 +24,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -193,6 +195,21 @@ class UserServiceTest {
     service.delete(STUDENT_ID);
 
     verify(repository).delete(existing);
+  }
+
+  @Test
+  void loadUserByUsername_returnsEntity() {
+    JUser existing = entity("ada@unigrade.com", "hash");
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.of(existing));
+
+    assertSame(existing, service.loadUserByUsername(STUDENT_ID));
+  }
+
+  @Test
+  void loadUserByUsername_missingUser_throwsUsernameNotFound() {
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.empty());
+
+    assertThrows(UsernameNotFoundException.class, () -> service.loadUserByUsername(STUDENT_ID));
   }
 
   private User domainUser(String email, String password) {

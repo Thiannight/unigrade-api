@@ -1,5 +1,6 @@
 package com.unigrade.api.security;
 
+import com.unigrade.api.service.UserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,7 +21,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   private static final String BEARER_PREFIX = "Bearer ";
 
   private final JwtService jwtService;
-  private final AppUserDetailsService userDetailsService;
+  private final UserService userDetailsService;
 
   @Override
   protected void doFilterInternal(
