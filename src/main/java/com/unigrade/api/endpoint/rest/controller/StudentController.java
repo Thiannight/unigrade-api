@@ -1,5 +1,6 @@
 package com.unigrade.api.endpoint.rest.controller;
 
+import com.unigrade.api.model.Level;
 import com.unigrade.api.service.PdfReportService;
 import com.unigrade.api.service.ReportService;
 import lombok.RequiredArgsConstructor;
@@ -22,8 +23,10 @@ public class StudentController {
 
   @GetMapping("/{studentId}/report")
   public ResponseEntity<?> getReport(
-      @PathVariable String studentId, @RequestParam(defaultValue = "false") boolean json) {
-    var report = reportService.generate(studentId);
+      @PathVariable String studentId,
+      @RequestParam(defaultValue = "false") boolean json,
+      @RequestParam(required = false) Level level) {
+    var report = reportService.generate(studentId, level);
     return (json)
         ? ResponseEntity.ok(report)
         : ResponseEntity.ok()

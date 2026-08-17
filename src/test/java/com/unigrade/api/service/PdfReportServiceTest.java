@@ -12,6 +12,7 @@ import com.unigrade.api.model.CourseReportEntry;
 import com.unigrade.api.model.ExamScore;
 import com.unigrade.api.model.Level;
 import com.unigrade.api.model.LevelReport;
+import com.unigrade.api.model.ReportStatus;
 import com.unigrade.api.model.StudentReport;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -36,7 +37,9 @@ class PdfReportServiceTest {
 
   @Test
   void generate_withEmptyLevels_returnsPdf() {
-    StudentReport report = new StudentReport("STD001", "Alice", "Dupont", List.of(), null);
+    StudentReport report =
+        new StudentReport(
+            "STD001", "Alice", "Dupont", ReportStatus.TEMPORARY, 0, 0, List.of(), null);
 
     byte[] pdf = service.generate(report);
 
@@ -49,8 +52,11 @@ class PdfReportServiceTest {
     CourseReportEntry course =
         new CourseReportEntry(
             UUID.randomUUID(), "P-2024", "C-101", "Math", (short) 6, false, null, List.of());
-    LevelReport level = new LevelReport(Level.L1, null, List.of(course));
-    StudentReport report = new StudentReport("STD002", "Bob", "Martin", List.of(level), null);
+    LevelReport level =
+        new LevelReport(Level.L1, ReportStatus.TEMPORARY, 6, 60, null, List.of(course));
+    StudentReport report =
+        new StudentReport(
+            "STD002", "Bob", "Martin", ReportStatus.TEMPORARY, 6, 60, List.of(level), null);
 
     byte[] pdf = service.generate(report);
 
@@ -95,8 +101,18 @@ class PdfReportServiceTest {
             true,
             new BigDecimal("14.40"),
             List.of(exam1, exam2));
-    LevelReport l2 = new LevelReport(Level.L2, new BigDecimal("14.40"), List.of(course));
-    return new StudentReport("STD001", "Alice", "Dupont", List.of(l2), new BigDecimal("14.40"));
+    LevelReport l2 =
+        new LevelReport(
+            Level.L2, ReportStatus.TEMPORARY, 6, 60, new BigDecimal("14.40"), List.of(course));
+    return new StudentReport(
+        "STD001",
+        "Alice",
+        "Dupont",
+        ReportStatus.TEMPORARY,
+        6,
+        60,
+        List.of(l2),
+        new BigDecimal("14.40"));
   }
 
   private boolean startsWithPdf(byte[] bytes) {

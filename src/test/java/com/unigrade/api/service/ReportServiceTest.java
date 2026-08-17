@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.model.Level;
+import com.unigrade.api.model.ReportStatus;
 import com.unigrade.api.model.Role;
 import com.unigrade.api.model.Semester;
 import com.unigrade.api.model.StudentReport;
@@ -103,7 +104,7 @@ class ReportServiceTest {
     when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(EXAM_ID_2, STUDENT_ID))
         .thenReturn(Optional.of(grade(16.0f)));
 
-    StudentReport report = service.generate(STUDENT_ID);
+    StudentReport report = service.generate(STUDENT_ID, null);
 
     assertEquals(STUDENT_ID, report.studentId());
     assertEquals("Alice", report.firstName());
@@ -121,14 +122,20 @@ class ReportServiceTest {
     assertEquals(new BigDecimal("16.0"), course.exams().get(1).score());
     assertEquals(new BigDecimal("13.60"), course.average());
     assertEquals(new BigDecimal("13.60"), report.levels().getFirst().overallAverage());
+    assertEquals(ReportStatus.TEMPORARY, report.levels().getFirst().status());
+    assertEquals(6, report.levels().getFirst().totalCredits());
+    assertEquals(60, report.levels().getFirst().requiredCredits());
     assertEquals(new BigDecimal("13.60"), report.overallAverage());
+    assertEquals(ReportStatus.TEMPORARY, report.status());
+    assertEquals(6, report.totalCredits());
+    assertEquals(60, report.requiredCredits());
   }
 
   @Test
   void generate_missingStudent_throwsNotFound() {
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.empty());
 
-    assertThrows(NotFoundException.class, () -> service.generate(STUDENT_ID));
+    assertThrows(NotFoundException.class, () -> service.generate(STUDENT_ID, null));
   }
 
   @Test
@@ -136,7 +143,7 @@ class ReportServiceTest {
     JUser teacher = JUser.builder().id(STUDENT_ID).role(Role.TEACHER).build();
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(teacher));
 
-    assertThrows(BadRequestException.class, () -> service.generate(STUDENT_ID));
+    assertThrows(BadRequestException.class, () -> service.generate(STUDENT_ID, null));
   }
 
   @Test
@@ -144,9 +151,10 @@ class ReportServiceTest {
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
     when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID)).thenReturn(List.of());
 
-    StudentReport report = service.generate(STUDENT_ID);
+    StudentReport report = service.generate(STUDENT_ID, null);
 
     assertTrue(report.levels().isEmpty());
+    assertEquals(ReportStatus.COMPLETE, report.status());
     assertNull(report.overallAverage());
   }
 
@@ -166,7 +174,7 @@ class ReportServiceTest {
     when(groupCourseRepository.findAllByGroupId(GROUP_ID_1)).thenReturn(List.of(oldCourse));
     when(groupCourseRepository.findAllByGroupId(GROUP_ID_2)).thenReturn(List.of(newCourse));
 
-    StudentReport report = service.generate(STUDENT_ID);
+    StudentReport report = service.generate(STUDENT_ID, null);
 
     assertEquals(1, report.levels().size());
     assertEquals(1, report.levels().getFirst().courses().size());
@@ -186,7 +194,7 @@ class ReportServiceTest {
     when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_1))
         .thenReturn(List.of(exam));
 
-    StudentReport report = service.generate(STUDENT_ID);
+    StudentReport report = service.generate(STUDENT_ID, null);
 
     assertEquals(Level.L1, report.levels().getFirst().level());
     var course = report.levels().getFirst().courses().getFirst();
@@ -222,7 +230,7 @@ class ReportServiceTest {
     when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(EXAM_ID_1, STUDENT_ID))
         .thenReturn(Optional.of(grade(10.0f)));
 
-    StudentReport report = service.generate(STUDENT_ID);
+    StudentReport report = service.generate(STUDENT_ID, null);
 
     assertEquals(1, report.levels().size());
     assertEquals(1, report.levels().getFirst().courses().size());
@@ -283,7 +291,7 @@ class ReportServiceTest {
     when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(examIdNew, STUDENT_ID))
         .thenReturn(Optional.of(grade(14.0f)));
 
-    StudentReport report = service.generate(STUDENT_ID);
+    StudentReport report = service.generate(STUDENT_ID, null);
 
     assertEquals(1, report.levels().size());
     var courses = report.levels().getFirst().courses();
@@ -291,6 +299,30 @@ class ReportServiceTest {
     assertEquals(courseIdOld, courses.get(0).courseId());
     assertEquals(courseIdNew, courses.get(1).courseId());
     assertEquals(new BigDecimal("14.00"), courses.get(1).average());
+  }
+
+  @Test
+  void generate_withLevelFilter_returnsOnlyThatLevel() {
+    JUser student = student();
+    JGroupCourse l1Course =
+        groupCourse(GROUP_COURSE_ID_1, GROUP_ID_1, Semester.S1, promotion("P-2024", (short) 2024));
+    JGroupCourse l2Course =
+        groupCourse(GROUP_COURSE_ID_2, GROUP_ID_2, Semester.S3, promotion("P-2024", (short) 2024));
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
+        .thenReturn(
+            List.of(
+                membership(GROUP_ID_1, student, promotion("P-2024", (short) 2024)),
+                membership(GROUP_ID_2, student, promotion("P-2024", (short) 2024))));
+    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1)).thenReturn(List.of(l1Course));
+    when(groupCourseRepository.findAllByGroupId(GROUP_ID_2)).thenReturn(List.of(l2Course));
+    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_2))
+        .thenReturn(List.of());
+
+    StudentReport report = service.generate(STUDENT_ID, Level.L2);
+
+    assertEquals(1, report.levels().size());
+    assertEquals(Level.L2, report.levels().getFirst().level());
   }
 
   private JUser student() {

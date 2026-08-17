@@ -6,6 +6,7 @@ import com.unigrade.api.model.CourseReportEntry;
 import com.unigrade.api.model.ExamScore;
 import com.unigrade.api.model.Level;
 import com.unigrade.api.model.LevelReport;
+import com.unigrade.api.model.ReportStatus;
 import com.unigrade.api.model.Role;
 import com.unigrade.api.model.StudentReport;
 import com.unigrade.api.repository.ExamRepository;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReportService {
 
   private static final BigDecimal ONE = BigDecimal.ONE;
+  private static final int PER_LEVEL_CREDIT = 60;
 
   private final UserRepository userRepository;
   private final MembershipRepository membershipRepository;
@@ -46,7 +48,7 @@ public class ReportService {
   private final GradeRepository gradeRepository;
 
   @Transactional(readOnly = true)
-  public StudentReport generate(String studentId) {
+  public StudentReport generate(String studentId, Level levelFilter) {
     JUser student = resolveStudent(studentId);
 
     List<JMembership> memberships =
@@ -55,8 +57,10 @@ public class ReportService {
         collectCourseParticipations(memberships);
 
     List<LevelReport> levelReports = new ArrayList<>();
-    List<CourseReportEntry> allCourses = new ArrayList<>();
     for (Level level : Level.values()) {
+      if (levelFilter != null && level != levelFilter) {
+        continue;
+      }
       List<CourseParticipation> participations = participationsByLevel.get(level);
       if (participations == null) {
         continue;
@@ -64,13 +68,25 @@ public class ReportService {
       LevelReport levelReport =
           buildLevelReport(level, keepLatestPromotion(participations), studentId);
       levelReports.add(levelReport);
-      allCourses.addAll(levelReport.courses());
     }
+
+    List<CourseReportEntry> allCourses =
+        levelReports.stream().flatMap(lr -> lr.courses().stream()).toList();
+    ReportStatus status =
+        levelReports.stream().anyMatch(lr -> lr.status() == ReportStatus.TEMPORARY)
+            ? ReportStatus.TEMPORARY
+            : ReportStatus.COMPLETE;
+
+    long totalCredits = levelReports.stream().mapToLong(LevelReport::totalCredits).sum();
+    long requiredCredits = levelReports.stream().mapToLong(LevelReport::requiredCredits).sum();
 
     return new StudentReport(
         studentId,
         student.getFirstName(),
         student.getLastName(),
+        status,
+        totalCredits,
+        requiredCredits,
         levelReports,
         average(allCourses));
   }
@@ -137,7 +153,11 @@ public class ReportService {
               averageExams(exams),
               exams));
     }
-    return new LevelReport(level, average(courses), courses);
+    boolean allCompleted = courses.stream().allMatch(CourseReportEntry::completed);
+    long totalCredits = courses.stream().mapToLong(CourseReportEntry::credits).sum();
+    ReportStatus status =
+        allCompleted && totalCredits >= PER_LEVEL_CREDIT ? ReportStatus.COMPLETE : ReportStatus.TEMPORARY;
+    return new LevelReport(level, status, totalCredits, PER_LEVEL_CREDIT, average(courses), courses);
   }
 
   private List<ExamScore> collectExams(CourseParticipation participation, String studentId) {

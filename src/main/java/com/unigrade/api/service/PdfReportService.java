@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class PdfReportService {
 
-  private static final Font TITLE_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18);
   private static final Font HEADER_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
   private static final Font NORMAL_FONT = FontFactory.getFont(FontFactory.HELVETICA, 10);
   private static final Font BOLD_FONT = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
@@ -33,13 +32,32 @@ public class PdfReportService {
       PdfWriter.getInstance(document, out);
       document.open();
 
-      document.add(new Paragraph("Student Report", TITLE_FONT));
       document.add(new Paragraph(report.firstName() + " " + report.lastName(), HEADER_FONT));
       document.add(new Paragraph("ID: " + report.studentId(), NORMAL_FONT));
+      document.add(
+          new Paragraph(
+              "Status: "
+                  + report.status().name()
+                  + " ("
+                  + report.totalCredits()
+                  + "/"
+                  + report.requiredCredits()
+                  + " credits)",
+              NORMAL_FONT));
       document.add(new Paragraph(" ", NORMAL_FONT));
 
       for (LevelReport levelReport : report.levels()) {
-        document.add(new Paragraph(levelReport.level().name(), HEADER_FONT));
+        document.add(
+            new Paragraph(
+                levelReport.level().name()
+                    + " - Status: "
+                    + levelReport.status().name()
+                    + " ("
+                    + levelReport.totalCredits()
+                    + "/"
+                    + levelReport.requiredCredits()
+                    + " credits)",
+                HEADER_FONT));
         addCourseTable(document, levelReport);
         if (levelReport.overallAverage() != null) {
           document.add(
@@ -77,8 +95,8 @@ public class PdfReportService {
       addCell(table, course.title());
       addCell(table, course.reference());
       addCell(table, String.valueOf(course.credits()));
-      addCell(table, course.completed() ? "Yes" : "No");
       addCell(table, course.average() != null ? formatAverage(course.average()) : "-");
+      addCell(table, course.completed() ? "Yes" : "No");
     }
 
     document.add(table);

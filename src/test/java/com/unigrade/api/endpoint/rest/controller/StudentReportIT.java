@@ -47,6 +47,8 @@ class StudentReportIT extends FacadeIT {
     assertEquals(studentId, body.get("studentId").asText());
     assertEquals("Ada", body.get("firstName").asText());
     assertEquals("Lovelace", body.get("lastName").asText());
+    assertEquals("TEMPORARY", body.get("status").asText());
+    assertEquals("TEMPORARY", body.get("levels").get(0).get("status").asText());
     assertEquals(1, body.get("levels").size());
     assertEquals("L2", body.get("levels").get(0).get("level").asText());
     assertEquals(
@@ -127,7 +129,30 @@ class StudentReportIT extends FacadeIT {
     JsonNode body = response.getBody();
     assertNotNull(body);
     assertEquals(0, body.get("levels").size());
+    assertEquals("COMPLETE", body.get("status").asText());
     assertTrue(body.get("overallAverage").isNull());
+  }
+
+  @Test
+  void report_withLevelFilter_returnsOnlyThatLevel() {
+    String uid = UUID.randomUUID().toString().substring(0, 8);
+    UUID groupId = createGroup("LF-" + uid, (short) 2410, (short) 2411);
+    UUID l1CourseId = createCourse("LC-" + uid + "a", "L1 Course");
+    assignCourse(groupId, l1CourseId, "2024-01-01", "S1");
+    UUID l2CourseId = createCourse("LC-" + uid + "b", "L2 Course");
+    assignCourse(groupId, l2CourseId, "2024-01-01", "S3");
+    String studentId = createStudent("rep-it-filter-" + UUID.randomUUID() + "@unigrade.com");
+    createMembership(groupId, studentId, "2024-01-01");
+
+    ResponseEntity<JsonNode> response =
+        restTemplate.getForEntity(
+            "/students/" + studentId + "/report?json=true&level=L2", JsonNode.class);
+
+    assertEquals(OK, response.getStatusCode());
+    JsonNode body = response.getBody();
+    assertNotNull(body);
+    assertEquals(1, body.get("levels").size());
+    assertEquals("L2", body.get("levels").get(0).get("level").asText());
   }
 
   @Test
