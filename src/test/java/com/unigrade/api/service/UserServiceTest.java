@@ -1,11 +1,10 @@
 package com.unigrade.api.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -17,198 +16,217 @@ import com.unigrade.api.model.User;
 import com.unigrade.api.repository.UserRepository;
 import com.unigrade.api.repository.model.JUser;
 import java.time.LocalDate;
-import java.time.Year;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-  private static final String ID = "STD00001";
+  private static final String STUDENT_ID = "STD00001";
 
   @Mock private UserRepository repository;
+  @Mock private PasswordEncoder passwordEncoder;
   private final UserMapper mapper = new UserMapper();
   private UserService service;
 
   @BeforeEach
   void setUp() {
-    service = new UserService(repository, mapper);
+    service = new UserService(repository, mapper, passwordEncoder);
   }
 
   @Test
-  void findAll_returnsMappedList() {
-    when(repository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(entity())));
-
-    List<User> result = service.findAll(0, 10);
-
-    assertEquals(1, result.size());
-    assertEquals(ID, result.get(0).id());
-  }
-
-  @Test
-  void findById_existing_returnsMapped() {
-    when(repository.findById(ID)).thenReturn(Optional.of(entity()));
-
-    User result = service.findById(ID);
-
-    assertEquals(ID, result.id());
-  }
-
-  @Test
-  void findById_missing_throwsNotFound() {
-    when(repository.findById(ID)).thenReturn(Optional.empty());
-
-    NotFoundException exception = assertThrows(NotFoundException.class, () -> service.findById(ID));
-
-    assertTrue(exception.getMessage().contains("not found"));
-  }
-
-  @Test
-  void create_generatesStudentIdAndSaves() {
-    var domain = domain(null);
+  void create_hashesPassword() {
+    var domain = domainUser("ada@unigrade.com", "clear-text-password");
     when(repository.existsByEmail("ada@unigrade.com")).thenReturn(false);
-    when(repository.findFirstByIdStartingWithOrderByIdDesc(anyString()))
-        .thenReturn(Optional.empty());
+    when(passwordEncoder.encode("clear-text-password")).thenReturn("$2a$10$hashed");
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     User result = service.create(domain);
 
-    String expectedPrefix = "STD" + (Year.now().getValue() % 100);
-    assertTrue(result.id().startsWith(expectedPrefix));
-    assertTrue(result.id().endsWith("001"));
-    verify(repository).save(any());
+    assertEquals("$2a$10$hashed", result.password());
+    assertNotEquals("clear-text-password", result.password());
   }
 
   @Test
   void create_duplicateEmail_throwsConflict() {
-    var domain = domain(null);
-    when(repository.existsByEmail("ada@unigrade.com")).thenReturn(true);
+    var domain = domainUser("dup@unigrade.com", "pw");
+    when(repository.existsByEmail("dup@unigrade.com")).thenReturn(true);
 
     assertThrows(ConflictException.class, () -> service.create(domain));
   }
 
   @Test
-  void update_existing_savesWithPathId() {
-    when(repository.existsById(ID)).thenReturn(true);
-    when(repository.existsByEmailAndIdNot("ada@unigrade.com", ID)).thenReturn(false);
+  void create_lowercasesEmail() {
+    var domain = domainUser("Mixed.Case@Unigrade.com", "pw");
+    when(repository.existsByEmail("mixed.case@unigrade.com")).thenReturn(false);
+    when(passwordEncoder.encode(any())).thenReturn("hashed");
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-    User result = service.update(ID, domain(ID));
+    User result = service.create(domain);
 
-    assertEquals(ID, result.id());
-    verify(repository).save(any());
+    assertEquals("mixed.case@unigrade.com", result.email());
   }
 
   @Test
-  void create_duplicateConstraintRace_throwsConflict() {
-    var domain = domain(null);
-    when(repository.existsByEmail("ada@unigrade.com")).thenReturn(false);
-    when(repository.findFirstByIdStartingWithOrderByIdDesc(anyString()))
-        .thenReturn(Optional.empty());
-    when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
+  void update_blankPassword_keepsExistingHash() {
+    JUser existing = entity("ada@unigrade.com", "$2a$10$existing-hash");
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.of(existing));
+    when(repository.existsByEmailAndIdNot("ada@unigrade.com", STUDENT_ID)).thenReturn(false);
+    when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-    assertThrows(ConflictException.class, () -> service.create(domain));
-  }
-
-  @Test
-  void update_changedEmailTaken_throwsConflict() {
-    when(repository.existsById(ID)).thenReturn(true);
-    when(repository.existsByEmailAndIdNot("other@unigrade.com", ID)).thenReturn(true);
-    var domain =
+    var update =
         new User(
-            ID,
+            STUDENT_ID,
             "Ada",
             "Lovelace",
             LocalDate.of(2000, 1, 1),
-            "other@unigrade.com",
-            "hashed-password",
+            "ada@unigrade.com",
+            "",
             true,
             Role.STUDENT);
 
-    assertThrows(ConflictException.class, () -> service.update(ID, domain));
+    User result = service.update(STUDENT_ID, update);
+
+    assertEquals("$2a$10$existing-hash", result.password());
   }
 
   @Test
-  void update_duplicateConstraintRace_throwsConflict() {
-    when(repository.existsById(ID)).thenReturn(true);
-    when(repository.existsByEmailAndIdNot("ada@unigrade.com", ID)).thenReturn(false);
+  void update_newPassword_reHashes() {
+    JUser existing = entity("ada@unigrade.com", "$2a$10$existing-hash");
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.of(existing));
+    when(repository.existsByEmailAndIdNot("ada@unigrade.com", STUDENT_ID)).thenReturn(false);
+    when(passwordEncoder.encode("new-password")).thenReturn("$2a$10$new-hash");
+    when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var update =
+        new User(
+            STUDENT_ID,
+            "Ada",
+            "Lovelace",
+            LocalDate.of(2000, 1, 1),
+            "ada@unigrade.com",
+            "new-password",
+            true,
+            Role.STUDENT);
+
+    User result = service.update(STUDENT_ID, update);
+
+    assertEquals("$2a$10$new-hash", result.password());
+  }
+
+  @Test
+  void update_missingUser_throwsNotFound() {
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.empty());
+
+    var update = domainUser("ada@unigrade.com", "pw");
+
+    assertThrows(NotFoundException.class, () -> service.update(STUDENT_ID, update));
+  }
+
+  @Test
+  void update_duplicateEmail_throwsConflict() {
+    JUser existing = entity("ada@unigrade.com", "hash");
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.of(existing));
+    when(repository.existsByEmailAndIdNot("taken@unigrade.com", STUDENT_ID)).thenReturn(true);
+
+    var update =
+        new User(
+            STUDENT_ID,
+            "Ada",
+            "Lovelace",
+            LocalDate.of(2000, 1, 1),
+            "taken@unigrade.com",
+            "pw",
+            true,
+            Role.STUDENT);
+
+    assertThrows(ConflictException.class, () -> service.update(STUDENT_ID, update));
+  }
+
+  @Test
+  void create_raceOnUniqueConstraint_throwsConflict() {
+    var domain = domainUser("ada@unigrade.com", "pw");
+    when(repository.existsByEmail("ada@unigrade.com")).thenReturn(false);
+    when(passwordEncoder.encode(any())).thenReturn("hashed");
     when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
 
-    assertThrows(ConflictException.class, () -> service.update(ID, domain(ID)));
+    assertThrows(ConflictException.class, () -> service.create(domain));
   }
 
   @Test
-  void update_missing_throwsNotFound() {
-    when(repository.existsById(ID)).thenReturn(false);
+  void deactivate_setsInactive() {
+    JUser existing = entity("ada@unigrade.com", "hash");
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.of(existing));
 
-    assertThrows(NotFoundException.class, () -> service.update(ID, domain(ID)));
+    service.deactivate(STUDENT_ID);
+
+    ArgumentCaptor<JUser> captor = ArgumentCaptor.forClass(JUser.class);
+    verify(repository).save(captor.capture());
+    assertEquals(false, captor.getValue().getIsActive());
+  }
+
+  @Test
+  void deactivate_missingUser_throwsNotFound() {
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.empty());
+
+    assertThrows(NotFoundException.class, () -> service.deactivate(STUDENT_ID));
+  }
+
+  @Test
+  void delete_missingUser_throwsNotFound() {
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.empty());
+
+    assertThrows(NotFoundException.class, () -> service.delete(STUDENT_ID));
   }
 
   @Test
   void delete_existing_deletes() {
-    JUser user = entity();
-    when(repository.findById(ID)).thenReturn(Optional.of(user));
+    JUser existing = entity("ada@unigrade.com", "hash");
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.of(existing));
 
-    service.delete(ID);
+    service.delete(STUDENT_ID);
 
-    verify(repository).delete(user);
+    verify(repository).delete(existing);
   }
 
   @Test
-  void delete_missing_throwsNotFound() {
-    when(repository.findById(ID)).thenReturn(Optional.empty());
+  void loadUserByUsername_returnsEntity() {
+    JUser existing = entity("ada@unigrade.com", "hash");
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.of(existing));
 
-    assertThrows(NotFoundException.class, () -> service.delete(ID));
+    assertSame(existing, service.loadUserByUsername(STUDENT_ID));
   }
 
   @Test
-  void deactivate_existing_setsInactive() {
-    JUser user = entity();
-    when(repository.findById(ID)).thenReturn(Optional.of(user));
+  void loadUserByUsername_missingUser_throwsUsernameNotFound() {
+    when(repository.findById(STUDENT_ID)).thenReturn(Optional.empty());
 
-    service.deactivate(ID);
-
-    assertFalse(user.getIsActive());
-    verify(repository).save(user);
+    assertThrows(UsernameNotFoundException.class, () -> service.loadUserByUsername(STUDENT_ID));
   }
 
-  @Test
-  void deactivate_missing_throwsNotFound() {
-    when(repository.findById(ID)).thenReturn(Optional.empty());
-
-    assertThrows(NotFoundException.class, () -> service.deactivate(ID));
-  }
-
-  private User domain(String id) {
+  private User domainUser(String email, String password) {
     return new User(
-        id,
-        "Ada",
-        "Lovelace",
-        LocalDate.of(2000, 1, 1),
-        "ada@unigrade.com",
-        "hashed-password",
-        true,
-        Role.STUDENT);
+        null, "Ada", "Lovelace", LocalDate.of(2000, 1, 1), email, password, true, Role.STUDENT);
   }
 
-  private JUser entity() {
-    var e = new JUser();
-    e.setId(ID);
-    e.setFirstName("Ada");
-    e.setLastName("Lovelace");
-    e.setBirthDate(LocalDate.of(2000, 1, 1));
-    e.setEmail("ada@unigrade.com");
-    e.setPassword("hashed-password");
-    e.setIsActive(true);
-    e.setRole(Role.STUDENT);
-    return e;
+  private JUser entity(String email, String passwordHash) {
+    var user = new JUser();
+    user.setId(STUDENT_ID);
+    user.setFirstName("Ada");
+    user.setLastName("Lovelace");
+    user.setBirthDate(LocalDate.of(2000, 1, 1));
+    user.setEmail(email);
+    user.setPassword(passwordHash);
+    user.setIsActive(true);
+    user.setRole(Role.STUDENT);
+    return user;
   }
 }

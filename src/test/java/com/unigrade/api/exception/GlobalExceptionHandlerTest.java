@@ -9,6 +9,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -106,6 +108,23 @@ class GlobalExceptionHandlerTest {
         handler.handleResponseStatus(new ResponseStatusException(HttpStatus.CONFLICT));
 
     assertEquals(409, detail.getStatus());
+  }
+
+  @Test
+  void accessDenied_mapsTo403() {
+    ProblemDetail detail = handler.handleAccessDenied(new AccessDeniedException("denied"));
+
+    assertEquals(403, detail.getStatus());
+    assertEquals("Access denied", detail.getDetail());
+  }
+
+  @Test
+  void authenticationFailure_mapsTo401() {
+    ProblemDetail detail =
+        handler.handleAuthentication(new BadCredentialsException("bad credentials"));
+
+    assertEquals(401, detail.getStatus());
+    assertEquals("Authentication failed", detail.getDetail());
   }
 
   @Test

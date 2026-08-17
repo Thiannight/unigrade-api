@@ -12,7 +12,7 @@ import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.HttpStatus.OK;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.unigrade.api.conf.FacadeIT;
+import com.unigrade.api.conf.SecuredFacadeIT;
 import com.unigrade.api.model.Course;
 import com.unigrade.api.model.GroupCourse;
 import com.unigrade.api.model.Promotion;
@@ -31,7 +31,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.ResponseEntity;
 
-class GroupCourseControllerIT extends FacadeIT {
+class GroupCourseControllerIT extends SecuredFacadeIT {
 
   @Autowired private TestRestTemplate restTemplate;
   @Autowired private ExamRepository examRepository;

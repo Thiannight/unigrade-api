@@ -9,26 +9,33 @@ import static org.mockito.Mockito.when;
 
 import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.exception.ConflictException;
+import com.unigrade.api.exception.ForbiddenException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.ExamMapper;
 import com.unigrade.api.model.Exam;
+import com.unigrade.api.model.Role;
 import com.unigrade.api.model.dto.ExamRequest;
 import com.unigrade.api.repository.ExamRepository;
 import com.unigrade.api.repository.GradeRepository;
 import com.unigrade.api.repository.GroupCourseRepository;
+import com.unigrade.api.repository.TeacherCourseRepository;
 import com.unigrade.api.repository.model.JExam;
 import com.unigrade.api.repository.model.JGroupCourse;
+import com.unigrade.api.repository.model.JUser;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @ExtendWith(MockitoExtension.class)
 class ExamServiceTest {
@@ -38,6 +45,8 @@ class ExamServiceTest {
   private static final UUID GROUP_COURSE_ID =
       UUID.fromString("33333333-3333-3333-3333-333333333333");
   private static final UUID EXAM_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
+  private static final String TEACHER_ID = "TCR00001";
+  private static final String STUDENT_ID = "STD00001";
   private static final LocalDate START_DATE = LocalDate.of(2024, 1, 1);
   private static final LocalDate END_DATE = LocalDate.of(2024, 6, 1);
   private static final Instant EXAM_DATE = Instant.parse("2024-03-01T09:00:00Z");
@@ -48,12 +57,36 @@ class ExamServiceTest {
   @Mock private ExamRepository repository;
   @Mock private GroupCourseRepository groupCourseRepository;
   @Mock private GradeRepository gradeRepository;
+  @Mock private TeacherCourseRepository teacherCourseRepository;
   private final ExamMapper mapper = new ExamMapper();
   private ExamService service;
 
   @BeforeEach
   void setUp() {
-    service = new ExamService(repository, groupCourseRepository, gradeRepository, mapper);
+    service =
+        new ExamService(
+            repository, groupCourseRepository, gradeRepository, teacherCourseRepository, mapper);
+    loginAs("MGR00001", Role.ADMIN);
+  }
+
+  @AfterEach
+  void tearDown() {
+    SecurityContextHolder.clearContext();
+  }
+
+  private void loginAs(String id, Role role) {
+    var principal = userStub(id, role);
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
+  }
+
+  private JUser userStub(String id, Role role) {
+    var user = new JUser();
+    user.setId(id);
+    user.setRole(role);
+    user.setIsActive(true);
+    return user;
   }
 
   @Test
@@ -203,6 +236,61 @@ class ExamServiceTest {
     assertThrows(
         BadRequestException.class,
         () -> service.create(GROUP_ID, COURSE_ID, new ExamRequest(AFTER_END, COEFFICIENT)));
+  }
+
+  @Test
+  void create_asStudent_throwsForbidden() {
+    loginAs(STUDENT_ID, Role.STUDENT);
+
+    assertThrows(
+        ForbiddenException.class,
+        () -> service.create(GROUP_ID, COURSE_ID, new ExamRequest(EXAM_DATE, COEFFICIENT)));
+  }
+
+  @Test
+  void create_asTeacherNotAssigned_throwsForbidden() {
+    loginAs(TEACHER_ID, Role.TEACHER);
+    when(teacherCourseRepository.existsByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
+        .thenReturn(false);
+
+    assertThrows(
+        ForbiddenException.class,
+        () -> service.create(GROUP_ID, COURSE_ID, new ExamRequest(EXAM_DATE, COEFFICIENT)));
+  }
+
+  @Test
+  void create_asTeacherAssigned_isAllowed() {
+    loginAs(TEACHER_ID, Role.TEACHER);
+    when(teacherCourseRepository.existsByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
+        .thenReturn(true);
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(repository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID)).thenReturn(BigDecimal.ZERO);
+    when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Exam result = service.create(GROUP_ID, COURSE_ID, new ExamRequest(EXAM_DATE, COEFFICIENT));
+
+    assertEquals(GROUP_COURSE_ID, result.groupCourseId());
+    verify(repository).save(any());
+  }
+
+  @Test
+  void update_asTeacherNotAssigned_throwsForbidden() {
+    loginAs(TEACHER_ID, Role.TEACHER);
+    when(teacherCourseRepository.existsByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
+        .thenReturn(false);
+
+    assertThrows(
+        ForbiddenException.class,
+        () ->
+            service.update(GROUP_ID, COURSE_ID, EXAM_ID, new ExamRequest(EXAM_DATE, COEFFICIENT)));
+  }
+
+  @Test
+  void delete_asStudent_throwsForbidden() {
+    loginAs(STUDENT_ID, Role.STUDENT);
+
+    assertThrows(ForbiddenException.class, () -> service.delete(GROUP_ID, COURSE_ID, EXAM_ID));
   }
 
   @Test

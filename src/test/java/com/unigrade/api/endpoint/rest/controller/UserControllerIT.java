@@ -14,7 +14,7 @@ import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.HttpStatus.OK;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.unigrade.api.conf.FacadeIT;
+import com.unigrade.api.conf.SecuredFacadeIT;
 import java.time.Year;
 import java.util.Map;
 import java.util.UUID;
@@ -24,7 +24,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.ResponseEntity;
 
-class UserControllerIT extends FacadeIT {
+class UserControllerIT extends SecuredFacadeIT {
 
   @Autowired private TestRestTemplate restTemplate;
 

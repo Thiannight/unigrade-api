@@ -2,15 +2,20 @@ package com.unigrade.api.service;
 
 import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.exception.ConflictException;
+import com.unigrade.api.exception.ForbiddenException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.ExamMapper;
 import com.unigrade.api.model.Exam;
+import com.unigrade.api.model.Role;
 import com.unigrade.api.model.dto.ExamRequest;
 import com.unigrade.api.repository.ExamRepository;
 import com.unigrade.api.repository.GradeRepository;
 import com.unigrade.api.repository.GroupCourseRepository;
+import com.unigrade.api.repository.TeacherCourseRepository;
 import com.unigrade.api.repository.model.JExam;
 import com.unigrade.api.repository.model.JGroupCourse;
+import com.unigrade.api.repository.model.JUser;
+import com.unigrade.api.security.SecurityUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -31,6 +36,7 @@ public class ExamService {
   private final ExamRepository repository;
   private final GroupCourseRepository groupCourseRepository;
   private final GradeRepository gradeRepository;
+  private final TeacherCourseRepository teacherCourseRepository;
   private final ExamMapper mapper;
 
   public List<Exam> findByGroupAndCourse(UUID groupId, UUID courseId) {
@@ -47,6 +53,7 @@ public class ExamService {
 
   @Transactional
   public Exam create(UUID groupId, UUID courseId, ExamRequest request) {
+    requireCanManage(courseId);
     JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
     checkExamBeforeCourseEnd(assignment, request.examDate());
 
@@ -60,6 +67,7 @@ public class ExamService {
 
   @Transactional
   public Exam update(UUID groupId, UUID courseId, UUID examId, ExamRequest request) {
+    requireCanManage(courseId);
     JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
     JExam exam = resolveExam(assignment, examId);
     checkExamBeforeCourseEnd(assignment, request.examDate());
@@ -77,12 +85,29 @@ public class ExamService {
 
   @Transactional
   public void delete(UUID groupId, UUID courseId, UUID examId) {
+    requireCanManage(courseId);
     JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
     JExam exam = resolveExam(assignment, examId);
     if (gradeRepository.existsByExamId(examId)) {
       throw new ConflictException("Cannot delete: grades exist for this exam");
     }
     repository.delete(exam);
+  }
+
+  private void requireCanManage(UUID courseId) {
+    JUser current = SecurityUtils.currentUser();
+    if (current.getRole() == Role.STUDENT) {
+      throw new ForbiddenException("Students cannot manage exams");
+    }
+    if (current.getRole() == Role.TEACHER) {
+      requireTeacherAssignedToCourse(current.getId(), courseId);
+    }
+  }
+
+  private void requireTeacherAssignedToCourse(String teacherId, UUID courseId) {
+    if (!teacherCourseRepository.existsByCourseIdAndTeacherId(courseId, teacherId)) {
+      throw new ForbiddenException("You are not assigned to this course");
+    }
   }
 
   private JGroupCourse resolveActiveAssignment(UUID groupId, UUID courseId) {

@@ -1,6 +1,7 @@
 package com.unigrade.api.service;
 
 import com.unigrade.api.exception.BadRequestException;
+import com.unigrade.api.exception.ForbiddenException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.GradeMapper;
 import com.unigrade.api.model.Grade;
@@ -8,12 +9,15 @@ import com.unigrade.api.model.Role;
 import com.unigrade.api.model.dto.GradeRequest;
 import com.unigrade.api.repository.ExamRepository;
 import com.unigrade.api.repository.GradeRepository;
+import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.MembershipRepository;
+import com.unigrade.api.repository.TeacherCourseRepository;
 import com.unigrade.api.repository.UserRepository;
 import com.unigrade.api.repository.model.JExam;
 import com.unigrade.api.repository.model.JGrade;
 import com.unigrade.api.repository.model.JGroupCourse;
 import com.unigrade.api.repository.model.JUser;
+import com.unigrade.api.security.SecurityUtils;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -28,25 +32,35 @@ import org.springframework.transaction.annotation.Transactional;
 public class GradeService {
 
   private final GradeRepository repository;
+  private final GroupCourseRepository groupCourseRepository;
   private final ExamRepository examRepository;
   private final UserRepository userRepository;
   private final MembershipRepository membershipRepository;
+  private final TeacherCourseRepository teacherCourseRepository;
   private final GradeMapper mapper;
 
   public List<Grade> findByExam(UUID groupId, UUID courseId, UUID examId, String studentId) {
-    JExam exam = resolveExam(groupId, courseId, examId);
+    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
+    JExam exam = resolveExam(assignment, examId);
+
+    String effectiveStudentId = restrictToAllowedStudent(courseId, studentId);
+
     List<JGrade> grades = repository.findByExamIdOrderByGradeDateAsc(exam.getId());
-    if (studentId != null) {
-      grades = grades.stream().filter(g -> g.getStudent().getId().equals(studentId)).toList();
+    if (effectiveStudentId != null) {
+      grades =
+          grades.stream().filter(g -> g.getStudent().getId().equals(effectiveStudentId)).toList();
     }
     return grades.stream().map(mapper::toDomain).toList();
   }
 
   @Transactional
   public Grade grade(UUID groupId, UUID courseId, UUID examId, GradeRequest request) {
-    JExam exam = resolveExam(groupId, courseId, examId);
+    requireCanGrade(courseId);
+
+    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
+    JExam exam = resolveExam(assignment, examId);
     JUser student = resolveStudent(request.studentId());
-    checkMembershipAtExamDate(exam.getGroupCourse(), student.getId(), exam.getExamDate());
+    checkMembershipAtExamDate(assignment, student.getId(), exam.getExamDate());
     var grade =
         new Grade(
             null,
@@ -58,9 +72,49 @@ public class GradeService {
     return mapper.toDomain(repository.save(mapper.toEntity(grade, student, exam)));
   }
 
-  private JExam resolveExam(UUID groupId, UUID courseId, UUID examId) {
+  private String restrictToAllowedStudent(UUID courseId, String requestedStudentId) {
+    JUser current = SecurityUtils.currentUser();
+    if (current.getRole() == Role.STUDENT) {
+      if (requestedStudentId != null && !requestedStudentId.equals(current.getId())) {
+        throw new ForbiddenException("Students can only view their own grades");
+      }
+      return current.getId();
+    }
+    if (current.getRole() == Role.TEACHER) {
+      requireTeacherAssignedToCourse(current.getId(), courseId);
+      return requestedStudentId;
+    }
+    return requestedStudentId;
+  }
+
+  private void requireCanGrade(UUID courseId) {
+    JUser current = SecurityUtils.currentUser();
+    if (current.getRole() == Role.STUDENT) {
+      throw new ForbiddenException("Students cannot grade exams");
+    }
+    if (current.getRole() == Role.TEACHER) {
+      requireTeacherAssignedToCourse(current.getId(), courseId);
+    }
+  }
+
+  private void requireTeacherAssignedToCourse(String teacherId, UUID courseId) {
+    if (!teacherCourseRepository.existsByCourseIdAndTeacherId(courseId, teacherId)) {
+      throw new ForbiddenException("You are not assigned to this course");
+    }
+  }
+
+  private JGroupCourse resolveActiveAssignment(UUID groupId, UUID courseId) {
+    return groupCourseRepository
+        .findByGroupIdAndCourseIdAndEndDateIsNull(groupId, courseId)
+        .orElseThrow(
+            () ->
+                new NotFoundException(
+                    "No active course assignment for course " + courseId + " in group " + groupId));
+  }
+
+  private JExam resolveExam(JGroupCourse assignment, UUID examId) {
     return examRepository
-        .findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(examId, groupId, courseId)
+        .findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(examId, assignment.getId(), assignment.getGroup().getId())
         .orElseThrow(() -> new NotFoundException("Exam not found: " + examId));
   }
 
