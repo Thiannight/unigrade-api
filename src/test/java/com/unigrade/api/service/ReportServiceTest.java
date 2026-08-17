@@ -180,6 +180,50 @@ class ReportServiceTest {
   }
 
   @Test
+  void generate_skipsGroupCourseOutsideMembershipPeriod() {
+    JUser student = student();
+    JMembership membership =
+        JMembership.builder()
+            .id(UUID.randomUUID())
+            .group(group(GROUP_ID_1, promotion("P-2024", (short) 2024)))
+            .student(student)
+            .startDate(LocalDate.of(2025, 1, 1))
+            .endDate(null)
+            .build();
+    JGroupCourse expiredCourse =
+        JGroupCourse.builder()
+            .id(GROUP_COURSE_ID_1)
+            .group(group(GROUP_ID_1, promotion("P-2024", (short) 2024)))
+            .course(
+                JCourse.builder()
+                    .id(COURSE_ID)
+                    .reference("C-OLD")
+                    .title("Old")
+                    .credits((short) 6)
+                    .build())
+            .semester(Semester.S1)
+            .startDate(LocalDate.of(2024, 1, 1))
+            .endDate(LocalDate.of(2024, 6, 30))
+            .build();
+    JGroupCourse activeCourse =
+        groupCourse(GROUP_COURSE_ID_2, GROUP_ID_1, Semester.S1, promotion("P-2024", (short) 2024));
+
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
+        .thenReturn(List.of(membership));
+    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1))
+        .thenReturn(List.of(expiredCourse, activeCourse));
+    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_2))
+        .thenReturn(List.of());
+
+    StudentReport report = service.generate(STUDENT_ID, null);
+
+    assertEquals(1, report.levels().size());
+    assertEquals(1, report.levels().getFirst().courses().size());
+    assertEquals(COURSE_ID, report.levels().getFirst().courses().getFirst().courseId());
+  }
+
+  @Test
   void generate_onlyL1Data_reportShows180RequiredAndTemporary() {
     JUser student = student();
     JGroupCourse l1Course =
