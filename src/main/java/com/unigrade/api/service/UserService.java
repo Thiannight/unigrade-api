@@ -12,6 +12,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 public class UserService {
   private final UserRepository repository;
   private final UserMapper mapper;
+  private final PasswordEncoder passwordEncoder;
 
   public List<User> findAll(int page, int size) {
     return repository
@@ -31,7 +33,6 @@ public class UserService {
     return repository.findById(id).map(mapper::toDomain).orElseThrow(this::userNotFound);
   }
 
-  // TODO: Encode the passwords when Spring Security will be integrated
   public User create(User user) {
     String email = user.email().toLowerCase();
     if (repository.existsByEmail(email)) {
@@ -45,21 +46,24 @@ public class UserService {
             user.lastName(),
             user.birthDate(),
             email,
-            user.password(),
+            passwordEncoder.encode(user.password()),
             user.isActive(),
             user.role());
     return mapper.toDomain(raceAwareSave(mapper.toEntity(withId)));
   }
 
   public User update(String id, User user) {
-    if (!repository.existsById(id)) {
-      throw userNotFound();
-    }
+    JUser existing = repository.findById(id).orElseThrow(this::userNotFound);
 
     String email = user.email().toLowerCase();
     if (repository.existsByEmailAndIdNot(email, id)) {
       throw emailAlreadyExists();
     }
+
+    String password =
+        user.password() == null || user.password().isBlank()
+            ? existing.getPassword()
+            : passwordEncoder.encode(user.password());
 
     JUser toSave =
         JUser.builder()
@@ -68,7 +72,7 @@ public class UserService {
             .lastName(user.lastName())
             .birthDate(user.birthDate())
             .email(email)
-            .password(user.password())
+            .password(password)
             .isActive(user.isActive())
             .role(user.role())
             .build();
