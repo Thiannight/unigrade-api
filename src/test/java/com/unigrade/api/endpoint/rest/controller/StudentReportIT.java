@@ -27,7 +27,7 @@ class StudentReportIT extends FacadeIT {
 
   @Test
   void report_buildsLevelReport() {
-    UUID groupId = createGroup("REP-P-1", (short) 2130, (short) 2131);
+    UUID groupId = createGroup("REP-P-1", (short) 2230, (short) 2231);
     UUID courseId = createCourse("REP-C-101", "Report Course Happy Path");
     assignCourse(groupId, courseId, "2024-01-01", "S3");
     String studentId = createStudent("rep-it-happy-" + UUID.randomUUID() + "@unigrade.com");
@@ -82,7 +82,7 @@ class StudentReportIT extends FacadeIT {
 
   @Test
   void report_repeat_hidesFailedYear() {
-    UUID oldGroupId = createGroup("REP-P-2", (short) 2132, (short) 2133);
+    UUID oldGroupId = createGroup("REP-P-2", (short) 2232, (short) 2233);
     UUID oldCourseId = createCourse("REP-C-201", "Report Course Failed Year");
     assignCourse(oldGroupId, oldCourseId, "2024-01-01", "S3");
     String studentId = createStudent("rep-it-repeat-" + UUID.randomUUID() + "@unigrade.com");
@@ -90,7 +90,7 @@ class StudentReportIT extends FacadeIT {
     String oldExamId = createExam(oldGroupId, oldCourseId, "2024-05-01T09:00:00Z", 1.0);
     grade(oldGroupId, oldCourseId, oldExamId, studentId, 8.0, "2024-05-02T09:00:00Z");
 
-    UUID newGroupId = createGroup("REP-P-3", (short) 2134, (short) 2135);
+    UUID newGroupId = createGroup("REP-P-3", (short) 2234, (short) 2235);
     transfer(oldGroupId, studentId, newGroupId, "2025-01-01");
     UUID newCourseId = createCourse("REP-C-301", "Report Course Repeat Year");
     assignCourse(newGroupId, newCourseId, "2025-01-01", "S3");

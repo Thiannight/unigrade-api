@@ -101,23 +101,20 @@ public class ReportService {
 
   private LevelReport buildLevelReport(
       Level level, List<CourseParticipation> participations, String studentId) {
-    Map<CourseKey, List<CourseParticipation>> participationsByCourse = new LinkedHashMap<>();
+    Map<CourseKey, CourseParticipation> participationsByCourse = new LinkedHashMap<>();
     for (CourseParticipation participation : participations) {
-      participationsByCourse
-          .computeIfAbsent(
-              new CourseKey(
-                  participation.promotion().getId(),
-                  participation.groupCourse().getCourse().getId()),
-              key -> new ArrayList<>())
-          .add(participation);
+      participationsByCourse.putIfAbsent(
+          new CourseKey(
+              participation.promotion().getId(), participation.groupCourse().getCourse().getId()),
+          participation);
     }
 
     List<CourseReportEntry> courses = new ArrayList<>();
-    for (Map.Entry<CourseKey, List<CourseParticipation>> entry :
-        participationsByCourse.entrySet()) {
-      JGroupCourse representative = entry.getValue().getFirst().groupCourse();
-      String promotionReference = entry.getValue().getFirst().promotion().getReference();
-      List<ExamScore> exams = collectExams(entry.getValue(), studentId);
+    for (Map.Entry<CourseKey, CourseParticipation> entry : participationsByCourse.entrySet()) {
+      CourseParticipation participation = entry.getValue();
+      JGroupCourse representative = participation.groupCourse();
+      String promotionReference = participation.promotion().getReference();
+      List<ExamScore> exams = collectExams(participation, studentId);
       boolean completed =
           exams.stream()
                   .map(ExamScore::coefficient)
@@ -138,21 +135,18 @@ public class ReportService {
     return new LevelReport(level, average(courses), courses);
   }
 
-  private List<ExamScore> collectExams(List<CourseParticipation> participations, String studentId) {
-    Map<UUID, ExamScore> examsByExamId = new LinkedHashMap<>();
-    for (CourseParticipation participation : participations) {
-      for (JExam exam :
-          examRepository.findByGroupCourseIdOrderByExamDateAsc(
-              participation.groupCourse().getId())) {
-        LocalDate examDate = exam.getExamDate().atZone(ZoneId.systemDefault()).toLocalDate();
-        if (!membershipRepository.existsByGroupIdAndStudentIdAt(
-            participation.group().getId(), studentId, examDate)) {
-          continue;
-        }
-        examsByExamId.putIfAbsent(exam.getId(), toExamScore(exam, studentId));
+  private List<ExamScore> collectExams(CourseParticipation participation, String studentId) {
+    List<ExamScore> exams = new ArrayList<>();
+    for (JExam exam :
+        examRepository.findByGroupCourseIdOrderByExamDateAsc(participation.groupCourse().getId())) {
+      LocalDate examDate = exam.getExamDate().atZone(ZoneId.systemDefault()).toLocalDate();
+      if (!membershipRepository.existsByGroupIdAndStudentIdAt(
+          participation.group().getId(), studentId, examDate)) {
+        continue;
       }
+      exams.add(toExamScore(exam, studentId));
     }
-    return List.copyOf(examsByExamId.values());
+    return exams;
   }
 
   private ExamScore toExamScore(JExam exam, String studentId) {
@@ -174,7 +168,7 @@ public class ReportService {
     if (totalCoefficient.compareTo(BigDecimal.ZERO) == 0) {
       return null;
     }
-    return weighted.divide(totalCoefficient, 2, RoundingMode.HALF_UP);
+    return weighted;
   }
 
   private BigDecimal average(List<CourseReportEntry> courses) {

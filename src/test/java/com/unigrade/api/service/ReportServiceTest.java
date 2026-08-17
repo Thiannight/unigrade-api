@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.unigrade.api.exception.BadRequestException;
@@ -194,7 +195,7 @@ class ReportServiceTest {
   }
 
   @Test
-  void generate_transferWithinPromotion_mergesCourseExams() {
+  void generate_transferWithinPromotion_usesFirstGroupExamsOnly() {
     JUser student = student();
     JGroupCourse firstAssignment =
         groupCourse(GROUP_COURSE_ID_1, GROUP_ID_1, Semester.S4, promotion("P-2024", (short) 2024));
@@ -213,22 +214,81 @@ class ReportServiceTest {
     when(groupCourseRepository.findAllByGroupId(GROUP_ID_2)).thenReturn(List.of(secondAssignment));
     when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_1))
         .thenReturn(List.of(exam1));
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_2))
-        .thenReturn(List.of(exam2));
-    when(membershipRepository.existsByGroupIdAndStudentIdAt(any(), any(), any())).thenReturn(true);
+    when(membershipRepository.existsByGroupIdAndStudentIdAt(
+            eq(GROUP_ID_1), eq(STUDENT_ID), any(LocalDate.class)))
+        .thenReturn(true);
     when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(EXAM_ID_1, STUDENT_ID))
         .thenReturn(Optional.of(grade(10.0f)));
-    when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(EXAM_ID_2, STUDENT_ID))
-        .thenReturn(Optional.of(grade(14.0f)));
 
     StudentReport report = service.generate(STUDENT_ID);
 
     assertEquals(1, report.levels().size());
     assertEquals(1, report.levels().getFirst().courses().size());
     var course = report.levels().getFirst().courses().getFirst();
-    assertEquals(2, course.exams().size());
-    assertTrue(course.completed());
-    assertEquals(new BigDecimal("12.00"), course.average());
+    assertEquals(1, course.exams().size());
+    assertEquals(new BigDecimal("10.0"), course.exams().getFirst().score());
+  }
+
+  @Test
+  void generate_transferWithinPromotion_newGroupCourseAppears() {
+    JUser student = student();
+    UUID courseIdOld = UUID.fromString("AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA");
+    UUID courseIdNew = UUID.fromString("BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB");
+    UUID examIdNew = UUID.fromString("CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC");
+    JGroupCourse g1Course =
+        JGroupCourse.builder()
+            .id(GROUP_COURSE_ID_1)
+            .group(group(GROUP_ID_1, promotion("P-2024", (short) 2024)))
+            .course(
+                JCourse.builder()
+                    .id(courseIdOld)
+                    .reference("C-OLD")
+                    .title("Old")
+                    .credits((short) 6)
+                    .build())
+            .semester(Semester.S4)
+            .build();
+    JGroupCourse g2Course =
+        JGroupCourse.builder()
+            .id(GROUP_COURSE_ID_2)
+            .group(group(GROUP_ID_2, promotion("P-2024", (short) 2024)))
+            .course(
+                JCourse.builder()
+                    .id(courseIdNew)
+                    .reference("C-NEW")
+                    .title("New")
+                    .credits((short) 6)
+                    .build())
+            .semester(Semester.S4)
+            .build();
+    JExam examNew = exam(examIdNew, "2024-07-01T09:00:00Z", "1.0");
+
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
+    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
+        .thenReturn(
+            List.of(
+                membership(GROUP_ID_1, student, promotion("P-2024", (short) 2024)),
+                membership(GROUP_ID_2, student, promotion("P-2024", (short) 2024))));
+    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1)).thenReturn(List.of(g1Course));
+    when(groupCourseRepository.findAllByGroupId(GROUP_ID_2)).thenReturn(List.of(g2Course));
+    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_1))
+        .thenReturn(List.of());
+    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_2))
+        .thenReturn(List.of(examNew));
+    when(membershipRepository.existsByGroupIdAndStudentIdAt(
+            eq(GROUP_ID_2), eq(STUDENT_ID), any(LocalDate.class)))
+        .thenReturn(true);
+    when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(examIdNew, STUDENT_ID))
+        .thenReturn(Optional.of(grade(14.0f)));
+
+    StudentReport report = service.generate(STUDENT_ID);
+
+    assertEquals(1, report.levels().size());
+    var courses = report.levels().getFirst().courses();
+    assertEquals(2, courses.size());
+    assertEquals(courseIdOld, courses.get(0).courseId());
+    assertEquals(courseIdNew, courses.get(1).courseId());
+    assertEquals(new BigDecimal("14.00"), courses.get(1).average());
   }
 
   private JUser student() {
