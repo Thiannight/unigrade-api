@@ -22,7 +22,7 @@ import com.unigrade.api.repository.model.JUser;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
@@ -139,7 +139,7 @@ public class ReportService {
     List<ExamScore> exams = new ArrayList<>();
     for (JExam exam :
         examRepository.findByGroupCourseIdOrderByExamDateAsc(participation.groupCourse().getId())) {
-      LocalDate examDate = exam.getExamDate().atZone(ZoneId.systemDefault()).toLocalDate();
+      LocalDate examDate = exam.getExamDate().atOffset(ZoneOffset.UTC).toLocalDate();
       if (!membershipRepository.existsByGroupIdAndStudentIdAt(
           participation.group().getId(), studentId, examDate)) {
         continue;

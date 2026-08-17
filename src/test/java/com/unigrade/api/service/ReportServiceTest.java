@@ -31,7 +31,7 @@ import com.unigrade.api.repository.model.JUser;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -85,8 +85,8 @@ class ReportServiceTest {
         groupCourse(GROUP_COURSE_ID_1, GROUP_ID_1, Semester.S3, promotion("P-2024", (short) 2024));
     JExam exam1 = exam(EXAM_ID_1, "2024-05-01T09:00:00Z", "0.4");
     JExam exam2 = exam(EXAM_ID_2, "2024-06-01T09:00:00Z", "0.6");
-    LocalDate examDate1 = exam1.getExamDate().atZone(ZoneId.systemDefault()).toLocalDate();
-    LocalDate examDate2 = exam2.getExamDate().atZone(ZoneId.systemDefault()).toLocalDate();
+    LocalDate examDate1 = exam1.getExamDate().atOffset(ZoneOffset.UTC).toLocalDate();
+    LocalDate examDate2 = exam2.getExamDate().atOffset(ZoneOffset.UTC).toLocalDate();
 
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
     when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))

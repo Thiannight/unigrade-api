@@ -16,7 +16,7 @@ import com.unigrade.api.repository.model.JGroupCourse;
 import com.unigrade.api.repository.model.JUser;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -80,7 +80,7 @@ public class GradeService {
 
   private void checkMembershipAtExamDate(
       JGroupCourse assignment, String studentId, Instant examDate) {
-    LocalDate date = examDate.atZone(ZoneId.systemDefault()).toLocalDate();
+    LocalDate date = examDate.atOffset(ZoneOffset.UTC).toLocalDate();
     if (!membershipRepository.existsByGroupIdAndStudentIdAt(
         assignment.getGroup().getId(), studentId, date)) {
       throw new BadRequestException(
