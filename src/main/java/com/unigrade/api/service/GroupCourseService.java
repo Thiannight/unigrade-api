@@ -45,6 +45,7 @@ public class GroupCourseService {
   public GroupCourse assign(UUID groupId, GroupCourseAssignRequest request) {
     JStudentGroup group = resolveGroup(groupId);
     JCourse course = resolveCourse(request.courseId());
+    checkAlreadyAssigned(groupId, request.courseId());
     checkCreditTotal(groupId, request.semester(), course.getCredits());
 
     var groupCourse =
@@ -78,6 +79,12 @@ public class GroupCourseService {
     }
 
     repository.delete(active);
+  }
+
+  private void checkAlreadyAssigned(UUID groupId, UUID courseId) {
+    if (repository.findByGroupIdAndCourseId(groupId, courseId).isPresent()) {
+      throw new ConflictException("Course is already assigned to this group");
+    }
   }
 
   private void checkCreditTotal(UUID groupId, Semester semester, Short credits) {

@@ -152,6 +152,17 @@ class GroupCourseServiceTest {
   }
 
   @Test
+  void assign_alreadyAssigned_throwsConflict() {
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
+    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(groupCourse()));
+
+    assertThrows(ConflictException.class, () -> service.assign(GROUP_ID, request));
+  }
+
+  @Test
   void end_closesActiveAssignment() {
     JGroupCourse active = groupCourse();
     when(repository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
