@@ -98,6 +98,8 @@ class GradeServiceTest {
 
   @Test
   void findByExam_returnsMappedList() {
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
     when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
             EXAM_ID, GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(exam()));
@@ -112,6 +114,8 @@ class GradeServiceTest {
 
   @Test
   void findByExam_filtersByStudentId() {
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
     when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
             EXAM_ID, GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(exam()));
@@ -127,8 +131,7 @@ class GradeServiceTest {
   @Test
   void findByExam_wrongGroupCourse_throwsNotFound() {
     UUID wrongGroupId = UUID.randomUUID();
-    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
-            EXAM_ID, wrongGroupId, COURSE_ID))
+    when(groupCourseRepository.findByGroupIdAndCourseId(wrongGroupId, COURSE_ID))
         .thenReturn(Optional.empty());
 
     assertThrows(
@@ -137,6 +140,8 @@ class GradeServiceTest {
 
   @Test
   void findByExam_missingExam_throwsNotFound() {
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
     when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
             EXAM_ID, GROUP_ID, COURSE_ID))
         .thenReturn(Optional.empty());
@@ -147,6 +152,8 @@ class GradeServiceTest {
 
   @Test
   void grade_saves() {
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
     when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
             EXAM_ID, GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(exam()));
@@ -167,6 +174,8 @@ class GradeServiceTest {
 
   @Test
   void grade_missingStudent_throwsNotFound() {
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
     when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
             EXAM_ID, GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(exam()));
@@ -183,6 +192,8 @@ class GradeServiceTest {
   void grade_notStudentRole_throwsBadRequest() {
     var teacher = student();
     teacher.setRole(Role.TEACHER);
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
     when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
             EXAM_ID, GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(exam()));
@@ -196,6 +207,8 @@ class GradeServiceTest {
   void grade_inactiveStudent_throwsBadRequest() {
     var inactive = student();
     inactive.setIsActive(false);
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
     when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
             EXAM_ID, GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(exam()));
@@ -207,6 +220,8 @@ class GradeServiceTest {
 
   @Test
   void grade_notMemberAtExamDate_throwsBadRequest() {
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
     when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
             EXAM_ID, GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(exam()));
@@ -225,6 +240,8 @@ class GradeServiceTest {
 
   @Test
   void grade_missingExam_throwsNotFound() {
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
     when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
             EXAM_ID, GROUP_ID, COURSE_ID))
         .thenReturn(Optional.empty());
@@ -236,9 +253,11 @@ class GradeServiceTest {
   @Test
   void findByExam_studentRequestingOwnGrades_isAllowed() {
     loginAs(STUDENT_ID, Role.STUDENT);
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(repository.findByExamIdOrderByGradeDateAsc(EXAM_ID))
         .thenReturn(List.of(grade(), gradeOf(OTHER_STUDENT_ID)));
 
@@ -251,9 +270,11 @@ class GradeServiceTest {
   @Test
   void findByExam_studentRequestingSomeoneElsesGrades_throwsForbidden() {
     loginAs(STUDENT_ID, Role.STUDENT);
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
 
     assertThrows(
         ForbiddenException.class,
@@ -263,9 +284,11 @@ class GradeServiceTest {
   @Test
   void findByExam_teacherAssignedToCourse_isAllowed() {
     loginAs(TEACHER_ID, Role.TEACHER);
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(teacherCourseRepository.existsByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
         .thenReturn(true);
     when(repository.findByExamIdOrderByGradeDateAsc(EXAM_ID)).thenReturn(List.of(grade()));
@@ -278,9 +301,11 @@ class GradeServiceTest {
   @Test
   void findByExam_teacherNotAssignedToCourse_throwsForbidden() {
     loginAs(TEACHER_ID, Role.TEACHER);
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(teacherCourseRepository.existsByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
         .thenReturn(false);
 
@@ -311,9 +336,11 @@ class GradeServiceTest {
     loginAs(TEACHER_ID, Role.TEACHER);
     when(teacherCourseRepository.existsByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
         .thenReturn(true);
-    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+    when(groupCourseRepository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(assignment()));
-    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(examRepository.findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            EXAM_ID, GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(exam()));
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
     when(membershipRepository.existsByGroupIdAndStudentIdAt(
             eq(GROUP_ID), eq(STUDENT_ID), any(LocalDate.class)))
@@ -328,9 +355,12 @@ class GradeServiceTest {
   private JGroupCourse assignment() {
     var group = new JStudentGroup();
     group.setId(GROUP_ID);
+    var course = new JCourse();
+    course.setId(COURSE_ID);
     return JGroupCourse.builder()
         .id(GROUP_COURSE_ID)
         .group(group)
+        .course(course)
         .startDate(LocalDate.of(2024, 1, 1))
         .endDate(null)
         .build();

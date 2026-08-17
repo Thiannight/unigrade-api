@@ -156,8 +156,11 @@ public class ReportService {
     boolean allCompleted = courses.stream().allMatch(CourseReportEntry::completed);
     long totalCredits = courses.stream().mapToLong(CourseReportEntry::credits).sum();
     ReportStatus status =
-        allCompleted && totalCredits >= PER_LEVEL_CREDIT ? ReportStatus.COMPLETE : ReportStatus.TEMPORARY;
-    return new LevelReport(level, status, totalCredits, PER_LEVEL_CREDIT, average(courses), courses);
+        allCompleted && totalCredits >= PER_LEVEL_CREDIT
+            ? ReportStatus.COMPLETE
+            : ReportStatus.TEMPORARY;
+    return new LevelReport(
+        level, status, totalCredits, PER_LEVEL_CREDIT, average(courses), courses);
   }
 
   private List<ExamScore> collectExams(CourseParticipation participation, String studentId) {

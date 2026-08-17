@@ -15,6 +15,8 @@ public interface GroupCourseRepository extends JpaRepository<JGroupCourse, UUID>
 
   Optional<JGroupCourse> findByGroupIdAndCourseIdAndEndDateIsNull(UUID groupId, UUID courseId);
 
+  Optional<JGroupCourse> findByGroupIdAndCourseId(UUID groupId, UUID courseId);
+
   List<JGroupCourse> findAllByGroupIdAndEndDateIsNull(UUID groupId);
 
   List<JGroupCourse> findAllByGroupId(UUID groupId);
