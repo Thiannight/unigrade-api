@@ -20,7 +20,7 @@ import com.unigrade.api.repository.model.JUser;
 import com.unigrade.api.security.SecurityUtils;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +40,7 @@ public class GradeService {
   private final GradeMapper mapper;
 
   public List<Grade> findByExam(UUID groupId, UUID courseId, UUID examId, String studentId) {
-    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
+    JGroupCourse assignment = resolveAssignment(groupId, courseId);
     JExam exam = resolveExam(assignment, examId);
 
     String effectiveStudentId = restrictToAllowedStudent(courseId, studentId);
@@ -57,7 +57,7 @@ public class GradeService {
   public Grade grade(UUID groupId, UUID courseId, UUID examId, GradeRequest request) {
     requireCanGrade(courseId);
 
-    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
+    JGroupCourse assignment = resolveAssignment(groupId, courseId);
     JExam exam = resolveExam(assignment, examId);
     JUser student = resolveStudent(request.studentId());
     checkMembershipAtExamDate(assignment, student.getId(), exam.getExamDate());
@@ -103,19 +103,19 @@ public class GradeService {
     }
   }
 
-  private JGroupCourse resolveActiveAssignment(UUID groupId, UUID courseId) {
+  private JGroupCourse resolveAssignment(UUID groupId, UUID courseId) {
     return groupCourseRepository
-        .findByGroupIdAndCourseIdAndEndDateIsNull(groupId, courseId)
+        .findByGroupIdAndCourseId(groupId, courseId)
         .orElseThrow(
             () ->
                 new NotFoundException(
-                    "No active course assignment for course " + courseId + " in group " + groupId));
+                    "No course assignment for course " + courseId + " in group " + groupId));
   }
 
   private JExam resolveExam(JGroupCourse assignment, UUID examId) {
     return examRepository
-        .findById(examId)
-        .filter(exam -> assignment.getId().equals(exam.getGroupCourse().getId()))
+        .findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+            examId, assignment.getGroup().getId(), assignment.getCourse().getId())
         .orElseThrow(() -> new NotFoundException("Exam not found: " + examId));
   }
 
@@ -135,7 +135,7 @@ public class GradeService {
 
   private void checkMembershipAtExamDate(
       JGroupCourse assignment, String studentId, Instant examDate) {
-    LocalDate date = examDate.atZone(ZoneId.systemDefault()).toLocalDate();
+    LocalDate date = examDate.atOffset(ZoneOffset.UTC).toLocalDate();
     if (!membershipRepository.existsByGroupIdAndStudentIdAt(
         assignment.getGroup().getId(), studentId, date)) {
       throw new BadRequestException(

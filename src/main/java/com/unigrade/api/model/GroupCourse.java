@@ -11,5 +11,6 @@ public record GroupCourse(
     @JsonProperty(access = JsonProperty.Access.READ_ONLY) UUID id,
     @JsonProperty(access = JsonProperty.Access.READ_ONLY) UUID groupId,
     @NotNull UUID courseId,
+    @NotNull Semester semester,
     @NotNull LocalDate startDate,
     LocalDate endDate) {}

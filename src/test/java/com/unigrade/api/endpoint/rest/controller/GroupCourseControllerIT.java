@@ -45,7 +45,7 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
     ResponseEntity<JsonNode> assignResponse =
         restTemplate.postForEntity(
             "/groups/" + groupId + "/courses",
-            Map.of("courseId", courseId, "startDate", "2024-01-01"),
+            Map.of("courseId", courseId, "semester", "S1", "startDate", "2024-01-01"),
             JsonNode.class);
     assertEquals(CREATED, assignResponse.getStatusCode());
     assertNotNull(assignResponse.getBody());
@@ -78,7 +78,7 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
     ResponseEntity<String> response =
         restTemplate.postForEntity(
             "/groups/" + UUID.randomUUID() + "/courses",
-            Map.of("courseId", courseId, "startDate", "2024-01-01"),
+            Map.of("courseId", courseId, "semester", "S1", "startDate", "2024-01-01"),
             String.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
@@ -91,7 +91,7 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
     ResponseEntity<String> response =
         restTemplate.postForEntity(
             "/groups/" + groupId + "/courses",
-            Map.of("courseId", UUID.randomUUID(), "startDate", "2024-01-01"),
+            Map.of("courseId", UUID.randomUUID(), "semester", "S1", "startDate", "2024-01-01"),
             String.class);
 
     assertEquals(NOT_FOUND, response.getStatusCode());
@@ -104,16 +104,38 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
 
     restTemplate.postForEntity(
         "/groups/" + groupId + "/courses",
-        Map.of("courseId", courseId, "startDate", "2024-01-01"),
+        Map.of("courseId", courseId, "semester", "S1", "startDate", "2024-01-01"),
         JsonNode.class);
 
     ResponseEntity<String> response =
         restTemplate.postForEntity(
             "/groups/" + groupId + "/courses",
-            Map.of("courseId", courseId, "startDate", "2024-02-01"),
+            Map.of("courseId", courseId, "semester", "S1", "startDate", "2024-02-01"),
             String.class);
 
     assertEquals(CONFLICT, response.getStatusCode());
+  }
+
+  @Test
+  void assign_exceedsSemesterCreditCap_returnsBadRequest() {
+    UUID groupId = createGroup("GC-CAP-1", (short) 2088, (short) 2089);
+    for (int i = 1; i <= 5; i++) {
+      UUID courseId = createCourse("GC-CAP-10" + i, "Cap Course " + i);
+      ResponseEntity<JsonNode> response =
+          restTemplate.postForEntity(
+              "/groups/" + groupId + "/courses",
+              Map.of("courseId", courseId, "semester", "S1", "startDate", "2024-01-01"),
+              JsonNode.class);
+      assertEquals(CREATED, response.getStatusCode());
+    }
+    UUID extraCourseId = createCourse("GC-CAP-106", "Cap Course Extra");
+    ResponseEntity<String> response =
+        restTemplate.postForEntity(
+            "/groups/" + groupId + "/courses",
+            Map.of("courseId", extraCourseId, "semester", "S1", "startDate", "2024-01-01"),
+            String.class);
+
+    assertEquals(BAD_REQUEST, response.getStatusCode());
   }
 
   @Test
@@ -138,7 +160,7 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
 
     restTemplate.postForEntity(
         "/groups/" + groupId + "/courses",
-        Map.of("courseId", courseId, "startDate", "2024-06-01"),
+        Map.of("courseId", courseId, "semester", "S1", "startDate", "2024-06-01"),
         JsonNode.class);
 
     ResponseEntity<String> response =
@@ -152,13 +174,13 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
   }
 
   @Test
-  void reassign_afterEnd_succeeds() {
+  void reassign_afterEnd_throwsConflict() {
     UUID groupId = createGroup("GC-REJ-1", (short) 2080, (short) 2081);
-    UUID courseId = createCourse("GC-REJ-101", "Rejoinable Course");
+    UUID courseId = createCourse("GC-REJ-101", "Reassignable Course");
 
     restTemplate.postForEntity(
         "/groups/" + groupId + "/courses",
-        Map.of("courseId", courseId, "startDate", "2024-01-01"),
+        Map.of("courseId", courseId, "semester", "S1", "startDate", "2024-01-01"),
         JsonNode.class);
 
     restTemplate.exchange(
@@ -170,14 +192,10 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
     ResponseEntity<JsonNode> reassignResponse =
         restTemplate.postForEntity(
             "/groups/" + groupId + "/courses",
-            Map.of("courseId", courseId, "startDate", "2024-09-01"),
+            Map.of("courseId", courseId, "semester", "S1", "startDate", "2024-09-01"),
             JsonNode.class);
 
-    assertEquals(CREATED, reassignResponse.getStatusCode());
-
-    ResponseEntity<GroupCourse[]> activeResponse =
-        restTemplate.getForEntity("/groups/" + groupId + "/courses", GroupCourse[].class);
-    assertEquals(1, activeResponse.getBody().length);
+    assertEquals(CONFLICT, reassignResponse.getStatusCode());
   }
 
   @Test
@@ -187,7 +205,7 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
 
     restTemplate.postForEntity(
         "/groups/" + groupId + "/courses",
-        Map.of("courseId", courseId, "startDate", "2024-01-01"),
+        Map.of("courseId", courseId, "semester", "S1", "startDate", "2024-01-01"),
         JsonNode.class);
 
     ResponseEntity<Void> deleteResponse =
@@ -219,7 +237,7 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
 
     restTemplate.postForEntity(
         "/groups/" + groupId + "/courses",
-        Map.of("courseId", courseId, "startDate", "2024-01-01"),
+        Map.of("courseId", courseId, "semester", "S1", "startDate", "2024-01-01"),
         JsonNode.class);
 
     var exam =

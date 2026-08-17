@@ -12,6 +12,7 @@ import com.unigrade.api.exception.ConflictException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.GroupCourseMapper;
 import com.unigrade.api.model.GroupCourse;
+import com.unigrade.api.model.Semester;
 import com.unigrade.api.model.dto.GroupCourseAssignRequest;
 import com.unigrade.api.model.dto.GroupCourseEndRequest;
 import com.unigrade.api.repository.CourseRepository;
@@ -41,6 +42,7 @@ class GroupCourseServiceTest {
       UUID.fromString("33333333-3333-3333-3333-333333333333");
   private static final LocalDate START_DATE = LocalDate.of(2024, 1, 1);
   private static final LocalDate END_DATE = LocalDate.of(2024, 6, 1);
+  private static final Semester SEMESTER = Semester.S3;
 
   @Mock private GroupCourseRepository repository;
   @Mock private StudentGroupRepository groupRepository;
@@ -76,9 +78,10 @@ class GroupCourseServiceTest {
 
   @Test
   void assign_saves() {
-    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
     when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.sumCreditsByGroupIdAndSemester(GROUP_ID, SEMESTER)).thenReturn(0L);
     when(repository.save(any())).thenReturn(groupCourse());
 
     GroupCourse result = service.assign(GROUP_ID, request);
@@ -88,8 +91,35 @@ class GroupCourseServiceTest {
   }
 
   @Test
+  void assign_atSemesterCreditCap_saves() {
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
+    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.sumCreditsByGroupIdAndSemester(GROUP_ID, SEMESTER)).thenReturn(24L);
+    when(repository.save(any())).thenReturn(groupCourse());
+
+    GroupCourse result = service.assign(GROUP_ID, request);
+
+    assertEquals(COURSE_ID, result.courseId());
+    verify(repository).save(any());
+  }
+
+  @Test
+  void assign_exceedsSemesterCreditCap_throwsBadRequest() {
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
+    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.sumCreditsByGroupIdAndSemester(GROUP_ID, SEMESTER)).thenReturn(25L);
+
+    BadRequestException exception =
+        assertThrows(BadRequestException.class, () -> service.assign(GROUP_ID, request));
+
+    assertTrue(exception.getMessage().contains("Semester credit limit exceeded"));
+  }
+
+  @Test
   void assign_missingGroup_throwsNotFound() {
-    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
     when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.empty());
 
     NotFoundException exception =
@@ -100,7 +130,7 @@ class GroupCourseServiceTest {
 
   @Test
   void assign_missingCourse_throwsNotFound() {
-    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
     when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.empty());
 
@@ -112,10 +142,22 @@ class GroupCourseServiceTest {
 
   @Test
   void assign_duplicateActiveConstraintRace_throwsConflict() {
-    var request = new GroupCourseAssignRequest(COURSE_ID, START_DATE);
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
     when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
     when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.sumCreditsByGroupIdAndSemester(GROUP_ID, SEMESTER)).thenReturn(0L);
     when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
+
+    assertThrows(ConflictException.class, () -> service.assign(GROUP_ID, request));
+  }
+
+  @Test
+  void assign_alreadyAssigned_throwsConflict() {
+    var request = new GroupCourseAssignRequest(COURSE_ID, SEMESTER, START_DATE);
+    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
+    when(courseRepository.findById(COURSE_ID)).thenReturn(Optional.of(course()));
+    when(repository.findByGroupIdAndCourseId(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(groupCourse()));
 
     assertThrows(ConflictException.class, () -> service.assign(GROUP_ID, request));
   }
@@ -198,6 +240,7 @@ class GroupCourseServiceTest {
   private JCourse course() {
     var course = new JCourse();
     course.setId(COURSE_ID);
+    course.setCredits((short) 6);
     return course;
   }
 
@@ -206,6 +249,7 @@ class GroupCourseServiceTest {
         .id(GROUP_COURSE_ID)
         .group(group())
         .course(course())
+        .semester(SEMESTER)
         .startDate(START_DATE)
         .endDate(null)
         .build();

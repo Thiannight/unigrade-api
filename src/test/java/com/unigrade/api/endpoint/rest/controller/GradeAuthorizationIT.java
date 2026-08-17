@@ -149,7 +149,7 @@ class GradeAuthorizationIT extends SecuredFacadeIT {
   private void assignCourse(UUID groupId, UUID courseId, String startDate) {
     restTemplate.postForEntity(
         "/groups/" + groupId + "/courses",
-        Map.of("courseId", courseId, "startDate", startDate),
+        Map.of("courseId", courseId, "semester", "S1", "startDate", startDate),
         JsonNode.class);
   }
 

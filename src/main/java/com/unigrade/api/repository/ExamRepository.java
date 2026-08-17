@@ -19,6 +19,9 @@ public interface ExamRepository extends JpaRepository<JExam, UUID> {
 
   Optional<JExam> findByIdAndGroupCourseId(UUID id, UUID groupCourseId);
 
+  Optional<JExam> findByIdAndGroupCourseGroupIdAndGroupCourseCourseId(
+      UUID id, UUID groupCourseGroupId, UUID groupCourseCourseId);
+
   @Query(
       "SELECT COALESCE(SUM(e.coefficient), 0) FROM JExam e WHERE e.groupCourse.id = :groupCourseId")
   BigDecimal sumCoefficientByGroupCourseId(@Param("groupCourseId") UUID groupCourseId);

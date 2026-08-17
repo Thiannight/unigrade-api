@@ -5,6 +5,7 @@ import com.unigrade.api.exception.ConflictException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.GroupCourseMapper;
 import com.unigrade.api.model.GroupCourse;
+import com.unigrade.api.model.Semester;
 import com.unigrade.api.model.dto.GroupCourseAssignRequest;
 import com.unigrade.api.model.dto.GroupCourseEndRequest;
 import com.unigrade.api.repository.CourseRepository;
@@ -24,6 +25,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class GroupCourseService {
 
+  private static final short MAX_CREDITS_PER_SEMESTER = 30;
+
   private final GroupCourseRepository repository;
   private final StudentGroupRepository groupRepository;
   private final CourseRepository courseRepository;
@@ -42,8 +45,12 @@ public class GroupCourseService {
   public GroupCourse assign(UUID groupId, GroupCourseAssignRequest request) {
     JStudentGroup group = resolveGroup(groupId);
     JCourse course = resolveCourse(request.courseId());
+    checkAlreadyAssigned(groupId, request.courseId());
+    checkCreditTotal(groupId, request.semester(), course.getCredits());
 
-    var groupCourse = new GroupCourse(null, groupId, request.courseId(), request.startDate(), null);
+    var groupCourse =
+        new GroupCourse(
+            null, groupId, request.courseId(), request.semester(), request.startDate(), null);
     return mapper.toDomain(raceAwareSave(mapper.toEntity(groupCourse, course, group)));
   }
 
@@ -72,6 +79,20 @@ public class GroupCourseService {
     }
 
     repository.delete(active);
+  }
+
+  private void checkAlreadyAssigned(UUID groupId, UUID courseId) {
+    if (repository.findByGroupIdAndCourseId(groupId, courseId).isPresent()) {
+      throw new ConflictException("Course is already assigned to this group");
+    }
+  }
+
+  private void checkCreditTotal(UUID groupId, Semester semester, Short credits) {
+    long total = repository.sumCreditsByGroupIdAndSemester(groupId, semester) + credits;
+    if (total > MAX_CREDITS_PER_SEMESTER) {
+      throw new BadRequestException(
+          "Semester credit limit exceeded (max " + MAX_CREDITS_PER_SEMESTER + ")");
+    }
   }
 
   private JGroupCourse raceAwareSave(JGroupCourse groupCourse) {
