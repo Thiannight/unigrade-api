@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.unigrade.api.exception.BadRequestException;
+import com.unigrade.api.exception.ForbiddenException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.GradeMapper;
 import com.unigrade.api.model.Grade;
@@ -18,23 +19,28 @@ import com.unigrade.api.repository.ExamRepository;
 import com.unigrade.api.repository.GradeRepository;
 import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.MembershipRepository;
+import com.unigrade.api.repository.TeacherCourseRepository;
 import com.unigrade.api.repository.UserRepository;
 import com.unigrade.api.repository.model.JExam;
 import com.unigrade.api.repository.model.JGrade;
 import com.unigrade.api.repository.model.JGroupCourse;
 import com.unigrade.api.repository.model.JStudentGroup;
 import com.unigrade.api.repository.model.JUser;
+import com.unigrade.api.security.AppUserPrincipal;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @ExtendWith(MockitoExtension.class)
 class GradeServiceTest {
@@ -47,6 +53,8 @@ class GradeServiceTest {
   private static final UUID GRADE_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
   private static final String STUDENT_ID = "STD00001";
   private static final String OTHER_STUDENT_ID = "STD00002";
+  private static final String TEACHER_ID = "TCR00001";
+  private static final String ADMIN_ID = "MGR00001";
   private static final Instant EXAM_DATE = Instant.parse("2024-03-01T09:00:00Z");
   private static final Instant GRADE_DATE = Instant.parse("2024-03-02T09:00:00Z");
 
@@ -55,6 +63,7 @@ class GradeServiceTest {
   @Mock private ExamRepository examRepository;
   @Mock private UserRepository userRepository;
   @Mock private MembershipRepository membershipRepository;
+  @Mock private TeacherCourseRepository teacherCourseRepository;
   private final GradeMapper mapper = new GradeMapper();
   private GradeService service;
 
@@ -67,7 +76,29 @@ class GradeServiceTest {
             examRepository,
             userRepository,
             membershipRepository,
+            teacherCourseRepository,
             mapper);
+    loginAs(ADMIN_ID, Role.ADMIN);
+  }
+
+  @AfterEach
+  void tearDown() {
+    SecurityContextHolder.clearContext();
+  }
+
+  private void loginAs(String id, Role role) {
+    var principal = new AppUserPrincipal(userStub(id, role));
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
+  }
+
+  private JUser userStub(String id, Role role) {
+    var user = new JUser();
+    user.setId(id);
+    user.setRole(role);
+    user.setIsActive(true);
+    return user;
   }
 
   @Test
@@ -206,6 +237,98 @@ class GradeServiceTest {
 
     assertThrows(
         NotFoundException.class, () -> service.grade(GROUP_ID, COURSE_ID, EXAM_ID, request()));
+  }
+
+  @Test
+  void findByExam_studentRequestingOwnGrades_isAllowed() {
+    loginAs(STUDENT_ID, Role.STUDENT);
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(repository.findByExamIdOrderByGradeDateAsc(EXAM_ID))
+        .thenReturn(List.of(grade(), gradeOf(OTHER_STUDENT_ID)));
+
+    List<Grade> result = service.findByExam(GROUP_ID, COURSE_ID, EXAM_ID, null);
+
+    assertEquals(1, result.size());
+    assertEquals(STUDENT_ID, result.get(0).studentId());
+  }
+
+  @Test
+  void findByExam_studentRequestingSomeoneElsesGrades_throwsForbidden() {
+    loginAs(STUDENT_ID, Role.STUDENT);
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+
+    assertThrows(
+        ForbiddenException.class,
+        () -> service.findByExam(GROUP_ID, COURSE_ID, EXAM_ID, OTHER_STUDENT_ID));
+  }
+
+  @Test
+  void findByExam_teacherAssignedToCourse_isAllowed() {
+    loginAs(TEACHER_ID, Role.TEACHER);
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(teacherCourseRepository.existsByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
+        .thenReturn(true);
+    when(repository.findByExamIdOrderByGradeDateAsc(EXAM_ID)).thenReturn(List.of(grade()));
+
+    List<Grade> result = service.findByExam(GROUP_ID, COURSE_ID, EXAM_ID, null);
+
+    assertEquals(1, result.size());
+  }
+
+  @Test
+  void findByExam_teacherNotAssignedToCourse_throwsForbidden() {
+    loginAs(TEACHER_ID, Role.TEACHER);
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(teacherCourseRepository.existsByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
+        .thenReturn(false);
+
+    assertThrows(
+        ForbiddenException.class, () -> service.findByExam(GROUP_ID, COURSE_ID, EXAM_ID, null));
+  }
+
+  @Test
+  void grade_asStudent_throwsForbidden() {
+    loginAs(STUDENT_ID, Role.STUDENT);
+
+    assertThrows(
+        ForbiddenException.class, () -> service.grade(GROUP_ID, COURSE_ID, EXAM_ID, request()));
+  }
+
+  @Test
+  void grade_asTeacherNotAssignedToCourse_throwsForbidden() {
+    loginAs(TEACHER_ID, Role.TEACHER);
+    when(teacherCourseRepository.existsByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
+        .thenReturn(false);
+
+    assertThrows(
+        ForbiddenException.class, () -> service.grade(GROUP_ID, COURSE_ID, EXAM_ID, request()));
+  }
+
+  @Test
+  void grade_asTeacherAssignedToCourse_isAllowed() {
+    loginAs(TEACHER_ID, Role.TEACHER);
+    when(teacherCourseRepository.existsByCourseIdAndTeacherId(COURSE_ID, TEACHER_ID))
+        .thenReturn(true);
+    when(groupCourseRepository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(assignment()));
+    when(examRepository.findById(EXAM_ID)).thenReturn(Optional.of(exam()));
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    when(membershipRepository.existsByGroupIdAndStudentIdAt(
+            eq(GROUP_ID), eq(STUDENT_ID), any(LocalDate.class)))
+        .thenReturn(true);
+    when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    Grade result = service.grade(GROUP_ID, COURSE_ID, EXAM_ID, request());
+
+    assertEquals(STUDENT_ID, result.studentId());
   }
 
   private JGroupCourse assignment() {
