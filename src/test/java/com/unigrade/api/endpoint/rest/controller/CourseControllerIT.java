@@ -11,7 +11,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.OK;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.unigrade.api.conf.FacadeIT;
+import com.unigrade.api.conf.SecuredFacadeIT;
 import com.unigrade.api.model.Course;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -19,7 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.ResponseEntity;
 
-class CourseControllerIT extends FacadeIT {
+class CourseControllerIT extends SecuredFacadeIT {
 
   @Autowired private TestRestTemplate restTemplate;
 

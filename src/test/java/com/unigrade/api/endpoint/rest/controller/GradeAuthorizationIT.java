@@ -6,7 +6,7 @@ import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.OK;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.unigrade.api.conf.FacadeIT;
+import com.unigrade.api.conf.SecuredFacadeIT;
 import com.unigrade.api.model.Course;
 import com.unigrade.api.model.Promotion;
 import com.unigrade.api.model.StudentGroup;
@@ -24,7 +24,7 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 
-class GradeAuthorizationIT extends FacadeIT {
+class GradeAuthorizationIT extends SecuredFacadeIT {
 
   @Autowired private TestRestTemplate restTemplate;
   @Autowired private UserRepository userRepository;
