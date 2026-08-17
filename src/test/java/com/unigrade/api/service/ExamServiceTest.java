@@ -282,7 +282,8 @@ class ExamServiceTest {
 
     assertThrows(
         ForbiddenException.class,
-        () -> service.update(GROUP_ID, COURSE_ID, EXAM_ID, new ExamRequest(EXAM_DATE, COEFFICIENT)));
+        () ->
+            service.update(GROUP_ID, COURSE_ID, EXAM_ID, new ExamRequest(EXAM_DATE, COEFFICIENT)));
   }
 
   @Test
