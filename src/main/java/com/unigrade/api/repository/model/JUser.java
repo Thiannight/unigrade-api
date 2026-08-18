@@ -2,6 +2,7 @@ package com.unigrade.api.repository.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.unigrade.api.model.Role;
+import com.unigrade.api.model.Specialization;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.Collection;
@@ -52,6 +53,10 @@ public class JUser implements UserDetails {
   @Enumerated(EnumType.STRING)
   @Column(length = 20, nullable = false)
   private Role role;
+
+  @Enumerated(EnumType.STRING)
+  @Column(length = 2)
+  private Specialization specialization;
 
   @OneToMany(mappedBy = "student")
   private List<JMembership> memberships;
