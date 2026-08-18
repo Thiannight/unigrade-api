@@ -17,6 +17,7 @@ public class UserMapper {
         .password(entity.getPassword())
         .isActive(entity.getIsActive())
         .role(entity.getRole())
+        .specialization(entity.getSpecialization())
         .build();
   }
 
@@ -30,6 +31,7 @@ public class UserMapper {
         .password(domain.password())
         .isActive(domain.isActive())
         .role(domain.role())
+        .specialization(domain.specialization())
         .build();
   }
 }
