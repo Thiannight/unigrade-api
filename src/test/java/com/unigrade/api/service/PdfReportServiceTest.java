@@ -39,14 +39,7 @@ class PdfReportServiceTest {
   void generate_withEmptyLevels_returnsPdf() {
     StudentReport report =
         new StudentReport(
-            "STD001",
-            "Alice",
-            "Dupont",
-            ReportStatus.TEMPORARY,
-            0,
-            0,
-            List.of(),
-            null);
+            "STD001", "Alice", "Dupont", ReportStatus.TEMPORARY, 0, 0, List.of(), null);
 
     byte[] pdf = service.generate(report);
 
@@ -63,14 +56,7 @@ class PdfReportServiceTest {
         new LevelReport(Level.L1, ReportStatus.TEMPORARY, 6, 60, null, List.of(course));
     StudentReport report =
         new StudentReport(
-            "STD002",
-            "Bob",
-            "Martin",
-            ReportStatus.TEMPORARY,
-            6,
-            60,
-            List.of(level),
-            null);
+            "STD002", "Bob", "Martin", ReportStatus.TEMPORARY, 6, 60, List.of(level), null);
 
     byte[] pdf = service.generate(report);
 
