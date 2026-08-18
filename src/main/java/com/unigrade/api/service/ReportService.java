@@ -71,6 +71,7 @@ public class ReportService {
         studentId,
         student.getFirstName(),
         student.getLastName(),
+        student.getSpecialization(),
         status,
         totalCredits,
         requiredCredits,

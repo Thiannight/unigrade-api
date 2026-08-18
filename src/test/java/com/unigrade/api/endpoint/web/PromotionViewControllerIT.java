@@ -34,7 +34,7 @@ class PromotionViewControllerIT extends SecuredFacadeIT {
 
     assertEquals(OK, response.getStatusCode());
     assertTrue(response.getBody().contains("VIEW-IT-1"));
-    assertTrue(response.getBody().contains("Télécharger la liste des diplômés"));
+    assertTrue(response.getBody().contains("/graduates.xlsx"));
   }
 
   @Test

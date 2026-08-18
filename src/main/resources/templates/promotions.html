@@ -1,52 +1,558 @@
 <!DOCTYPE html>
 <html lang="fr" xmlns:th="http://www.thymeleaf.org">
 <head>
-  <meta charset="UTF-8">
-  <title>Unigrade - Promotions</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; color: #1f2933; }
-    h1 { margin-bottom: 1.5rem; }
-    table { border-collapse: collapse; width: 100%; max-width: 900px; }
-    th, td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid #e0e0e0; }
-    th { background-color: #f5f7fa; font-weight: 600; }
-    tr:hover { background-color: #fafafa; }
-    .empty { color: #6b7280; font-style: italic; padding: 1rem 0; }
-    button {
-      background-color: #2563eb;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      padding: 0.45rem 0.9rem;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-    button:hover { background-color: #1d4ed8; }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Unigrade · Promotions</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+    <style>
+        /* ===== CSS Variables ===== */
+        :root {
+            --color-primary: #2563eb;
+            --color-primary-hover: #1d4ed8;
+            --color-primary-light: #dbeafe;
+            --color-success: #059669;
+            --color-success-bg: #d1fae5;
+            --color-gray-50: #f8fafc;
+            --color-gray-100: #f1f5f9;
+            --color-gray-200: #e2e8f0;
+            --color-gray-300: #cbd5e1;
+            --color-gray-400: #94a3b8;
+            --color-gray-500: #64748b;
+            --color-gray-600: #475569;
+            --color-gray-700: #334155;
+            --color-gray-800: #1e293b;
+            --color-gray-900: #0f172a;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+            --shadow-xl: 0 20px 40px -5px rgba(0, 0, 0, 0.10);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --transition: 0.2s ease;
+        }
+
+        /* ===== Reset & Base ===== */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--color-gray-50);
+            color: var(--color-gray-800);
+            padding: 2rem;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        /* ===== Container ===== */
+        .app-container {
+            width: 100%;
+            max-width: 1100px;
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            padding: 2rem 2rem 2.5rem;
+            transition: box-shadow var(--transition);
+        }
+
+        .app-container:hover {
+            box-shadow: var(--shadow-xl);
+        }
+
+        /* ===== Header ===== */
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 2px solid var(--color-gray-100);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-left .icon {
+            font-size: 1.75rem;
+            color: var(--color-primary);
+            background: var(--color-primary-light);
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+        }
+
+        .header-left h1 {
+            font-size: 1.65rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: var(--color-gray-900);
+        }
+
+        .header-left h1 span {
+            font-weight: 400;
+            color: var(--color-gray-500);
+            font-size: 1rem;
+            margin-left: 0.4rem;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        /* ===== Toolbar ===== */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-wrapper {
+            position: relative;
+            flex: 1 1 260px;
+            min-width: 180px;
+        }
+
+        .search-wrapper i {
+            position: absolute;
+            left: 0.9rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-gray-400);
+            font-size: 0.9rem;
+            pointer-events: none;
+        }
+
+        .search-wrapper input {
+            width: 100%;
+            padding: 0.6rem 1rem 0.6rem 2.5rem;
+            font-size: 0.9rem;
+            font-family: inherit;
+            border: 1.5px solid var(--color-gray-200);
+            border-radius: var(--radius-sm);
+            background: #fff;
+            transition: border-color var(--transition), box-shadow var(--transition);
+            outline: none;
+            color: var(--color-gray-800);
+        }
+
+        .search-wrapper input:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .search-wrapper input::placeholder {
+            color: var(--color-gray-400);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: inherit;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--color-primary-hover);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.30);
+        }
+
+        .btn-success {
+            background: var(--color-success);
+            color: #fff;
+        }
+        .btn-success:hover {
+            background: #047857;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.30);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--color-gray-600);
+            border: 1.5px solid var(--color-gray-200);
+        }
+        .btn-outline:hover {
+            background: var(--color-gray-50);
+            border-color: var(--color-gray-300);
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.9rem;
+            font-size: 0.8rem;
+        }
+
+        /* ===== Table ===== */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-gray-200);
+            background: #fff;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            min-width: 400px;
+        }
+
+        thead {
+            background: var(--color-gray-50);
+            border-bottom: 2px solid var(--color-gray-200);
+        }
+
+        thead th {
+            padding: 0.9rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--color-gray-500);
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            background: var(--color-gray-50);
+            z-index: 2;
+        }
+
+        thead th:first-child {
+            padding-left: 1.5rem;
+        }
+        thead th:last-child {
+            padding-right: 1.5rem;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid var(--color-gray-100);
+            transition: background var(--transition);
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background: var(--color-gray-50);
+        }
+
+        tbody td {
+            padding: 0.9rem 1rem;
+            vertical-align: middle;
+            color: var(--color-gray-700);
+        }
+
+        tbody td:first-child {
+            padding-left: 1.5rem;
+            font-weight: 600;
+            color: var(--color-gray-900);
+        }
+        tbody td:last-child {
+            padding-right: 1.5rem;
+        }
+
+        .period-cell {
+            font-weight: 500;
+            color: var(--color-gray-700);
+        }
+
+        .period-cell small {
+            font-weight: 400;
+            color: var(--color-gray-400);
+            font-size: 0.75rem;
+            display: block;
+            margin-top: 0.1rem;
+        }
+
+        .action-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .action-cell .btn {
+            font-size: 0.78rem;
+            padding: 0.35rem 0.8rem;
+        }
+
+        /* ===== Empty state ===== */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3.5rem 1.5rem;
+            text-align: center;
+            color: var(--color-gray-500);
+        }
+
+        .empty-state i {
+            font-size: 3.5rem;
+            color: var(--color-gray-300);
+            margin-bottom: 1rem;
+        }
+
+        .empty-state p {
+            font-size: 1rem;
+            max-width: 320px;
+            line-height: 1.5;
+        }
+
+        /* ===== Footer ===== */
+        .footer-meta {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--color-gray-100);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--color-gray-400);
+        }
+
+        .footer-meta .count {
+            font-weight: 500;
+            color: var(--color-gray-600);
+        }
+
+        .footer-meta .count strong {
+            color: var(--color-gray-900);
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            .app-container {
+                padding: 1.25rem;
+            }
+            .header-left h1 {
+                font-size: 1.3rem;
+            }
+            .header-left h1 span {
+                font-size: 0.85rem;
+                display: block;
+                margin-left: 0;
+            }
+            .header-left .icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.4rem;
+            }
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-wrapper {
+                flex: 1 1 auto;
+            }
+            tbody td:first-child,
+            thead th:first-child {
+                padding-left: 1rem;
+            }
+            tbody td:last-child,
+            thead th:last-child {
+                padding-right: 1rem;
+            }
+            .action-cell .btn {
+                font-size: 0.7rem;
+                padding: 0.25rem 0.6rem;
+            }
+            .footer-meta {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .header-actions {
+                justify-content: stretch;
+            }
+            .header-actions .btn {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+
+        /* ===== Utility ===== */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+    </style>
 </head>
 <body>
-  <h1>Promotions</h1>
 
-  <table th:if="${not #lists.isEmpty(promotions)}">
-    <thead>
-      <tr>
-        <th>Référence</th>
-        <th>Période</th>
-        <th>Diplômés</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr th:each="promotion : ${promotions}">
-        <td th:text="${promotion.reference}">REF</td>
-        <td th:text="${promotion.startYear} + ' - ' + ${promotion.endYear}">2020 - 2023</td>
-        <td>
-          <a th:href="@{'/promotions/' + ${promotion.id} + '/graduates.xlsx'}">
-            <button type="button">Télécharger la liste des diplômés</button>
-          </a>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+    <div class="app-container">
 
-  <p class="empty" th:if="${#lists.isEmpty(promotions)}">Aucune promotion enregistrée.</p>
+        <header class="header">
+            <div class="header-left">
+                <span class="icon" aria-hidden="true"><i class="fas fa-graduation-cap"></i></span>
+                <h1>
+                    Promotions
+                    <span>· Gestion</span>
+                </h1>
+            </div>
+            <div class="header-actions">
+                <a href="#" class="btn btn-outline btn-sm" th:href="@{/dashboard}">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    Retour
+                </a>
+            </div>
+        </header>
+
+        <div class="toolbar" th:if="${not #lists.isEmpty(promotions)}">
+            <div class="search-wrapper">
+                <i class="fas fa-search" aria-hidden="true"></i>
+                <input type="text" id="searchInput" placeholder="Rechercher une promotion…" aria-label="Rechercher une promotion" />
+            </div>
+        </div>
+
+        <div class="table-wrapper" th:if="${not #lists.isEmpty(promotions)}">
+            <table id="promotionTable">
+                <thead>
+                    <tr>
+                        <th scope="col">Référence</th>
+                        <th scope="col">Période</th>
+                        <th scope="col">Diplômés</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="promotion : ${promotions}"
+                        data-ref="${promotion.reference}">
+                        <td th:text="${promotion.reference}">REF-2023</td>
+                        <td class="period-cell">
+                            <span th:text="${promotion.startYear} + ' — ' + ${promotion.endYear}">2020 — 2023</span>
+                            <small th:text="${promotion.startYear} + ' → ' + ${promotion.endYear}">année universitaire</small>
+                        </td>
+                        <td>
+                            <div class="action-cell">
+                                <a th:href="@{'/promotions/' + ${promotion.id} + '/graduates.xlsx'}" class="btn btn-success btn-sm">
+                                    <i class="fas fa-file-excel" aria-hidden="true"></i>
+                                    <span>XLSX</span>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="empty-state" th:if="${#lists.isEmpty(promotions)}">
+            <i class="fas fa-inbox" aria-hidden="true"></i>
+            <p>Aucune promotion enregistrée pour le moment.</p>
+        </div>
+
+        <div class="footer-meta" th:if="${not #lists.isEmpty(promotions)}">
+            <span class="count">
+                <strong th:text="${#lists.size(promotions)}">0</strong>
+                promotion<span th:if="${#lists.size(promotions) > 1}">s</span> affichée<span th:if="${#lists.size(promotions) > 1}">s</span>
+            </span>
+            <span>
+                <i class="far fa-clock" aria-hidden="true"></i>
+                Dernière mise à jour : <span th:text="${#dates.format(#dates.createNow(), 'dd/MM/yyyy HH:mm')}">—</span>
+            </span>
+        </div>
+
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            const searchInput = document.getElementById('searchInput');
+            const table = document.getElementById('promotionTable');
+            if (!table) return;
+
+            const tbody = table.querySelector('tbody');
+            const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+
+            function filterTable() {
+                const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+                rows.forEach(row => {
+                    const ref = row.getAttribute('data-ref') || '';
+                    const text = row.textContent.toLowerCase();
+                    const matchSearch = !query || text.includes(query) || ref.toLowerCase().includes(query);
+
+                    row.style.display = matchSearch ? '' : 'none';
+                });
+
+                // Update count in footer
+                const visible = rows.filter(r => r.style.display !== 'none').length;
+                const footer = document.querySelector('.footer-meta .count');
+                if (footer) {
+                    footer.innerHTML = `<strong>${visible}</strong> promotion${visible > 1 ? 's' : ''} affichée${visible > 1 ? 's' : ''}`;
+                }
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('input', filterTable);
+            }
+
+            // Initial filter
+            filterTable();
+
+        })();
+    </script>
+
 </body>
 </html>

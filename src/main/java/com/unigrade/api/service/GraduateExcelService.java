@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
 public class GraduateExcelService {
 
   private static final String[] HEADERS = {
-    "Matricule", "Prénom", "Nom", "Moyenne générale", "Crédits obtenus"
+    "Matricule", "Prénom", "Nom", "Spécialisation", "Moyenne générale", "Crédits obtenus"
   };
 
   private final MembershipRepository membershipRepository;
@@ -81,7 +81,14 @@ public class GraduateExcelService {
         row.createCell(1).setCellValue(report.firstName());
         row.createCell(2).setCellValue(report.lastName());
 
-        Cell averageCell = row.createCell(3);
+        Cell specializationCell = row.createCell(3);
+        if (report.specialization() != null) {
+          specializationCell.setCellValue(report.specialization().name());
+        } else {
+          specializationCell.setCellType(CellType.BLANK);
+        }
+
+        Cell averageCell = row.createCell(4);
         BigDecimal average = report.overallAverage();
         if (average != null) {
           averageCell.setCellValue(average.doubleValue());
@@ -89,7 +96,7 @@ public class GraduateExcelService {
           averageCell.setCellType(CellType.BLANK);
         }
 
-        row.createCell(4).setCellValue(report.totalCredits());
+        row.createCell(5).setCellValue(report.totalCredits());
       }
 
       for (int i = 0; i < HEADERS.length; i++) {

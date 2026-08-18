@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.unigrade.api.model.Promotion;
 import com.unigrade.api.model.ReportStatus;
+import com.unigrade.api.model.Specialization;
 import com.unigrade.api.model.StudentReport;
 import com.unigrade.api.repository.MembershipRepository;
 import com.unigrade.api.repository.model.JUser;
@@ -55,12 +56,22 @@ class GraduateExcelServiceTest {
     JUser acker = student("S1", "Alice", "Acker");
     JUser zulu = student("S2", "Bob", "Zulu");
     StudentReport noAverage =
-        new StudentReport("S1", "Alice", "Acker", ReportStatus.COMPLETE, 0, 180, List.of(), null);
+        new StudentReport(
+            "S1",
+            "Alice",
+            "Acker",
+            Specialization.TN,
+            ReportStatus.COMPLETE,
+            0,
+            180,
+            List.of(),
+            null);
     StudentReport withAverage =
         new StudentReport(
             "S2",
             "Bob",
             "Zulu",
+            Specialization.EL,
             ReportStatus.COMPLETE,
             60,
             180,
@@ -82,10 +93,12 @@ class GraduateExcelServiceTest {
       assertNotNull(ackerRow);
       assertNotNull(zuluRow);
       assertEquals("Acker", ackerRow.getCell(2).getStringCellValue());
-      assertEquals(CellType.BLANK, ackerRow.getCell(3).getCellType());
+      assertEquals("TN", ackerRow.getCell(3).getStringCellValue());
+      assertEquals(CellType.BLANK, ackerRow.getCell(4).getCellType());
       assertEquals("Zulu", zuluRow.getCell(2).getStringCellValue());
-      assertEquals(CellType.NUMERIC, zuluRow.getCell(3).getCellType());
-      assertEquals(15.5, zuluRow.getCell(3).getNumericCellValue());
+      assertEquals("EL", zuluRow.getCell(3).getStringCellValue());
+      assertEquals(CellType.NUMERIC, zuluRow.getCell(4).getCellType());
+      assertEquals(15.5, zuluRow.getCell(4).getNumericCellValue());
     }
   }
 
