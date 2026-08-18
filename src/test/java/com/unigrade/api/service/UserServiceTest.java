@@ -91,7 +91,8 @@ class UserServiceTest {
             "ada@unigrade.com",
             "",
             true,
-            Role.STUDENT);
+            Role.STUDENT,
+            null);
 
     User result = service.update(STUDENT_ID, update);
 
@@ -115,7 +116,8 @@ class UserServiceTest {
             "ada@unigrade.com",
             "new-password",
             true,
-            Role.STUDENT);
+            Role.STUDENT,
+            null);
 
     User result = service.update(STUDENT_ID, update);
 
@@ -146,7 +148,8 @@ class UserServiceTest {
             "taken@unigrade.com",
             "pw",
             true,
-            Role.STUDENT);
+            Role.STUDENT,
+            null);
 
     assertThrows(ConflictException.class, () -> service.update(STUDENT_ID, update));
   }
@@ -214,7 +217,15 @@ class UserServiceTest {
 
   private User domainUser(String email, String password) {
     return new User(
-        null, "Ada", "Lovelace", LocalDate.of(2000, 1, 1), email, password, true, Role.STUDENT);
+        null,
+        "Ada",
+        "Lovelace",
+        LocalDate.of(2000, 1, 1),
+        email,
+        password,
+        true,
+        Role.STUDENT,
+        null);
   }
 
   private JUser entity(String email, String passwordHash) {

@@ -46,7 +46,8 @@ class UserMapperTest {
             "ada@unigrade.com",
             "hashed-password",
             true,
-            Role.STUDENT);
+            Role.STUDENT,
+            null);
 
     JUser result = userMapper.toEntity(domain);
 
