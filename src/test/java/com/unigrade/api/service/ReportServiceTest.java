@@ -112,6 +112,7 @@ class ReportServiceTest {
                     Instant.parse("2024-06-01T09:00:00Z"),
                     new BigDecimal("0.6"),
                     new BigDecimal("16.0"))));
+    when(gradeCalculationService.isCourseComplete(GROUP_COURSE_ID_1, STUDENT_ID)).thenReturn(true);
     when(gradeCalculationService.averageFromExamScores(any())).thenReturn(new BigDecimal("13.60"));
 
     StudentReport report = service.generate(STUDENT_ID, null);
@@ -323,6 +324,7 @@ class ReportServiceTest {
         new CourseParticipation(g2, promo, g2Course));
     when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_1, STUDENT_ID))
         .thenReturn(List.of());
+    when(gradeCalculationService.isCourseComplete(GROUP_COURSE_ID_1, STUDENT_ID)).thenReturn(false);
     when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_2, STUDENT_ID))
         .thenReturn(
             List.of(
@@ -331,6 +333,7 @@ class ReportServiceTest {
                     Instant.parse("2024-07-01T09:00:00Z"),
                     new BigDecimal("1.0"),
                     new BigDecimal("14.0"))));
+    when(gradeCalculationService.isCourseComplete(GROUP_COURSE_ID_2, STUDENT_ID)).thenReturn(true);
     when(gradeCalculationService.averageFromExamScores(any()))
         .thenAnswer(
             inv -> {

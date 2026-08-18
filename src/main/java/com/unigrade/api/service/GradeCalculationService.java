@@ -166,6 +166,13 @@ public class GradeCalculationService {
     return weighted;
   }
 
+  public boolean isCourseComplete(UUID groupCourseId, String studentId) {
+    List<ExamScore> scores = collectExamScores(groupCourseId, studentId);
+    BigDecimal totalCoefficient =
+        scores.stream().map(ExamScore::coefficient).reduce(BigDecimal.ZERO, BigDecimal::add);
+    return totalCoefficient.compareTo(BigDecimal.ONE) == 0;
+  }
+
   public record CourseParticipation(
       JStudentGroup group, JPromotion promotion, JGroupCourse groupCourse) {}
 

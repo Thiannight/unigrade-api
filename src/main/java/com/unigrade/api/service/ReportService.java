@@ -29,9 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ReportService {
 
-  private static final BigDecimal ONE = BigDecimal.ONE;
-  private static final int PER_LEVEL_CREDIT = 60;
-
   private final UserRepository userRepository;
   private final GradeCalculationService gradeCalculationService;
 
@@ -58,7 +55,7 @@ public class ReportService {
 
     long totalCredits = levelReports.stream().mapToLong(LevelReport::totalCredits).sum();
     int expectedLevels = (levelFilter != null) ? 1 : Level.values().length;
-    long requiredCredits = (long) expectedLevels * PER_LEVEL_CREDIT;
+    long requiredCredits = (long) expectedLevels * Level.PER_LEVEL_CREDIT;
 
     ReportStatus status;
     if (levelReports.size() < expectedLevels) {
@@ -93,11 +90,7 @@ public class ReportService {
           gradeCalculationService.collectExamScores(representative.getId(), studentId);
 
       boolean completed =
-          exams.stream()
-                  .map(ExamScore::coefficient)
-                  .reduce(BigDecimal.ZERO, BigDecimal::add)
-                  .compareTo(ONE)
-              == 0;
+          gradeCalculationService.isCourseComplete(representative.getId(), studentId);
 
       courses.add(
           new CourseReportEntry(
@@ -115,12 +108,12 @@ public class ReportService {
     long totalCredits = courses.stream().mapToLong(CourseReportEntry::credits).sum();
 
     ReportStatus status =
-        allCompleted && totalCredits >= PER_LEVEL_CREDIT
+        allCompleted && totalCredits >= Level.PER_LEVEL_CREDIT
             ? ReportStatus.COMPLETE
             : ReportStatus.TEMPORARY;
 
     return new LevelReport(
-        level, status, totalCredits, PER_LEVEL_CREDIT, average(courses), courses);
+        level, status, totalCredits, Level.PER_LEVEL_CREDIT, average(courses), courses);
   }
 
   private BigDecimal average(List<CourseReportEntry> courses) {
