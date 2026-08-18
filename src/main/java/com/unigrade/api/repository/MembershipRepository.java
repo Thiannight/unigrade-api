@@ -48,13 +48,6 @@ public interface MembershipRepository extends JpaRepository<JMembership, UUID> {
       @Param("studentId") String studentId,
       @Param("date") LocalDate date);
 
-  @Query(
-      """
-      SELECT DISTINCT m.student FROM JMembership m
-      WHERE m.group.promotion.id = :promotionId
-      """)
-  List<JUser> findDistinctStudentsByPromotionId(@Param("promotionId") UUID promotionId);
-
   @Query("SELECT DISTINCT m.student FROM JMembership m WHERE m.group.promotion.id = :promotionId")
   List<JUser> findStudentsByPromotionId(@Param("promotionId") UUID promotionId);
 
