@@ -24,11 +24,14 @@ import com.unigrade.api.repository.model.JGroupCourse;
 import com.unigrade.api.repository.model.JPromotion;
 import com.unigrade.api.repository.model.JStudentGroup;
 import com.unigrade.api.repository.model.JUser;
+import com.unigrade.api.service.GradeCalculationService.CourseData;
 import com.unigrade.api.service.GradeCalculationService.CourseKey;
 import com.unigrade.api.service.GradeCalculationService.CourseParticipation;
+import com.unigrade.api.service.GradeCalculationService.CourseResult;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,21 +102,21 @@ class ReportServiceTest {
         Level.L2,
         new CourseKey(PROMOTION_ID_1, COURSE_ID),
         new CourseParticipation(group, promo, groupCourse));
-    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_1, STUDENT_ID))
-        .thenReturn(
-            List.of(
-                new ExamScore(
-                    EXAM_ID_1,
-                    Instant.parse("2024-05-01T09:00:00Z"),
-                    new BigDecimal("0.4"),
-                    new BigDecimal("10.0")),
-                new ExamScore(
-                    EXAM_ID_2,
-                    Instant.parse("2024-06-01T09:00:00Z"),
-                    new BigDecimal("0.6"),
-                    new BigDecimal("16.0"))));
-    when(gradeCalculationService.isCourseComplete(GROUP_COURSE_ID_1, STUDENT_ID)).thenReturn(true);
-    when(gradeCalculationService.averageFromExamScores(any())).thenReturn(new BigDecimal("13.60"));
+
+    List<ExamScore> examScores =
+        List.of(
+            new ExamScore(
+                EXAM_ID_1,
+                Instant.parse("2024-05-01T09:00:00Z"),
+                new BigDecimal("0.4"),
+                new BigDecimal("10.0")),
+            new ExamScore(
+                EXAM_ID_2,
+                Instant.parse("2024-06-01T09:00:00Z"),
+                new BigDecimal("0.6"),
+                new BigDecimal("16.0")));
+    when(gradeCalculationService.computeCourseResult(eq(GROUP_COURSE_ID_1), eq(STUDENT_ID), any()))
+        .thenReturn(new CourseResult(true, new BigDecimal("13.60"), examScores));
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -160,8 +163,8 @@ class ReportServiceTest {
   @Test
   void generate_noMemberships_returnsEmptyReport() {
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
-    when(gradeCalculationService.resolveCoursesByLevel(eq(STUDENT_ID), any(Level.class)))
-        .thenReturn(Map.of());
+    when(gradeCalculationService.resolveAllCoursesByLevels(STUDENT_ID))
+        .thenReturn(new CourseData(new EnumMap<>(Level.class), List.of()));
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -183,8 +186,8 @@ class ReportServiceTest {
         Level.L1,
         new CourseKey(PROMOTION_ID_1, COURSE_ID),
         new CourseParticipation(g, promo, l1Course));
-    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_1, STUDENT_ID))
-        .thenReturn(List.of());
+    when(gradeCalculationService.computeCourseResult(eq(GROUP_COURSE_ID_1), eq(STUDENT_ID), any()))
+        .thenReturn(new CourseResult(false, null, List.of()));
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -209,6 +212,8 @@ class ReportServiceTest {
         Level.L2,
         new CourseKey(PROMOTION_ID_2, COURSE_ID),
         new CourseParticipation(group2, newPromo, newCourse));
+    when(gradeCalculationService.computeCourseResult(eq(GROUP_COURSE_ID_2), eq(STUDENT_ID), any()))
+        .thenReturn(new CourseResult(false, null, List.of()));
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -229,8 +234,8 @@ class ReportServiceTest {
         Level.L1,
         new CourseKey(PROMOTION_ID_1, COURSE_ID),
         new CourseParticipation(g, promo, groupCourse));
-    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_1, STUDENT_ID))
-        .thenReturn(List.of());
+    when(gradeCalculationService.computeCourseResult(eq(GROUP_COURSE_ID_1), eq(STUDENT_ID), any()))
+        .thenReturn(new CourseResult(false, null, List.of()));
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -258,16 +263,19 @@ class ReportServiceTest {
         new CourseParticipation(group1, promo, firstAssignment),
         new CourseKey(PROMOTION_ID_1, UUID.fromString("AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
         new CourseParticipation(group2, promo, secondAssignment));
-    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_1, STUDENT_ID))
+    when(gradeCalculationService.computeCourseResult(eq(GROUP_COURSE_ID_1), eq(STUDENT_ID), any()))
         .thenReturn(
-            List.of(
-                new ExamScore(
-                    EXAM_ID_1,
-                    Instant.parse("2024-05-01T09:00:00Z"),
-                    new BigDecimal("0.5"),
-                    new BigDecimal("10.0"))));
-    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_2, STUDENT_ID))
-        .thenReturn(List.of());
+            new CourseResult(
+                true,
+                new BigDecimal("10.0"),
+                List.of(
+                    new ExamScore(
+                        EXAM_ID_1,
+                        Instant.parse("2024-05-01T09:00:00Z"),
+                        new BigDecimal("0.5"),
+                        new BigDecimal("10.0")))));
+    when(gradeCalculationService.computeCourseResult(eq(GROUP_COURSE_ID_2), eq(STUDENT_ID), any()))
+        .thenReturn(new CourseResult(false, null, List.of()));
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -322,24 +330,19 @@ class ReportServiceTest {
         new CourseParticipation(g1, promo, g1Course),
         new CourseKey(PROMOTION_ID_1, courseIdNew),
         new CourseParticipation(g2, promo, g2Course));
-    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_1, STUDENT_ID))
-        .thenReturn(List.of());
-    when(gradeCalculationService.isCourseComplete(GROUP_COURSE_ID_1, STUDENT_ID)).thenReturn(false);
-    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_2, STUDENT_ID))
+    when(gradeCalculationService.computeCourseResult(eq(GROUP_COURSE_ID_1), eq(STUDENT_ID), any()))
+        .thenReturn(new CourseResult(false, null, List.of()));
+    when(gradeCalculationService.computeCourseResult(eq(GROUP_COURSE_ID_2), eq(STUDENT_ID), any()))
         .thenReturn(
-            List.of(
-                new ExamScore(
-                    UUID.fromString("CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC"),
-                    Instant.parse("2024-07-01T09:00:00Z"),
-                    new BigDecimal("1.0"),
-                    new BigDecimal("14.0"))));
-    when(gradeCalculationService.isCourseComplete(GROUP_COURSE_ID_2, STUDENT_ID)).thenReturn(true);
-    when(gradeCalculationService.averageFromExamScores(any()))
-        .thenAnswer(
-            inv -> {
-              List<ExamScore> scores = inv.getArgument(0);
-              return scores.isEmpty() ? null : new BigDecimal("14.00");
-            });
+            new CourseResult(
+                true,
+                new BigDecimal("14.00"),
+                List.of(
+                    new ExamScore(
+                        UUID.fromString("CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC"),
+                        Instant.parse("2024-07-01T09:00:00Z"),
+                        new BigDecimal("1.0"),
+                        new BigDecimal("14.0")))));
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -355,19 +358,19 @@ class ReportServiceTest {
   void generate_withLevelFilter_returnsOnlyThatLevel() {
     JUser student = student();
     JPromotion promo = promotion("P-2024", (short) 2024);
-    JStudentGroup g1 = group(GROUP_ID_1, promo);
     JStudentGroup g2 = group(GROUP_ID_2, promo);
-    JGroupCourse l1Course = groupCourse(GROUP_COURSE_ID_1, g1, Semester.S1);
     JGroupCourse l2Course = groupCourse(GROUP_COURSE_ID_2, g2, Semester.S3);
 
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
-    when(gradeCalculationService.resolveCoursesByLevel(STUDENT_ID, Level.L2))
+    when(gradeCalculationService.resolveAllCoursesByLevels(STUDENT_ID))
         .thenReturn(
-            Map.of(
-                new CourseKey(PROMOTION_ID_1, COURSE_ID),
-                new CourseParticipation(g2, promo, l2Course)));
-    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_2, STUDENT_ID))
-        .thenReturn(List.of());
+            courseData(
+                Level.L2,
+                Map.of(
+                    new CourseKey(PROMOTION_ID_1, COURSE_ID),
+                    new CourseParticipation(g2, promo, l2Course))));
+    when(gradeCalculationService.computeCourseResult(eq(GROUP_COURSE_ID_2), eq(STUDENT_ID), any()))
+        .thenReturn(new CourseResult(false, null, List.of()));
 
     StudentReport report = service.generate(STUDENT_ID, Level.L2);
 
@@ -379,8 +382,8 @@ class ReportServiceTest {
   void generate_studentViewingOwnReport_isAllowed() {
     loginAs(STUDENT_ID, Role.STUDENT);
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
-    when(gradeCalculationService.resolveCoursesByLevel(eq(STUDENT_ID), any(Level.class)))
-        .thenReturn(Map.of());
+    when(gradeCalculationService.resolveAllCoursesByLevels(STUDENT_ID))
+        .thenReturn(new CourseData(new EnumMap<>(Level.class), List.of()));
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -405,7 +408,8 @@ class ReportServiceTest {
       Level level, CourseKey key, CourseParticipation... participations) {
     Map<CourseKey, CourseParticipation> deduped = new LinkedHashMap<>();
     deduped.put(key, participations[0]);
-    stubAllLevels(level, deduped);
+    when(gradeCalculationService.resolveAllCoursesByLevels(STUDENT_ID))
+        .thenReturn(courseData(level, deduped));
   }
 
   private void stubResolvedCourses(
@@ -413,14 +417,14 @@ class ReportServiceTest {
     Map<CourseKey, CourseParticipation> deduped = new LinkedHashMap<>();
     deduped.put(key1, p1);
     deduped.put(key2, p2);
-    stubAllLevels(level, deduped);
+    when(gradeCalculationService.resolveAllCoursesByLevels(STUDENT_ID))
+        .thenReturn(courseData(level, deduped));
   }
 
-  private void stubAllLevels(Level targetLevel, Map<CourseKey, CourseParticipation> targetCourses) {
-    for (Level level : Level.values()) {
-      when(gradeCalculationService.resolveCoursesByLevel(STUDENT_ID, level))
-          .thenReturn(level == targetLevel ? targetCourses : Map.of());
-    }
+  private CourseData courseData(Level level, Map<CourseKey, CourseParticipation> courses) {
+    Map<Level, Map<CourseKey, CourseParticipation>> byLevel = new EnumMap<>(Level.class);
+    byLevel.put(level, courses);
+    return new CourseData(byLevel, List.of());
   }
 
   private JUser student() {
