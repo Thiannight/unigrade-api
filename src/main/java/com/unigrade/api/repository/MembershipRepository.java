@@ -46,4 +46,12 @@ public interface MembershipRepository extends JpaRepository<JMembership, UUID> {
       @Param("groupId") UUID groupId,
       @Param("studentId") String studentId,
       @Param("date") LocalDate date);
+
+  @Query("SELECT DISTINCT m.student FROM JMembership m WHERE m.group.promotion.id = :promotionId")
+  List<com.unigrade.api.repository.model.JUser> findStudentsByPromotionId(
+      @Param("promotionId") UUID promotionId);
+
+  @Query(
+      "SELECT MAX(m.group.promotion.startYear) FROM JMembership m WHERE m.student.id = :studentId")
+  Short findLatestPromotionStartYearByStudentId(@Param("studentId") String studentId);
 }
