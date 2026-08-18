@@ -4,6 +4,7 @@ import com.unigrade.api.model.Semester;
 import com.unigrade.api.repository.model.JGroupCourse;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,6 +21,8 @@ public interface GroupCourseRepository extends JpaRepository<JGroupCourse, UUID>
   List<JGroupCourse> findAllByGroupIdAndEndDateIsNull(UUID groupId);
 
   List<JGroupCourse> findAllByGroupId(UUID groupId);
+
+  List<JGroupCourse> findAllByGroupIdIn(Set<UUID> groupIds);
 
   @Query(
       """

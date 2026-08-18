@@ -1,26 +1,32 @@
 package com.unigrade.api.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import com.unigrade.api.model.ExamScore;
+import com.unigrade.api.model.Level;
+import com.unigrade.api.model.Semester;
 import com.unigrade.api.repository.ExamRepository;
 import com.unigrade.api.repository.GradeRepository;
 import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.MembershipRepository;
+import com.unigrade.api.repository.model.JCourse;
 import com.unigrade.api.repository.model.JExam;
 import com.unigrade.api.repository.model.JGrade;
 import com.unigrade.api.repository.model.JGroupCourse;
+import com.unigrade.api.repository.model.JMembership;
+import com.unigrade.api.repository.model.JPromotion;
 import com.unigrade.api.repository.model.JStudentGroup;
+import com.unigrade.api.service.GradeCalculationService.CourseData;
+import com.unigrade.api.service.GradeCalculationService.CourseResult;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,132 +59,186 @@ class GradeCalculationServiceTest {
   }
 
   @Test
-  void courseAverage_withGrades_returnsWeightedSum() {
+  void computeCourseResult_withGrades_returnsAverageAndScores() {
     JExam exam = exam("1.0", "2024-05-01T09:00:00Z");
     when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID))
         .thenReturn(List.of(exam));
-    when(membershipRepository.existsByGroupIdAndStudentIdAt(
-            eq(GROUP_ID), eq(STUDENT_ID), any(LocalDate.class)))
-        .thenReturn(true);
-    when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(EXAM_ID, STUDENT_ID))
-        .thenReturn(Optional.of(grade(14.0f)));
+    when(gradeRepository.findByStudentIdAndExamIdsOrderByGradeDateDesc(eq(STUDENT_ID), any()))
+        .thenReturn(List.of(grade(exam, 14.0f)));
+    List<JMembership> memberships = List.of(membership(LocalDate.of(2024, 1, 1), null));
 
-    BigDecimal result = service.courseAverage(GROUP_COURSE_ID, STUDENT_ID);
+    CourseResult result = service.computeCourseResult(GROUP_COURSE_ID, STUDENT_ID, memberships);
 
-    assertEquals(0, new BigDecimal("14.0").compareTo(result));
+    assertTrue(result.completed());
+    assertEquals(0, new BigDecimal("14.0").compareTo(result.average()));
+    assertEquals(1, result.exams().size());
+    assertEquals(new BigDecimal("14.0"), result.exams().getFirst().score());
   }
 
   @Test
-  void courseAverage_noExams_returnsNull() {
+  void computeCourseResult_noExams_returnsNullAverage() {
     when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID))
         .thenReturn(List.of());
 
-    BigDecimal result = service.courseAverage(GROUP_COURSE_ID, STUDENT_ID);
+    CourseResult result =
+        service.computeCourseResult(
+            GROUP_COURSE_ID, STUDENT_ID, List.of(membership(LocalDate.of(2024, 1, 1), null)));
 
-    assertNull(result);
+    assertFalse(result.completed());
+    assertNull(result.average());
+    assertTrue(result.exams().isEmpty());
   }
 
   @Test
-  void courseAverage_notMemberAtExamDate_skipsExam() {
+  void computeCourseResult_notMemberAtExamDate_skipsExam() {
     JExam exam = exam("1.0", "2024-05-01T09:00:00Z");
     when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID))
         .thenReturn(List.of(exam));
-    when(membershipRepository.existsByGroupIdAndStudentIdAt(
-            eq(GROUP_ID), eq(STUDENT_ID), any(LocalDate.class)))
-        .thenReturn(false);
+    JMembership expiredMembership =
+        JMembership.builder()
+            .group(JStudentGroup.builder().id(GROUP_ID).build())
+            .startDate(LocalDate.of(2024, 1, 1))
+            .endDate(LocalDate.of(2024, 3, 1))
+            .build();
 
-    BigDecimal result = service.courseAverage(GROUP_COURSE_ID, STUDENT_ID);
+    CourseResult result =
+        service.computeCourseResult(GROUP_COURSE_ID, STUDENT_ID, List.of(expiredMembership));
 
-    assertNull(result);
+    assertTrue(result.exams().isEmpty());
+    assertFalse(result.completed());
   }
 
   @Test
-  void courseAverage_noGrade_defaultsToZero() {
+  void computeCourseResult_noGrade_defaultsToZero() {
     JExam exam = exam("1.0", "2024-05-01T09:00:00Z");
     when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID))
         .thenReturn(List.of(exam));
-    when(membershipRepository.existsByGroupIdAndStudentIdAt(
-            eq(GROUP_ID), eq(STUDENT_ID), any(LocalDate.class)))
-        .thenReturn(true);
-    when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(EXAM_ID, STUDENT_ID))
-        .thenReturn(Optional.empty());
+    when(gradeRepository.findByStudentIdAndExamIdsOrderByGradeDateDesc(eq(STUDENT_ID), any()))
+        .thenReturn(List.of());
 
-    BigDecimal result = service.courseAverage(GROUP_COURSE_ID, STUDENT_ID);
+    CourseResult result =
+        service.computeCourseResult(
+            GROUP_COURSE_ID, STUDENT_ID, List.of(membership(LocalDate.of(2024, 1, 1), null)));
 
-    assertEquals(0, BigDecimal.ZERO.compareTo(result));
+    assertEquals(0, BigDecimal.ZERO.compareTo(result.average()));
+    assertTrue(result.completed());
   }
 
   @Test
-  void collectExamScores_withGrade_returnsScoreList() {
-    JExam exam = exam("0.5", "2024-05-01T09:00:00Z");
+  void computeCourseResult_partialCoefficients_notCompleted() {
+    JExam exam1 =
+        JExam.builder()
+            .id(UUID.randomUUID())
+            .examDate(Instant.parse("2024-02-01T09:00:00Z"))
+            .coefficient(new BigDecimal("0.6"))
+            .groupCourse(
+                JGroupCourse.builder()
+                    .id(GROUP_COURSE_ID)
+                    .group(JStudentGroup.builder().id(GROUP_ID).build())
+                    .build())
+            .build();
+    JExam exam2 =
+        JExam.builder()
+            .id(UUID.randomUUID())
+            .examDate(Instant.parse("2024-06-01T09:00:00Z"))
+            .coefficient(new BigDecimal("0.4"))
+            .groupCourse(
+                JGroupCourse.builder()
+                    .id(GROUP_COURSE_ID)
+                    .group(JStudentGroup.builder().id(GROUP_ID).build())
+                    .build())
+            .build();
     when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID))
-        .thenReturn(List.of(exam));
-    when(membershipRepository.existsByGroupIdAndStudentIdAt(
-            eq(GROUP_ID), eq(STUDENT_ID), any(LocalDate.class)))
-        .thenReturn(true);
-    when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(EXAM_ID, STUDENT_ID))
-        .thenReturn(Optional.of(grade(15.0f)));
+        .thenReturn(List.of(exam1, exam2));
+    when(gradeRepository.findByStudentIdAndExamIdsOrderByGradeDateDesc(eq(STUDENT_ID), any()))
+        .thenReturn(List.of(grade(exam1, 12.0f)));
+    JMembership membership =
+        JMembership.builder()
+            .group(JStudentGroup.builder().id(GROUP_ID).build())
+            .startDate(LocalDate.of(2024, 1, 1))
+            .endDate(LocalDate.of(2024, 4, 1))
+            .build();
 
-    List<ExamScore> result = service.collectExamScores(GROUP_COURSE_ID, STUDENT_ID);
+    CourseResult result =
+        service.computeCourseResult(GROUP_COURSE_ID, STUDENT_ID, List.of(membership));
 
-    assertEquals(1, result.size());
-    assertEquals(new BigDecimal("15.0"), result.getFirst().score());
-    assertEquals(new BigDecimal("0.5"), result.getFirst().coefficient());
+    assertFalse(result.completed());
+    assertEquals(1, result.exams().size());
   }
 
   @Test
-  void collectExamScores_notMember_excludesExam() {
-    JExam exam = exam("0.5", "2024-05-01T09:00:00Z");
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID))
-        .thenReturn(List.of(exam));
-    when(membershipRepository.existsByGroupIdAndStudentIdAt(
-            eq(GROUP_ID), eq(STUDENT_ID), any(LocalDate.class)))
-        .thenReturn(false);
-
-    List<ExamScore> result = service.collectExamScores(GROUP_COURSE_ID, STUDENT_ID);
-
-    assertTrue(result.isEmpty());
-  }
-
-  @Test
-  void allTimeAverage_noMemberships_returnsNull() {
+  void resolveAllCoursesByLevels_noMemberships_returnsEmpty() {
     when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID)).thenReturn(List.of());
 
-    BigDecimal result = service.allTimeAverage(STUDENT_ID);
+    CourseData result = service.resolveAllCoursesByLevels(STUDENT_ID);
 
-    assertNull(result);
+    assertTrue(result.coursesByLevel().isEmpty());
+    assertTrue(result.memberships().isEmpty());
   }
 
   @Test
-  void totalCredits_withCourses_returnsSum() {
-    UUID groupCourseId2 = UUID.randomUUID();
-    JGroupCourse gc1 = groupCourse(GROUP_ID, GROUP_COURSE_ID, 6);
-    JGroupCourse gc2 = groupCourse(GROUP_ID, groupCourseId2, 4);
+  void resolveAllCoursesByLevels_withCourses_returnsMap() {
+    JPromotion promo = promotion();
+    JStudentGroup group = JStudentGroup.builder().id(GROUP_ID).promotion(promo).build();
+    JGroupCourse gc =
+        JGroupCourse.builder()
+            .id(GROUP_COURSE_ID)
+            .group(group)
+            .course(
+                JCourse.builder()
+                    .id(COURSE_ID)
+                    .reference("C-REF")
+                    .title("Course")
+                    .credits((short) 6)
+                    .build())
+            .semester(Semester.S1)
+            .startDate(LocalDate.of(2024, 1, 1))
+            .build();
+    JMembership m = membership(LocalDate.of(2024, 1, 1), null);
+
     when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
-        .thenReturn(List.of(membership()));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID)).thenReturn(List.of(gc1, gc2));
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID))
-        .thenReturn(List.of(exam("1.0", "2024-05-01T09:00:00Z")));
-    when(membershipRepository.existsByGroupIdAndStudentIdAt(
-            eq(GROUP_ID), eq(STUDENT_ID), any(LocalDate.class)))
-        .thenReturn(true);
-    when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(EXAM_ID, STUDENT_ID))
-        .thenReturn(Optional.of(grade(14.0f)));
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(groupCourseId2))
-        .thenReturn(List.of());
+        .thenReturn(List.of(m));
+    when(groupCourseRepository.findAllByGroupIdIn(any())).thenReturn(List.of(gc));
 
-    long result = service.totalCredits(STUDENT_ID);
+    CourseData result = service.resolveAllCoursesByLevels(STUDENT_ID);
 
-    assertEquals(6, result);
+    assertEquals(1, result.coursesByLevel().size());
+    assertTrue(result.coursesByLevel().containsKey(Level.L1));
+    assertEquals(1, result.memberships().size());
   }
 
   @Test
-  void totalCredits_noMemberships_returnsZero() {
-    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID)).thenReturn(List.of());
+  void resolveAllCoursesByLevels_groupCourseOutsideMembership_skips() {
+    JPromotion promo = promotion();
+    JStudentGroup group = JStudentGroup.builder().id(GROUP_ID).promotion(promo).build();
+    JGroupCourse gc =
+        JGroupCourse.builder()
+            .id(GROUP_COURSE_ID)
+            .group(group)
+            .course(
+                JCourse.builder()
+                    .id(COURSE_ID)
+                    .reference("C-REF")
+                    .title("Course")
+                    .credits((short) 6)
+                    .build())
+            .semester(Semester.S1)
+            .startDate(LocalDate.of(2025, 6, 1))
+            .build();
+    JMembership m =
+        JMembership.builder()
+            .group(group)
+            .startDate(LocalDate.of(2024, 1, 1))
+            .endDate(LocalDate.of(2024, 6, 1))
+            .build();
 
-    long result = service.totalCredits(STUDENT_ID);
+    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
+        .thenReturn(List.of(m));
+    when(groupCourseRepository.findAllByGroupIdIn(any())).thenReturn(List.of(gc));
 
-    assertEquals(0, result);
+    CourseData result = service.resolveAllCoursesByLevels(STUDENT_ID);
+
+    assertTrue(result.coursesByLevel().isEmpty());
   }
 
   private JExam exam(String coefficient, String examDate) {
@@ -194,35 +254,20 @@ class GradeCalculationServiceTest {
         .build();
   }
 
-  private JGrade grade(float score) {
-    return JGrade.builder().score(score).build();
+  private JGrade grade(JExam exam, float score) {
+    return JGrade.builder().exam(exam).score(score).build();
   }
 
-  private JGroupCourse groupCourse(UUID groupId, UUID groupCourseId, int credits) {
-    return JGroupCourse.builder()
-        .id(groupCourseId)
-        .group(JStudentGroup.builder().id(groupId).promotion(promotion()).build())
-        .course(
-            com.unigrade.api.repository.model.JCourse.builder()
-                .id(UUID.randomUUID())
-                .reference("C-REF")
-                .title("Course")
-                .credits((short) credits)
-                .build())
-        .semester(com.unigrade.api.model.Semester.S1)
-        .startDate(LocalDate.of(2024, 1, 1))
-        .build();
-  }
-
-  private com.unigrade.api.repository.model.JMembership membership() {
-    return com.unigrade.api.repository.model.JMembership.builder()
+  private JMembership membership(LocalDate startDate, LocalDate endDate) {
+    return JMembership.builder()
         .group(JStudentGroup.builder().id(GROUP_ID).promotion(promotion()).build())
-        .startDate(LocalDate.of(2024, 1, 1))
+        .startDate(startDate)
+        .endDate(endDate)
         .build();
   }
 
-  private com.unigrade.api.repository.model.JPromotion promotion() {
-    return com.unigrade.api.repository.model.JPromotion.builder()
+  private JPromotion promotion() {
+    return JPromotion.builder()
         .id(UUID.randomUUID())
         .reference("P-2024")
         .startYear((short) 2024)
