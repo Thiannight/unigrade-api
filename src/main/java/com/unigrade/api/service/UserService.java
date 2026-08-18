@@ -57,7 +57,8 @@ public class UserService implements UserDetailsService {
             email,
             passwordEncoder.encode(user.password()),
             user.isActive(),
-            user.role());
+            user.role(),
+            user.specialization());
     return mapper.toDomain(raceAwareSave(mapper.toEntity(withId)));
   }
 
@@ -84,6 +85,7 @@ public class UserService implements UserDetailsService {
             .password(password)
             .isActive(user.isActive())
             .role(user.role())
+            .specialization(user.specialization())
             .build();
     return mapper.toDomain(raceAwareSave(toSave));
   }

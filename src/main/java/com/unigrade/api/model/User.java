@@ -20,4 +20,5 @@ public record User(
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY) @Size(min = 4, max = 255) @NotBlank
         String password,
     @NotNull Boolean isActive,
-    @NotNull Role role) {}
+    @NotNull Role role,
+    Specialization specialization) {}

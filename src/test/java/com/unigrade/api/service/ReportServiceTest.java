@@ -12,29 +12,26 @@ import static org.mockito.Mockito.when;
 import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.exception.ForbiddenException;
 import com.unigrade.api.exception.NotFoundException;
+import com.unigrade.api.model.ExamScore;
 import com.unigrade.api.model.Level;
 import com.unigrade.api.model.ReportStatus;
 import com.unigrade.api.model.Role;
 import com.unigrade.api.model.Semester;
 import com.unigrade.api.model.StudentReport;
-import com.unigrade.api.repository.ExamRepository;
-import com.unigrade.api.repository.GradeRepository;
-import com.unigrade.api.repository.GroupCourseRepository;
-import com.unigrade.api.repository.MembershipRepository;
 import com.unigrade.api.repository.UserRepository;
 import com.unigrade.api.repository.model.JCourse;
-import com.unigrade.api.repository.model.JExam;
-import com.unigrade.api.repository.model.JGrade;
 import com.unigrade.api.repository.model.JGroupCourse;
-import com.unigrade.api.repository.model.JMembership;
 import com.unigrade.api.repository.model.JPromotion;
 import com.unigrade.api.repository.model.JStudentGroup;
 import com.unigrade.api.repository.model.JUser;
+import com.unigrade.api.service.GradeCalculationService.CourseKey;
+import com.unigrade.api.service.GradeCalculationService.CourseParticipation;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -65,22 +62,13 @@ class ReportServiceTest {
   private static final UUID EXAM_ID_2 = UUID.fromString("99999999-9999-9999-9999-999999999999");
 
   @Mock private UserRepository userRepository;
-  @Mock private MembershipRepository membershipRepository;
-  @Mock private GroupCourseRepository groupCourseRepository;
-  @Mock private ExamRepository examRepository;
-  @Mock private GradeRepository gradeRepository;
+  @Mock private GradeCalculationService gradeCalculationService;
 
   private ReportService service;
 
   @BeforeEach
   void setUp() {
-    service =
-        new ReportService(
-            userRepository,
-            membershipRepository,
-            groupCourseRepository,
-            examRepository,
-            gradeRepository);
+    service = new ReportService(userRepository, gradeCalculationService);
     loginAs("ADMIN001", Role.ADMIN);
   }
 
@@ -102,27 +90,30 @@ class ReportServiceTest {
   @Test
   void generate_happyPath_buildsLevelReport() {
     JUser student = student();
-    JGroupCourse groupCourse =
-        groupCourse(GROUP_COURSE_ID_1, GROUP_ID_1, Semester.S3, promotion("P-2024", (short) 2024));
-    JExam exam1 = exam(EXAM_ID_1, "2024-05-01T09:00:00Z", "0.4");
-    JExam exam2 = exam(EXAM_ID_2, "2024-06-01T09:00:00Z", "0.6");
-    LocalDate examDate1 = exam1.getExamDate().atOffset(ZoneOffset.UTC).toLocalDate();
-    LocalDate examDate2 = exam2.getExamDate().atOffset(ZoneOffset.UTC).toLocalDate();
+    JPromotion promo = promotion("P-2024", (short) 2024);
+    JStudentGroup group = group(GROUP_ID_1, promo);
+    JGroupCourse groupCourse = groupCourse(GROUP_COURSE_ID_1, group, Semester.S3);
 
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
-    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
-        .thenReturn(List.of(membership(GROUP_ID_1, student, promotion("P-2024", (short) 2024))));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1)).thenReturn(List.of(groupCourse));
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_1))
-        .thenReturn(List.of(exam1, exam2));
-    when(membershipRepository.existsByGroupIdAndStudentIdAt(GROUP_ID_1, STUDENT_ID, examDate1))
-        .thenReturn(true);
-    when(membershipRepository.existsByGroupIdAndStudentIdAt(GROUP_ID_1, STUDENT_ID, examDate2))
-        .thenReturn(true);
-    when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(EXAM_ID_1, STUDENT_ID))
-        .thenReturn(Optional.of(grade(10.0f)));
-    when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(EXAM_ID_2, STUDENT_ID))
-        .thenReturn(Optional.of(grade(16.0f)));
+    stubResolvedCourses(
+        Level.L2,
+        new CourseKey(PROMOTION_ID_1, COURSE_ID),
+        new CourseParticipation(group, promo, groupCourse));
+    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_1, STUDENT_ID))
+        .thenReturn(
+            List.of(
+                new ExamScore(
+                    EXAM_ID_1,
+                    Instant.parse("2024-05-01T09:00:00Z"),
+                    new BigDecimal("0.4"),
+                    new BigDecimal("10.0")),
+                new ExamScore(
+                    EXAM_ID_2,
+                    Instant.parse("2024-06-01T09:00:00Z"),
+                    new BigDecimal("0.6"),
+                    new BigDecimal("16.0"))));
+    when(gradeCalculationService.isCourseComplete(GROUP_COURSE_ID_1, STUDENT_ID)).thenReturn(true);
+    when(gradeCalculationService.averageFromExamScores(any())).thenReturn(new BigDecimal("13.60"));
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -169,7 +160,8 @@ class ReportServiceTest {
   @Test
   void generate_noMemberships_returnsEmptyReport() {
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
-    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID)).thenReturn(List.of());
+    when(gradeCalculationService.resolveCoursesByLevel(eq(STUDENT_ID), any(Level.class)))
+        .thenReturn(Map.of());
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -180,59 +172,18 @@ class ReportServiceTest {
   }
 
   @Test
-  void generate_skipsGroupCourseOutsideMembershipPeriod() {
-    JUser student = student();
-    JMembership membership =
-        JMembership.builder()
-            .id(UUID.randomUUID())
-            .group(group(GROUP_ID_1, promotion("P-2024", (short) 2024)))
-            .student(student)
-            .startDate(LocalDate.of(2025, 1, 1))
-            .endDate(null)
-            .build();
-    JGroupCourse expiredCourse =
-        JGroupCourse.builder()
-            .id(GROUP_COURSE_ID_1)
-            .group(group(GROUP_ID_1, promotion("P-2024", (short) 2024)))
-            .course(
-                JCourse.builder()
-                    .id(COURSE_ID)
-                    .reference("C-OLD")
-                    .title("Old")
-                    .credits((short) 6)
-                    .build())
-            .semester(Semester.S1)
-            .startDate(LocalDate.of(2024, 1, 1))
-            .endDate(LocalDate.of(2024, 6, 30))
-            .build();
-    JGroupCourse activeCourse =
-        groupCourse(GROUP_COURSE_ID_2, GROUP_ID_1, Semester.S1, promotion("P-2024", (short) 2024));
-
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
-    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
-        .thenReturn(List.of(membership));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1))
-        .thenReturn(List.of(expiredCourse, activeCourse));
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_2))
-        .thenReturn(List.of());
-
-    StudentReport report = service.generate(STUDENT_ID, null);
-
-    assertEquals(1, report.levels().size());
-    assertEquals(1, report.levels().getFirst().courses().size());
-    assertEquals(COURSE_ID, report.levels().getFirst().courses().getFirst().courseId());
-  }
-
-  @Test
   void generate_onlyL1Data_reportShows180RequiredAndTemporary() {
     JUser student = student();
-    JGroupCourse l1Course =
-        groupCourse(GROUP_COURSE_ID_1, GROUP_ID_1, Semester.S1, promotion("P-2024", (short) 2024));
+    JPromotion promo = promotion("P-2024", (short) 2024);
+    JStudentGroup g = group(GROUP_ID_1, promo);
+    JGroupCourse l1Course = groupCourse(GROUP_COURSE_ID_1, g, Semester.S1);
+
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
-    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
-        .thenReturn(List.of(membership(GROUP_ID_1, student, promotion("P-2024", (short) 2024))));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1)).thenReturn(List.of(l1Course));
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_1))
+    stubResolvedCourses(
+        Level.L1,
+        new CourseKey(PROMOTION_ID_1, COURSE_ID),
+        new CourseParticipation(g, promo, l1Course));
+    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_1, STUDENT_ID))
         .thenReturn(List.of());
 
     StudentReport report = service.generate(STUDENT_ID, null);
@@ -246,18 +197,18 @@ class ReportServiceTest {
   @Test
   void generate_repeat_keepsOnlyLatestPromotionPerLevel() {
     JUser student = student();
-    JGroupCourse oldCourse =
-        groupCourse(GROUP_COURSE_ID_1, GROUP_ID_1, Semester.S3, promotion("P-2022", (short) 2022));
-    JGroupCourse newCourse =
-        groupCourse(GROUP_COURSE_ID_2, GROUP_ID_2, Semester.S3, promotion("P-2024", (short) 2024));
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
-    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
-        .thenReturn(
-            List.of(
-                membership(GROUP_ID_1, student, promotion("P-2022", (short) 2022)),
-                membership(GROUP_ID_2, student, promotion("P-2024", (short) 2024))));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1)).thenReturn(List.of(oldCourse));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_2)).thenReturn(List.of(newCourse));
+    JPromotion oldPromo = promotion("P-2022", (short) 2022);
+    JPromotion newPromo = promotion("P-2024", (short) 2024);
+    JStudentGroup group1 = group(GROUP_ID_1, oldPromo);
+    JStudentGroup group2 = group(GROUP_ID_2, newPromo);
+    JGroupCourse oldCourse = groupCourse(GROUP_COURSE_ID_1, group1, Semester.S3);
+    JGroupCourse newCourse = groupCourse(GROUP_COURSE_ID_2, group2, Semester.S3);
+
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    stubResolvedCourses(
+        Level.L2,
+        new CourseKey(PROMOTION_ID_2, COURSE_ID),
+        new CourseParticipation(group2, newPromo, newCourse));
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -269,15 +220,17 @@ class ReportServiceTest {
   @Test
   void generate_excludesExamWhenNotMemberAtExamDate() {
     JUser student = student();
-    JGroupCourse groupCourse =
-        groupCourse(GROUP_COURSE_ID_1, GROUP_ID_1, Semester.S1, promotion("P-2024", (short) 2024));
-    JExam exam = exam(EXAM_ID_1, "2024-05-01T09:00:00Z", "0.5");
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
-    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
-        .thenReturn(List.of(membership(GROUP_ID_1, student, promotion("P-2024", (short) 2024))));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1)).thenReturn(List.of(groupCourse));
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_1))
-        .thenReturn(List.of(exam));
+    JPromotion promo = promotion("P-2024", (short) 2024);
+    JStudentGroup g = group(GROUP_ID_1, promo);
+    JGroupCourse groupCourse = groupCourse(GROUP_COURSE_ID_1, g, Semester.S1);
+
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    stubResolvedCourses(
+        Level.L1,
+        new CourseKey(PROMOTION_ID_1, COURSE_ID),
+        new CourseParticipation(g, promo, groupCourse));
+    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_1, STUDENT_ID))
+        .thenReturn(List.of());
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -292,33 +245,34 @@ class ReportServiceTest {
   @Test
   void generate_transferWithinPromotion_usesFirstGroupExamsOnly() {
     JUser student = student();
-    JGroupCourse firstAssignment =
-        groupCourse(GROUP_COURSE_ID_1, GROUP_ID_1, Semester.S4, promotion("P-2024", (short) 2024));
-    JGroupCourse secondAssignment =
-        groupCourse(GROUP_COURSE_ID_2, GROUP_ID_2, Semester.S4, promotion("P-2024", (short) 2024));
-    JExam exam1 = exam(EXAM_ID_1, "2024-05-01T09:00:00Z", "0.5");
-    JExam exam2 = exam(EXAM_ID_2, "2024-06-01T09:00:00Z", "0.5");
+    JPromotion promo = promotion("P-2024", (short) 2024);
+    JStudentGroup group1 = group(GROUP_ID_1, promo);
+    JStudentGroup group2 = group(GROUP_ID_2, promo);
+    JGroupCourse firstAssignment = groupCourse(GROUP_COURSE_ID_1, group1, Semester.S4);
+    JGroupCourse secondAssignment = groupCourse(GROUP_COURSE_ID_2, group2, Semester.S4);
 
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
-    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    stubResolvedCourses(
+        Level.L2,
+        new CourseKey(PROMOTION_ID_1, COURSE_ID),
+        new CourseParticipation(group1, promo, firstAssignment),
+        new CourseKey(PROMOTION_ID_1, UUID.fromString("AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
+        new CourseParticipation(group2, promo, secondAssignment));
+    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_1, STUDENT_ID))
         .thenReturn(
             List.of(
-                membership(GROUP_ID_1, student, promotion("P-2024", (short) 2024)),
-                membership(GROUP_ID_2, student, promotion("P-2024", (short) 2024))));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1)).thenReturn(List.of(firstAssignment));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_2)).thenReturn(List.of(secondAssignment));
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_1))
-        .thenReturn(List.of(exam1));
-    when(membershipRepository.existsByGroupIdAndStudentIdAt(
-            eq(GROUP_ID_1), eq(STUDENT_ID), any(LocalDate.class)))
-        .thenReturn(true);
-    when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(EXAM_ID_1, STUDENT_ID))
-        .thenReturn(Optional.of(grade(10.0f)));
+                new ExamScore(
+                    EXAM_ID_1,
+                    Instant.parse("2024-05-01T09:00:00Z"),
+                    new BigDecimal("0.5"),
+                    new BigDecimal("10.0"))));
+    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_2, STUDENT_ID))
+        .thenReturn(List.of());
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
     assertEquals(1, report.levels().size());
-    assertEquals(1, report.levels().getFirst().courses().size());
+    assertEquals(2, report.levels().getFirst().courses().size());
     var course = report.levels().getFirst().courses().getFirst();
     assertEquals(1, course.exams().size());
     assertEquals(new BigDecimal("10.0"), course.exams().getFirst().score());
@@ -329,11 +283,13 @@ class ReportServiceTest {
     JUser student = student();
     UUID courseIdOld = UUID.fromString("AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA");
     UUID courseIdNew = UUID.fromString("BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB");
-    UUID examIdNew = UUID.fromString("CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC");
+    JPromotion promo = promotion("P-2024", (short) 2024);
+    JStudentGroup g1 = group(GROUP_ID_1, promo);
+    JStudentGroup g2 = group(GROUP_ID_2, promo);
     JGroupCourse g1Course =
         JGroupCourse.builder()
             .id(GROUP_COURSE_ID_1)
-            .group(group(GROUP_ID_1, promotion("P-2024", (short) 2024)))
+            .group(g1)
             .course(
                 JCourse.builder()
                     .id(courseIdOld)
@@ -347,7 +303,7 @@ class ReportServiceTest {
     JGroupCourse g2Course =
         JGroupCourse.builder()
             .id(GROUP_COURSE_ID_2)
-            .group(group(GROUP_ID_2, promotion("P-2024", (short) 2024)))
+            .group(g2)
             .course(
                 JCourse.builder()
                     .id(courseIdNew)
@@ -358,25 +314,32 @@ class ReportServiceTest {
             .semester(Semester.S4)
             .startDate(LocalDate.of(2024, 1, 1))
             .build();
-    JExam examNew = exam(examIdNew, "2024-07-01T09:00:00Z", "1.0");
 
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
-    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    stubResolvedCourses(
+        Level.L2,
+        new CourseKey(PROMOTION_ID_1, courseIdOld),
+        new CourseParticipation(g1, promo, g1Course),
+        new CourseKey(PROMOTION_ID_1, courseIdNew),
+        new CourseParticipation(g2, promo, g2Course));
+    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_1, STUDENT_ID))
+        .thenReturn(List.of());
+    when(gradeCalculationService.isCourseComplete(GROUP_COURSE_ID_1, STUDENT_ID)).thenReturn(false);
+    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_2, STUDENT_ID))
         .thenReturn(
             List.of(
-                membership(GROUP_ID_1, student, promotion("P-2024", (short) 2024)),
-                membership(GROUP_ID_2, student, promotion("P-2024", (short) 2024))));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1)).thenReturn(List.of(g1Course));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_2)).thenReturn(List.of(g2Course));
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_1))
-        .thenReturn(List.of());
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_2))
-        .thenReturn(List.of(examNew));
-    when(membershipRepository.existsByGroupIdAndStudentIdAt(
-            eq(GROUP_ID_2), eq(STUDENT_ID), any(LocalDate.class)))
-        .thenReturn(true);
-    when(gradeRepository.findTopByExamIdAndStudentIdOrderByGradeDateDesc(examIdNew, STUDENT_ID))
-        .thenReturn(Optional.of(grade(14.0f)));
+                new ExamScore(
+                    UUID.fromString("CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC"),
+                    Instant.parse("2024-07-01T09:00:00Z"),
+                    new BigDecimal("1.0"),
+                    new BigDecimal("14.0"))));
+    when(gradeCalculationService.isCourseComplete(GROUP_COURSE_ID_2, STUDENT_ID)).thenReturn(true);
+    when(gradeCalculationService.averageFromExamScores(any()))
+        .thenAnswer(
+            inv -> {
+              List<ExamScore> scores = inv.getArgument(0);
+              return scores.isEmpty() ? null : new BigDecimal("14.00");
+            });
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -391,19 +354,19 @@ class ReportServiceTest {
   @Test
   void generate_withLevelFilter_returnsOnlyThatLevel() {
     JUser student = student();
-    JGroupCourse l1Course =
-        groupCourse(GROUP_COURSE_ID_1, GROUP_ID_1, Semester.S1, promotion("P-2024", (short) 2024));
-    JGroupCourse l2Course =
-        groupCourse(GROUP_COURSE_ID_2, GROUP_ID_2, Semester.S3, promotion("P-2024", (short) 2024));
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
-    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID))
+    JPromotion promo = promotion("P-2024", (short) 2024);
+    JStudentGroup g1 = group(GROUP_ID_1, promo);
+    JStudentGroup g2 = group(GROUP_ID_2, promo);
+    JGroupCourse l1Course = groupCourse(GROUP_COURSE_ID_1, g1, Semester.S1);
+    JGroupCourse l2Course = groupCourse(GROUP_COURSE_ID_2, g2, Semester.S3);
+
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    when(gradeCalculationService.resolveCoursesByLevel(STUDENT_ID, Level.L2))
         .thenReturn(
-            List.of(
-                membership(GROUP_ID_1, student, promotion("P-2024", (short) 2024)),
-                membership(GROUP_ID_2, student, promotion("P-2024", (short) 2024))));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_1)).thenReturn(List.of(l1Course));
-    when(groupCourseRepository.findAllByGroupId(GROUP_ID_2)).thenReturn(List.of(l2Course));
-    when(examRepository.findByGroupCourseIdOrderByExamDateAsc(GROUP_COURSE_ID_2))
+            Map.of(
+                new CourseKey(PROMOTION_ID_1, COURSE_ID),
+                new CourseParticipation(g2, promo, l2Course)));
+    when(gradeCalculationService.collectExamScores(GROUP_COURSE_ID_2, STUDENT_ID))
         .thenReturn(List.of());
 
     StudentReport report = service.generate(STUDENT_ID, Level.L2);
@@ -416,7 +379,8 @@ class ReportServiceTest {
   void generate_studentViewingOwnReport_isAllowed() {
     loginAs(STUDENT_ID, Role.STUDENT);
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
-    when(membershipRepository.findByStudentIdOrderByStartDateAsc(STUDENT_ID)).thenReturn(List.of());
+    when(gradeCalculationService.resolveCoursesByLevel(eq(STUDENT_ID), any(Level.class)))
+        .thenReturn(Map.of());
 
     StudentReport report = service.generate(STUDENT_ID, null);
 
@@ -437,6 +401,28 @@ class ReportServiceTest {
     assertThrows(ForbiddenException.class, () -> service.generate(STUDENT_ID, null));
   }
 
+  private void stubResolvedCourses(
+      Level level, CourseKey key, CourseParticipation... participations) {
+    Map<CourseKey, CourseParticipation> deduped = new LinkedHashMap<>();
+    deduped.put(key, participations[0]);
+    stubAllLevels(level, deduped);
+  }
+
+  private void stubResolvedCourses(
+      Level level, CourseKey key1, CourseParticipation p1, CourseKey key2, CourseParticipation p2) {
+    Map<CourseKey, CourseParticipation> deduped = new LinkedHashMap<>();
+    deduped.put(key1, p1);
+    deduped.put(key2, p2);
+    stubAllLevels(level, deduped);
+  }
+
+  private void stubAllLevels(Level targetLevel, Map<CourseKey, CourseParticipation> targetCourses) {
+    for (Level level : Level.values()) {
+      when(gradeCalculationService.resolveCoursesByLevel(STUDENT_ID, level))
+          .thenReturn(level == targetLevel ? targetCourses : Map.of());
+    }
+  }
+
   private JUser student() {
     return JUser.builder()
         .id(STUDENT_ID)
@@ -446,19 +432,9 @@ class ReportServiceTest {
         .build();
   }
 
-  private JMembership membership(UUID groupId, JUser student, JPromotion promotion) {
-    return JMembership.builder()
-        .id(UUID.randomUUID())
-        .group(group(groupId, promotion))
-        .student(student)
-        .startDate(LocalDate.of(2024, 1, 1))
-        .endDate(null)
-        .build();
-  }
-
   private JPromotion promotion(String reference, Short startYear) {
     return JPromotion.builder()
-        .id(PROMOTION_ID_1)
+        .id(UUID.randomUUID())
         .reference(reference)
         .startYear(startYear)
         .endYear((short) (startYear + 1))
@@ -469,11 +445,10 @@ class ReportServiceTest {
     return JStudentGroup.builder().id(id).reference("A1").promotion(promotion).build();
   }
 
-  private JGroupCourse groupCourse(
-      UUID groupCourseId, UUID groupId, Semester semester, JPromotion promotion) {
+  private JGroupCourse groupCourse(UUID groupCourseId, JStudentGroup group, Semester semester) {
     return JGroupCourse.builder()
         .id(groupCourseId)
-        .group(group(groupId, promotion))
+        .group(group)
         .course(
             JCourse.builder()
                 .id(COURSE_ID)
@@ -484,17 +459,5 @@ class ReportServiceTest {
         .semester(semester)
         .startDate(LocalDate.of(2024, 1, 1))
         .build();
-  }
-
-  private JExam exam(UUID id, String examDate, String coefficient) {
-    return JExam.builder()
-        .id(id)
-        .examDate(Instant.parse(examDate))
-        .coefficient(new BigDecimal(coefficient))
-        .build();
-  }
-
-  private JGrade grade(float score) {
-    return JGrade.builder().score(score).build();
   }
 }
