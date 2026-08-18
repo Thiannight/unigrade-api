@@ -28,7 +28,7 @@ public class SecurityConfig {
         .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers("/auth/login", "/ping", "/health/**")
+                auth.requestMatchers("/auth/login", "/ping", "/health/**", "/login")
                     .permitAll()
                     .requestMatchers(HttpMethod.POST, "/users")
                     .hasRole("ADMIN")
@@ -50,6 +50,8 @@ public class SecurityConfig {
                     .hasRole("ADMIN")
                     .requestMatchers(
                         HttpMethod.DELETE, "/courses/**", "/promotions/**", "/groups/**")
+                    .hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.GET, "/promotions/view")
                     .hasRole("ADMIN")
                     .requestMatchers(HttpMethod.GET, "/promotions/*/graduates")
                     .hasRole("ADMIN")
