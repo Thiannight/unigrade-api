@@ -13,7 +13,6 @@ import com.unigrade.api.model.ExamScore;
 import com.unigrade.api.model.Level;
 import com.unigrade.api.model.LevelReport;
 import com.unigrade.api.model.ReportStatus;
-import com.unigrade.api.model.Specialization;
 import com.unigrade.api.model.StudentReport;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -43,7 +42,6 @@ class PdfReportServiceTest {
             "STD001",
             "Alice",
             "Dupont",
-            Specialization.TN,
             ReportStatus.TEMPORARY,
             0,
             0,
@@ -68,7 +66,6 @@ class PdfReportServiceTest {
             "STD002",
             "Bob",
             "Martin",
-            Specialization.EL,
             ReportStatus.TEMPORARY,
             6,
             60,
@@ -125,7 +122,6 @@ class PdfReportServiceTest {
         "STD001",
         "Alice",
         "Dupont",
-        Specialization.TN,
         ReportStatus.TEMPORARY,
         6,
         60,
