@@ -9,8 +9,10 @@ import com.unigrade.api.repository.MembershipRepository;
 import com.unigrade.api.repository.PromotionRepository;
 import com.unigrade.api.repository.model.JPromotion;
 import com.unigrade.api.repository.model.JUser;
+import com.unigrade.api.service.GradeCalculationService.CourseData;
 import com.unigrade.api.service.GradeCalculationService.CourseKey;
 import com.unigrade.api.service.GradeCalculationService.CourseParticipation;
+import com.unigrade.api.service.GradeCalculationService.CourseResult;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -18,6 +20,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -40,13 +43,20 @@ public class GraduationService {
 
     List<JUser> students = membershipRepository.findStudentsByPromotionId(promotionId);
 
+    List<String> studentIds = students.stream().map(JUser::getId).toList();
+    Map<String, Short> latestStartYears =
+        membershipRepository.findLatestPromotionStartYearByStudentIds(studentIds).stream()
+            .collect(
+                Collectors.toMap(
+                    MembershipRepository.LatestStartYearProjection::getStudentId,
+                    MembershipRepository.LatestStartYearProjection::getStartYear));
+
     List<GraduationListEntry> entries = new ArrayList<>();
     for (JUser student : students) {
       if (student.getSpecialization() == null || student.getSpecialization() != specialization) {
         continue;
       }
-      Short latestStartYear =
-          membershipRepository.findLatestPromotionStartYearByStudentId(student.getId());
+      Short latestStartYear = latestStartYears.get(student.getId());
       if (latestStartYear != null && latestStartYear > promotion.getStartYear()) {
         continue;
       }
@@ -76,6 +86,8 @@ public class GraduationService {
   }
 
   private GraduationData computeGraduationData(String studentId) {
+    CourseData courseData = gradeCalculationService.resolveAllCoursesByLevels(studentId);
+
     boolean allComplete = true;
     boolean allPass = true;
     long totalCredits = 0;
@@ -83,17 +95,23 @@ public class GraduationService {
     long averageCredits = 0;
 
     for (Level level : Level.values()) {
-      Map<CourseKey, CourseParticipation> courses =
-          gradeCalculationService.resolveCoursesByLevel(studentId, level);
+      Map<CourseKey, CourseParticipation> courses = courseData.coursesByLevel().get(level);
+      if (courses == null) {
+        continue;
+      }
       for (CourseParticipation p : courses.values()) {
         UUID groupCourseId = p.groupCourse().getId();
         short credits = p.groupCourse().getCourse().getCredits();
 
-        if (!gradeCalculationService.isCourseComplete(groupCourseId, studentId)) {
+        CourseResult result =
+            gradeCalculationService.computeCourseResult(
+                groupCourseId, studentId, courseData.memberships());
+
+        if (!result.completed()) {
           allComplete = false;
         }
 
-        BigDecimal average = gradeCalculationService.courseAverage(groupCourseId, studentId);
+        BigDecimal average = result.average();
         if (average == null || average.compareTo(BigDecimal.TEN) < 0) {
           allPass = false;
         }

@@ -4,7 +4,6 @@ import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.exception.ForbiddenException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.model.CourseReportEntry;
-import com.unigrade.api.model.ExamScore;
 import com.unigrade.api.model.Level;
 import com.unigrade.api.model.LevelReport;
 import com.unigrade.api.model.ReportStatus;
@@ -12,10 +11,13 @@ import com.unigrade.api.model.Role;
 import com.unigrade.api.model.StudentReport;
 import com.unigrade.api.repository.UserRepository;
 import com.unigrade.api.repository.model.JGroupCourse;
+import com.unigrade.api.repository.model.JMembership;
 import com.unigrade.api.repository.model.JUser;
 import com.unigrade.api.security.SecurityUtils;
+import com.unigrade.api.service.GradeCalculationService.CourseData;
 import com.unigrade.api.service.GradeCalculationService.CourseKey;
 import com.unigrade.api.service.GradeCalculationService.CourseParticipation;
+import com.unigrade.api.service.GradeCalculationService.CourseResult;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -37,17 +39,19 @@ public class ReportService {
     requireCanViewReport(studentId);
     JUser student = resolveStudent(studentId);
 
+    CourseData courseData = gradeCalculationService.resolveAllCoursesByLevels(studentId);
+    Map<Level, Map<CourseKey, CourseParticipation>> coursesByLevel = courseData.coursesByLevel();
+
     List<LevelReport> levelReports = new ArrayList<>();
     for (Level level : Level.values()) {
       if (levelFilter != null && level != levelFilter) {
         continue;
       }
-      Map<CourseKey, CourseParticipation> courses =
-          gradeCalculationService.resolveCoursesByLevel(studentId, level);
-      if (courses.isEmpty()) {
+      Map<CourseKey, CourseParticipation> courses = coursesByLevel.get(level);
+      if (courses == null || courses.isEmpty()) {
         continue;
       }
-      levelReports.add(buildLevelReport(level, courses, studentId));
+      levelReports.add(buildLevelReport(level, courses, studentId, courseData.memberships()));
     }
 
     List<CourseReportEntry> allCourses =
@@ -79,18 +83,19 @@ public class ReportService {
   }
 
   private LevelReport buildLevelReport(
-      Level level, Map<CourseKey, CourseParticipation> coursesByCourse, String studentId) {
+      Level level,
+      Map<CourseKey, CourseParticipation> coursesByCourse,
+      String studentId,
+      List<JMembership> memberships) {
     List<CourseReportEntry> courses = new ArrayList<>();
     for (Map.Entry<CourseKey, CourseParticipation> entry : coursesByCourse.entrySet()) {
       CourseParticipation participation = entry.getValue();
       JGroupCourse representative = participation.groupCourse();
       String promotionReference = participation.promotion().getReference();
 
-      List<ExamScore> exams =
-          gradeCalculationService.collectExamScores(representative.getId(), studentId);
-
-      boolean completed =
-          gradeCalculationService.isCourseComplete(representative.getId(), studentId);
+      CourseResult result =
+          gradeCalculationService.computeCourseResult(
+              representative.getId(), studentId, memberships);
 
       courses.add(
           new CourseReportEntry(
@@ -99,9 +104,9 @@ public class ReportService {
               representative.getCourse().getReference(),
               representative.getCourse().getTitle(),
               representative.getCourse().getCredits(),
-              completed,
-              gradeCalculationService.averageFromExamScores(exams),
-              exams));
+              result.completed(),
+              result.average(),
+              result.exams()));
     }
 
     boolean allCompleted = courses.stream().allMatch(CourseReportEntry::completed);
