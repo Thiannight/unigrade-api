@@ -136,7 +136,7 @@ class ReportServiceTest {
     assertEquals(new BigDecimal("16.0"), course.exams().get(1).score());
     assertEquals(new BigDecimal("13.60"), course.average());
     assertEquals(new BigDecimal("13.60"), report.levels().getFirst().overallAverage());
-    assertEquals(ReportStatus.TEMPORARY, report.levels().getFirst().status());
+    assertEquals(ReportStatus.COMPLETE, report.levels().getFirst().status());
     assertEquals(6, report.levels().getFirst().totalCredits());
     assertEquals(60, report.levels().getFirst().requiredCredits());
     assertEquals(new BigDecimal("13.60"), report.overallAverage());

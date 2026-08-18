@@ -103,7 +103,9 @@ public class ReportService {
               promotionReference,
               representative.getCourse().getReference(),
               representative.getCourse().getTitle(),
-              representative.getCourse().getCredits(),
+              result.average() != null && result.average().compareTo(BigDecimal.TEN) >= 0
+                  ? representative.getCourse().getCredits()
+                  : 0,
               result.completed(),
               result.average(),
               result.exams()));
@@ -112,10 +114,7 @@ public class ReportService {
     boolean allCompleted = courses.stream().allMatch(CourseReportEntry::completed);
     long totalCredits = courses.stream().mapToLong(CourseReportEntry::credits).sum();
 
-    ReportStatus status =
-        allCompleted && totalCredits >= Level.PER_LEVEL_CREDIT
-            ? ReportStatus.COMPLETE
-            : ReportStatus.TEMPORARY;
+    ReportStatus status = allCompleted ? ReportStatus.COMPLETE : ReportStatus.TEMPORARY;
 
     return new LevelReport(
         level, status, totalCredits, Level.PER_LEVEL_CREDIT, average(courses), courses);

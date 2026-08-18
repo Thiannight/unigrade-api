@@ -48,7 +48,7 @@ class StudentReportIT extends SecuredFacadeIT {
     assertEquals("Ada", body.get("firstName").asText());
     assertEquals("Lovelace", body.get("lastName").asText());
     assertEquals("TEMPORARY", body.get("status").asText());
-    assertEquals("TEMPORARY", body.get("levels").get(0).get("status").asText());
+    assertEquals("COMPLETE", body.get("levels").get(0).get("status").asText());
     assertEquals(1, body.get("levels").size());
     assertEquals("L2", body.get("levels").get(0).get("level").asText());
     assertEquals(
