@@ -34,7 +34,8 @@ class PromotionViewControllerIT extends SecuredFacadeIT {
 
     assertEquals(OK, response.getStatusCode());
     assertTrue(response.getBody().contains("VIEW-IT-1"));
-    assertTrue(response.getBody().contains("/graduates.xlsx"));
+    assertTrue(response.getBody().contains("/graduates?specialization=TN"));
+    assertTrue(response.getBody().contains("/graduates?specialization=EL"));
   }
 
   @Test
@@ -44,9 +45,10 @@ class PromotionViewControllerIT extends SecuredFacadeIT {
 
     // Build a full 3-level (L1..L3 / S1..S6), fully-graded curriculum for this one
     // student,
-    // so the ReportService marks them COMPLETE. A student holds only one active
-    // membership at
-    // a time, so we assign once then transfer for each following semester.
+    // so the GraduationService marks them as graduates. A student holds only one
+    // active
+    // membership at a time, so we assign once then transfer for each following
+    // semester.
     UUID previousGroupId = null;
     for (int semesterIndex = 1; semesterIndex <= 6; semesterIndex++) {
       UUID groupId = createGroup("GRAD-A" + semesterIndex, promotionId);
@@ -67,7 +69,8 @@ class PromotionViewControllerIT extends SecuredFacadeIT {
     }
 
     ResponseEntity<byte[]> response =
-        restTemplate.getForEntity("/promotions/" + promotionId + "/graduates.xlsx", byte[].class);
+        restTemplate.getForEntity(
+            "/promotions/" + promotionId + "/graduates?specialization=TN", byte[].class);
 
     assertEquals(OK, response.getStatusCode());
     assertNotNull(response.getBody());
@@ -75,12 +78,12 @@ class PromotionViewControllerIT extends SecuredFacadeIT {
 
     try (var workbook = new XSSFWorkbook(new ByteArrayInputStream(response.getBody()))) {
       Sheet sheet = workbook.getSheetAt(0);
-      Row headerRow = sheet.getRow(2);
-      assertEquals("Matricule", headerRow.getCell(0).getStringCellValue());
+      Row headerRow = sheet.getRow(0);
+      assertEquals("Rank", headerRow.getCell(0).getStringCellValue());
 
-      Row dataRow = sheet.getRow(3);
+      Row dataRow = sheet.getRow(1);
       assertNotNull(dataRow, "expected at least one graduate row");
-      assertEquals(studentId, dataRow.getCell(0).getStringCellValue());
+      assertEquals(studentId, dataRow.getCell(1).getStringCellValue());
     }
   }
 
@@ -176,7 +179,8 @@ class PromotionViewControllerIT extends SecuredFacadeIT {
             "email", email,
             "password", "hashed-password",
             "isActive", true,
-            "role", "STUDENT");
+            "role", "STUDENT",
+            "specialization", "TN");
     ResponseEntity<JsonNode> response = restTemplate.postForEntity("/users", body, JsonNode.class);
     assertEquals(CREATED, response.getStatusCode());
     return response.getBody().get("id").asText();
