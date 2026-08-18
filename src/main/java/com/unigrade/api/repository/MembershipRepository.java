@@ -1,7 +1,6 @@
 package com.unigrade.api.repository;
 
 import com.unigrade.api.repository.model.JMembership;
-import com.unigrade.api.repository.model.JUser;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -49,7 +48,8 @@ public interface MembershipRepository extends JpaRepository<JMembership, UUID> {
       @Param("date") LocalDate date);
 
   @Query("SELECT DISTINCT m.student FROM JMembership m WHERE m.group.promotion.id = :promotionId")
-  List<JUser> findStudentsByPromotionId(@Param("promotionId") UUID promotionId);
+  List<com.unigrade.api.repository.model.JUser> findStudentsByPromotionId(
+      @Param("promotionId") UUID promotionId);
 
   @Query(
       "SELECT MAX(m.group.promotion.startYear) FROM JMembership m WHERE m.student.id = :studentId")
