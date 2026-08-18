@@ -12,6 +12,7 @@ import com.unigrade.api.repository.model.JUser;
 import com.unigrade.api.service.GradeCalculationService.CourseKey;
 import com.unigrade.api.service.GradeCalculationService.CourseParticipation;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -23,8 +24,6 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class GraduationService {
-
-  private static final BigDecimal TEN = BigDecimal.TEN;
 
   private final PromotionRepository promotionRepository;
   private final MembershipRepository membershipRepository;
@@ -51,14 +50,17 @@ public class GraduationService {
       if (latestStartYear != null && latestStartYear > promotion.getStartYear()) {
         continue;
       }
-      if (isGraduated(student) && gradeCalculationService.totalCredits(student.getId()) >= 180) {
+      var data = computeGraduationData(student.getId());
+      if (data.allCoursesComplete
+          && data.allCoursesPass
+          && data.totalCredits >= Level.requiredCredits(Level.values().length)) {
         entries.add(
             new GraduationListEntry(
                 0,
                 student.getId(),
                 student.getFirstName(),
                 student.getLastName(),
-                gradeCalculationService.allTimeAverage(student.getId())));
+                data.allTimeAverage));
       }
     }
 
@@ -73,19 +75,48 @@ public class GraduationService {
     return ranked;
   }
 
-  private boolean isGraduated(JUser student) {
+  private GraduationData computeGraduationData(String studentId) {
+    boolean allComplete = true;
+    boolean allPass = true;
+    long totalCredits = 0;
+    BigDecimal weightedAverage = BigDecimal.ZERO;
+    long averageCredits = 0;
+
     for (Level level : Level.values()) {
       Map<CourseKey, CourseParticipation> courses =
-          gradeCalculationService.resolveCoursesByLevel(student.getId(), level);
-      for (CourseParticipation participation : courses.values()) {
-        BigDecimal average =
-            gradeCalculationService.courseAverage(
-                participation.groupCourse().getId(), student.getId());
-        if (average == null || average.compareTo(TEN) < 0) {
-          return false;
+          gradeCalculationService.resolveCoursesByLevel(studentId, level);
+      for (CourseParticipation p : courses.values()) {
+        UUID groupCourseId = p.groupCourse().getId();
+        short credits = p.groupCourse().getCourse().getCredits();
+
+        if (!gradeCalculationService.isCourseComplete(groupCourseId, studentId)) {
+          allComplete = false;
+        }
+
+        BigDecimal average = gradeCalculationService.courseAverage(groupCourseId, studentId);
+        if (average == null || average.compareTo(BigDecimal.TEN) < 0) {
+          allPass = false;
+        }
+
+        totalCredits += credits;
+        if (average != null) {
+          weightedAverage = weightedAverage.add(average.multiply(BigDecimal.valueOf(credits)));
+          averageCredits += credits;
         }
       }
     }
-    return true;
+
+    BigDecimal allTimeAverage =
+        averageCredits == 0
+            ? null
+            : weightedAverage.divide(BigDecimal.valueOf(averageCredits), 2, RoundingMode.HALF_UP);
+
+    return new GraduationData(allComplete, allPass, totalCredits, allTimeAverage);
   }
+
+  private record GraduationData(
+      boolean allCoursesComplete,
+      boolean allCoursesPass,
+      long totalCredits,
+      BigDecimal allTimeAverage) {}
 }

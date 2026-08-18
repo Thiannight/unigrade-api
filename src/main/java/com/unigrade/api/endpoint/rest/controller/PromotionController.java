@@ -45,16 +45,14 @@ public class PromotionController {
 
   @GetMapping("/{id}/graduates")
   public ResponseEntity<byte[]> getGraduates(
-      @PathVariable UUID id, @RequestParam Specialization specialization) {
+      @PathVariable UUID id, @RequestParam(required = false) Specialization specialization) {
     List<GraduationListEntry> graduates = graduationService.getGraduates(id, specialization);
     byte[] xlsx = graduationXlsxService.generate(graduates);
     return ResponseEntity.ok()
         .contentType(
             MediaType.parseMediaType(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-        .header(
-            HttpHeaders.CONTENT_DISPOSITION,
-            "attachment; filename=graduates-" + specialization + ".xlsx")
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=graduates.xlsx")
         .body(xlsx);
   }
 

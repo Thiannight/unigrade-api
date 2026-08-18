@@ -60,11 +60,7 @@ class GraduationServiceTest {
         .thenReturn(List.of(student(Specialization.EL)));
     when(membershipRepository.findLatestPromotionStartYearByStudentId(STUDENT_ID))
         .thenReturn((short) 2024);
-    stubResolvedCourses(STUDENT_ID);
-    when(gradeCalculationService.courseAverage(GROUP_COURSE_ID, STUDENT_ID))
-        .thenReturn(new BigDecimal("12.0"));
-    when(gradeCalculationService.totalCredits(STUDENT_ID)).thenReturn(180L);
-    when(gradeCalculationService.allTimeAverage(STUDENT_ID)).thenReturn(new BigDecimal("12.00"));
+    stubFullCourses(STUDENT_ID);
 
     List<GraduationListEntry> result = service.getGraduates(PROMOTION_ID, Specialization.EL);
 
@@ -84,6 +80,7 @@ class GraduationServiceTest {
     when(membershipRepository.findLatestPromotionStartYearByStudentId(STUDENT_ID))
         .thenReturn((short) 2024);
     stubResolvedCourses(STUDENT_ID);
+    when(gradeCalculationService.isCourseComplete(GROUP_COURSE_ID, STUDENT_ID)).thenReturn(true);
     when(gradeCalculationService.courseAverage(GROUP_COURSE_ID, STUDENT_ID))
         .thenReturn(new BigDecimal("8.0"));
 
@@ -105,11 +102,7 @@ class GraduationServiceTest {
             List.of(student(Specialization.EL), studentWithId("STD00002", Specialization.TN)));
     when(membershipRepository.findLatestPromotionStartYearByStudentId(STUDENT_ID))
         .thenReturn((short) 2024);
-    stubResolvedCourses(STUDENT_ID);
-    when(gradeCalculationService.courseAverage(GROUP_COURSE_ID, STUDENT_ID))
-        .thenReturn(new BigDecimal("14.0"));
-    when(gradeCalculationService.totalCredits(STUDENT_ID)).thenReturn(180L);
-    when(gradeCalculationService.allTimeAverage(STUDENT_ID)).thenReturn(new BigDecimal("14.00"));
+    stubFullCourses(STUDENT_ID);
 
     List<GraduationListEntry> result = service.getGraduates(PROMOTION_ID, Specialization.EL);
 
@@ -156,9 +149,10 @@ class GraduationServiceTest {
     when(membershipRepository.findLatestPromotionStartYearByStudentId(STUDENT_ID))
         .thenReturn((short) 2024);
     stubResolvedCourses(STUDENT_ID);
+    when(gradeCalculationService.isCourseComplete(GROUP_COURSE_ID, STUDENT_ID)).thenReturn(true);
     when(gradeCalculationService.courseAverage(GROUP_COURSE_ID, STUDENT_ID))
         .thenReturn(new BigDecimal("12.0"));
-    when(gradeCalculationService.totalCredits(STUDENT_ID)).thenReturn(6L);
+    // Course has 6 credits, but 180 required → excluded
 
     List<GraduationListEntry> result = service.getGraduates(PROMOTION_ID, Specialization.EL);
 
@@ -175,16 +169,21 @@ class GraduationServiceTest {
         .thenReturn((short) 2024);
     when(membershipRepository.findLatestPromotionStartYearByStudentId("STD00002"))
         .thenReturn((short) 2024);
-    stubResolvedCourses(STUDENT_ID);
-    stubResolvedCourses("STD00002");
-    when(gradeCalculationService.courseAverage(GROUP_COURSE_ID, STUDENT_ID))
+    stubFullCourses(STUDENT_ID);
+    stubFullCourses("STD00002");
+    // Override averages for ranking
+    org.mockito.Mockito.lenient()
+        .when(
+            gradeCalculationService.courseAverage(
+                org.mockito.ArgumentMatchers.any(UUID.class),
+                org.mockito.ArgumentMatchers.eq(STUDENT_ID)))
         .thenReturn(new BigDecimal("12.0"));
-    when(gradeCalculationService.courseAverage(GROUP_COURSE_ID, "STD00002"))
+    org.mockito.Mockito.lenient()
+        .when(
+            gradeCalculationService.courseAverage(
+                org.mockito.ArgumentMatchers.any(UUID.class),
+                org.mockito.ArgumentMatchers.eq("STD00002")))
         .thenReturn(new BigDecimal("16.0"));
-    when(gradeCalculationService.totalCredits(STUDENT_ID)).thenReturn(180L);
-    when(gradeCalculationService.totalCredits("STD00002")).thenReturn(180L);
-    when(gradeCalculationService.allTimeAverage(STUDENT_ID)).thenReturn(new BigDecimal("12.00"));
-    when(gradeCalculationService.allTimeAverage("STD00002")).thenReturn(new BigDecimal("16.00"));
 
     List<GraduationListEntry> result = service.getGraduates(PROMOTION_ID, Specialization.EL);
 
@@ -221,22 +220,34 @@ class GraduationServiceTest {
     when(membershipRepository.findLatestPromotionStartYearByStudentId(STUDENT_ID))
         .thenReturn((short) 2024);
 
-    // resolveCoursesByLevel: only new promo course appears
+    stubFullCourses(STUDENT_ID);
+    // Override L1 to include the newGc course
     JStudentGroup newGroup = JStudentGroup.builder().id(newGroupId).promotion(newPromo).build();
-    Map<CourseKey, CourseParticipation> deduped = new LinkedHashMap<>();
-    deduped.put(
+    Map<CourseKey, CourseParticipation> l1Courses = new LinkedHashMap<>();
+    l1Courses.put(
         new CourseKey(newPromo.getId(), courseId),
         new CourseParticipation(newGroup, newPromo, newGc));
-    for (Level level : Level.values()) {
-      when(gradeCalculationService.resolveCoursesByLevel(STUDENT_ID, level))
-          .thenReturn(level == Level.L1 ? deduped : Map.of());
+    for (int i = 0; i < 9; i++) {
+      UUID gcId = UUID.randomUUID();
+      UUID cid = UUID.randomUUID();
+      JGroupCourse gc =
+          JGroupCourse.builder()
+              .id(gcId)
+              .group(newGroup)
+              .course(
+                  JCourse.builder()
+                      .id(cid)
+                      .reference("C-L1-" + i)
+                      .title("Course L1 " + i)
+                      .credits((short) 6)
+                      .build())
+              .build();
+      l1Courses.put(
+          new CourseKey(newPromo.getId(), cid), new CourseParticipation(newGroup, newPromo, gc));
     }
-
-    // newGc has passing grade
-    when(gradeCalculationService.courseAverage(newGcId, STUDENT_ID))
-        .thenReturn(new BigDecimal("12.0"));
-    when(gradeCalculationService.totalCredits(STUDENT_ID)).thenReturn(180L);
-    when(gradeCalculationService.allTimeAverage(STUDENT_ID)).thenReturn(new BigDecimal("12.00"));
+    org.mockito.Mockito.lenient()
+        .when(gradeCalculationService.resolveCoursesByLevel(STUDENT_ID, Level.L1))
+        .thenReturn(l1Courses);
 
     List<GraduationListEntry> result = service.getGraduates(PROMOTION_ID, Specialization.EL);
 
@@ -267,6 +278,49 @@ class GraduationServiceTest {
           .when(gradeCalculationService.resolveCoursesByLevel(studentId, level))
           .thenReturn(level == Level.L1 ? deduped : Map.of());
     }
+  }
+
+  private void stubFullCourses(String studentId) {
+    JPromotion promo = promotion();
+    JStudentGroup group = JStudentGroup.builder().id(GROUP_ID).promotion(promo).build();
+
+    for (Level level : Level.values()) {
+      Map<CourseKey, CourseParticipation> deduped = new LinkedHashMap<>();
+      for (int i = 0; i < 10; i++) {
+        UUID gcId = UUID.randomUUID();
+        UUID courseId = UUID.randomUUID();
+        JGroupCourse gc =
+            JGroupCourse.builder()
+                .id(gcId)
+                .group(group)
+                .course(
+                    JCourse.builder()
+                        .id(courseId)
+                        .reference("C-" + level.name() + "-" + i)
+                        .title("Course " + level.name() + " " + i)
+                        .credits((short) 6)
+                        .build())
+                .build();
+        deduped.put(
+            new CourseKey(PROMOTION_ID, courseId), new CourseParticipation(group, promo, gc));
+      }
+      org.mockito.Mockito.lenient()
+          .when(gradeCalculationService.resolveCoursesByLevel(studentId, level))
+          .thenReturn(deduped);
+    }
+
+    org.mockito.Mockito.lenient()
+        .when(
+            gradeCalculationService.isCourseComplete(
+                org.mockito.ArgumentMatchers.any(UUID.class),
+                org.mockito.ArgumentMatchers.eq(studentId)))
+        .thenReturn(true);
+    org.mockito.Mockito.lenient()
+        .when(
+            gradeCalculationService.courseAverage(
+                org.mockito.ArgumentMatchers.any(UUID.class),
+                org.mockito.ArgumentMatchers.eq(studentId)))
+        .thenReturn(new BigDecimal("12.0"));
   }
 
   private JUser student(Specialization specialization) {
