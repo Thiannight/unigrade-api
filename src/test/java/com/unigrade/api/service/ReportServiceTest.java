@@ -404,6 +404,18 @@ class ReportServiceTest {
     assertThrows(ForbiddenException.class, () -> service.generate(STUDENT_ID, null));
   }
 
+  @Test
+  void generateForSystem_noAuthenticatedUser_doesNotThrow() {
+    SecurityContextHolder.clearContext();
+    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
+    when(gradeCalculationService.resolveAllCoursesByLevels(STUDENT_ID))
+        .thenReturn(new CourseData(new EnumMap<>(Level.class), List.of()));
+
+    StudentReport report = service.generateForSystem(STUDENT_ID, null);
+
+    assertEquals(STUDENT_ID, report.studentId());
+  }
+
   private void stubResolvedCourses(
       Level level, CourseKey key, CourseParticipation... participations) {
     Map<CourseKey, CourseParticipation> deduped = new LinkedHashMap<>();
