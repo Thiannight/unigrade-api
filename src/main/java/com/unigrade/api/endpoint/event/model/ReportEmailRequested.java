@@ -1,6 +1,6 @@
 package com.unigrade.api.endpoint.event.model;
 
-import com.unigrade.api.model.StudentReport;
+import com.unigrade.api.model.Level;
 import java.time.Duration;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +17,8 @@ import lombok.ToString;
 @ToString
 public class ReportEmailRequested extends PojaEvent {
 
-  private StudentReport report;
+  private String studentId;
+  private Level level;
 
   @Override
   public Duration maxConsumerDuration() {
