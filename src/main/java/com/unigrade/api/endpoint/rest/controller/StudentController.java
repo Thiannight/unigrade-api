@@ -24,8 +24,7 @@ public class StudentController {
 
   @GetMapping("/{studentId}/report")
   public ResponseEntity<?> getReport(
-      @PathVariable String studentId,
-      @RequestParam(required = false) Level level) {
+      @PathVariable String studentId, @RequestParam(required = false) Level level) {
 
     var report = reportService.generate(studentId, level);
 
