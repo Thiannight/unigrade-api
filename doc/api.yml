@@ -658,25 +658,18 @@ paths:
     get:
       tags: [Reports]
       summary: >
-        Obtenir le relevé de notes d'un étudiant (JSON ou PDF). Un étudiant ne peut consulter
-        que son propre relevé ; un admin peut consulter n'importe quel relevé.
+        Demander le relevé de notes d'un étudiant par email. Un étudiant ne peut demander
+        que son propre relevé ; un admin peut demander le relevé de n'importe quel étudiant.
+        Le rapport est généré puis le lien de téléchargement est envoyé par email au demandeur.
       parameters:
-        - name: json
-          in: query
-          description: Si vrai, retourne du JSON au lieu d'un PDF
-          schema: { type: boolean, default: false }
         - name: level
           in: query
+          required: false
           description: Filtrer sur un seul niveau (L1/L2/L3)
           schema: { $ref: '#/components/schemas/Level' }
       responses:
-        '200':
-          description: Relevé de notes
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/StudentReport' }
-            application/pdf:
-              schema: { type: string, format: binary }
+        '202':
+          description: Rapport généré, email de téléchargement envoyé au demandeur
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
