@@ -3,7 +3,6 @@ package com.unigrade.api.service.event;
 import static java.io.File.createTempFile;
 
 import com.unigrade.api.endpoint.event.model.ReportEmailRequested;
-import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.file.bucket.BucketComponent;
 import com.unigrade.api.mail.Email;
 import com.unigrade.api.mail.Mailer;
@@ -11,7 +10,6 @@ import com.unigrade.api.model.StudentReport;
 import com.unigrade.api.repository.UserRepository;
 import com.unigrade.api.repository.model.JUser;
 import com.unigrade.api.service.PdfReportService;
-import com.unigrade.api.service.ReportService;
 import jakarta.mail.internet.InternetAddress;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -29,7 +27,6 @@ public class ReportEmailRequestedService implements Consumer<ReportEmailRequeste
 
   private static final Duration LINK_DURATION = Duration.ofHours(24);
 
-  private final ReportService reportService;
   private final PdfReportService pdfReportService;
   private final BucketComponent bucketComponent;
   private final UserRepository userRepository;
@@ -38,19 +35,17 @@ public class ReportEmailRequestedService implements Consumer<ReportEmailRequeste
   @SneakyThrows
   @Override
   public void accept(ReportEmailRequested event) {
-    StudentReport report = reportService.generateForSystem(event.getStudentId(), event.getLevel());
-    JUser student =
-        userRepository
-            .findById(event.getStudentId())
-            .orElseThrow(() -> new NotFoundException("Student not found: " + event.getStudentId()));
+    StudentReport report = event.getReport();
+
+    JUser student = userRepository.findById(report.studentId()).orElseThrow();
 
     byte[] pdfBytes = pdfReportService.generate(report);
-    File tempFile = createTempFile("report-" + event.getStudentId(), ".pdf");
+    File tempFile = createTempFile("report-" + report.studentId(), ".pdf");
     try (var out = new FileOutputStream(tempFile)) {
       out.write(pdfBytes);
     }
 
-    String bucketKey = "reports-" + event.getStudentId() + "-" + UUID.randomUUID() + ".pdf";
+    String bucketKey = "reports-" + report.studentId() + "-" + UUID.randomUUID() + ".pdf";
     bucketComponent.upload(tempFile, bucketKey);
     String downloadUrl = bucketComponent.presign(bucketKey, LINK_DURATION).toString();
 

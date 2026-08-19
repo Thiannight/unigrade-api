@@ -40,11 +40,6 @@ public class ReportService {
     return generateReport(studentId, levelFilter);
   }
 
-  @Transactional(readOnly = true)
-  public StudentReport generateForSystem(String studentId, Level levelFilter) {
-    return generateReport(studentId, levelFilter);
-  }
-
   private StudentReport generateReport(String studentId, Level levelFilter) {
     JUser student = resolveStudent(studentId);
 

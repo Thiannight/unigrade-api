@@ -15,7 +15,6 @@ import com.unigrade.api.model.StudentReport;
 import com.unigrade.api.repository.UserRepository;
 import com.unigrade.api.repository.model.JUser;
 import com.unigrade.api.service.PdfReportService;
-import com.unigrade.api.service.ReportService;
 import java.io.File;
 import java.net.URI;
 import java.time.Duration;
@@ -31,7 +30,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ReportEmailRequestedServiceTest {
 
-  @Mock private ReportService reportService;
   @Mock private PdfReportService pdfReportService;
   @Mock private BucketComponent bucketComponent;
   @Mock private UserRepository userRepository;
@@ -42,22 +40,20 @@ class ReportEmailRequestedServiceTest {
   @BeforeEach
   void setUp() {
     service =
-        new ReportEmailRequestedService(
-            reportService, pdfReportService, bucketComponent, userRepository, mailer);
+        new ReportEmailRequestedService(pdfReportService, bucketComponent, userRepository, mailer);
   }
 
   @Test
   void accept_uploadsPdfAndSendsPresignedLinkEmail() throws Exception {
-    var event = ReportEmailRequested.builder().studentId("STD00001").level(null).build();
     var report =
         new StudentReport(
             "STD00001", "Ada", "Lovelace", ReportStatus.COMPLETE, 180, 180, List.of(), null);
+    var event = ReportEmailRequested.builder().report(report).build();
     var student = new JUser();
     student.setId("STD00001");
     student.setFirstName("Ada");
     student.setEmail("ada@unigrade.com");
 
-    when(reportService.generateForSystem("STD00001", null)).thenReturn(report);
     when(userRepository.findById("STD00001")).thenReturn(Optional.of(student));
     when(pdfReportService.generate(report)).thenReturn("pdf-bytes".getBytes());
     when(bucketComponent.presign(any(), any(Duration.class)))
