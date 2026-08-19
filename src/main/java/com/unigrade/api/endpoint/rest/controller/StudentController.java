@@ -47,7 +47,7 @@ public class StudentController {
   public ResponseEntity<Void> emailReport(
       @PathVariable String studentId, @RequestParam(required = false) Level level) {
 
-    StudentReport report = reportService.generate(studentId, level);
+    var report = reportService.generate(studentId, level);
 
     var requester = SecurityUtils.currentUser();
 

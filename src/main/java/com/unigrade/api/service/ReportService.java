@@ -37,49 +37,36 @@ public class ReportService {
   @Transactional(readOnly = true)
   public StudentReport generate(String studentId, Level levelFilter) {
     requireCanViewReport(studentId);
-    return generateReport(studentId, levelFilter);
-  }
-
-  private StudentReport generateReport(String studentId, Level levelFilter) {
     JUser student = resolveStudent(studentId);
 
     CourseData courseData = gradeCalculationService.resolveAllCoursesByLevels(studentId);
-
     Map<Level, Map<CourseKey, CourseParticipation>> coursesByLevel = courseData.coursesByLevel();
 
     List<LevelReport> levelReports = new ArrayList<>();
-
     for (Level level : Level.values()) {
       if (levelFilter != null && level != levelFilter) {
         continue;
       }
-
       Map<CourseKey, CourseParticipation> courses = coursesByLevel.get(level);
-
       if (courses == null || courses.isEmpty()) {
         continue;
       }
-
       levelReports.add(buildLevelReport(level, courses, studentId, courseData.memberships()));
     }
 
     List<CourseReportEntry> allCourses =
-        levelReports.stream().flatMap(levelReport -> levelReport.courses().stream()).toList();
+        levelReports.stream().flatMap(lr -> lr.courses().stream()).toList();
 
     long totalCredits = levelReports.stream().mapToLong(LevelReport::totalCredits).sum();
-
     int expectedLevels = (levelFilter != null) ? 1 : Level.values().length;
-
     long requiredCredits = (long) expectedLevels * Level.PER_LEVEL_CREDIT;
 
     ReportStatus status;
-
     if (levelReports.size() < expectedLevels) {
       status = ReportStatus.TEMPORARY;
     } else {
       status =
-          levelReports.stream()
-                  .anyMatch(levelReport -> levelReport.status() == ReportStatus.TEMPORARY)
+          levelReports.stream().anyMatch(lr -> lr.status() == ReportStatus.TEMPORARY)
               ? ReportStatus.TEMPORARY
               : ReportStatus.COMPLETE;
     }
@@ -100,14 +87,10 @@ public class ReportService {
       Map<CourseKey, CourseParticipation> coursesByCourse,
       String studentId,
       List<JMembership> memberships) {
-
     List<CourseReportEntry> courses = new ArrayList<>();
-
     for (Map.Entry<CourseKey, CourseParticipation> entry : coursesByCourse.entrySet()) {
-
       CourseParticipation participation = entry.getValue();
       JGroupCourse representative = participation.groupCourse();
-
       String promotionReference = participation.promotion().getReference();
 
       CourseResult result =
@@ -127,7 +110,6 @@ public class ReportService {
     }
 
     boolean allCompleted = courses.stream().allMatch(CourseReportEntry::completed);
-
     long totalCredits = courses.stream().mapToLong(CourseReportEntry::credits).sum();
 
     ReportStatus status =
@@ -142,21 +124,16 @@ public class ReportService {
   private BigDecimal average(List<CourseReportEntry> courses) {
     BigDecimal weighted = BigDecimal.ZERO;
     long totalCredits = 0;
-
     for (CourseReportEntry course : courses) {
       if (course.average() == null) {
         continue;
       }
-
       weighted = weighted.add(course.average().multiply(BigDecimal.valueOf(course.credits())));
-
       totalCredits += course.credits();
     }
-
     if (totalCredits == 0) {
       return null;
     }
-
     return weighted.divide(BigDecimal.valueOf(totalCredits), 2, RoundingMode.HALF_UP);
   }
 
@@ -165,25 +142,20 @@ public class ReportService {
         userRepository
             .findById(studentId)
             .orElseThrow(() -> new NotFoundException("Student not found: " + studentId));
-
     if (student.getRole() != Role.STUDENT) {
       throw new BadRequestException("Only students can have a report");
     }
-
     return student;
   }
 
   private void requireCanViewReport(String studentId) {
     JUser current = SecurityUtils.currentUser();
-
     if (current.getRole() == Role.ADMIN) {
       return;
     }
-
     if (current.getRole() == Role.STUDENT && current.getId().equals(studentId)) {
       return;
     }
-
     throw new ForbiddenException("You are not allowed to view this report");
   }
 }

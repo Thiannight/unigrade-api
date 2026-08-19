@@ -47,8 +47,8 @@ public class ReportEmailRequestedService implements Consumer<ReportEmailRequeste
     mailer.accept(buildEmail(report, event.getRequesterEmail(), downloadUrl));
   }
 
-  private Email buildEmail(StudentReport report, String requesterEmail, String downloadUrl)
-      throws Exception {
+  @SneakyThrows
+  private Email buildEmail(StudentReport report, String requesterEmail, String downloadUrl) {
     var to = new InternetAddress(requesterEmail);
     String fullName = report.firstName() + " " + report.lastName();
     String html = buildHtmlBody(fullName, report.studentId(), downloadUrl);
