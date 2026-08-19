@@ -65,21 +65,13 @@ public class ReportService {
         continue;
       }
 
-      levelReports.add(
-          buildLevelReport(
-              level,
-              courses,
-              studentId,
-              courseData.memberships()));
+      levelReports.add(buildLevelReport(level, courses, studentId, courseData.memberships()));
     }
 
-    List<CourseReportEntry> allCourses = levelReports.stream()
-        .flatMap(levelReport -> levelReport.courses().stream())
-        .toList();
+    List<CourseReportEntry> allCourses =
+        levelReports.stream().flatMap(levelReport -> levelReport.courses().stream()).toList();
 
-    long totalCredits = levelReports.stream()
-        .mapToLong(LevelReport::totalCredits)
-        .sum();
+    long totalCredits = levelReports.stream().mapToLong(LevelReport::totalCredits).sum();
 
     int expectedLevels = (levelFilter != null) ? 1 : Level.values().length;
 
@@ -90,11 +82,11 @@ public class ReportService {
     if (levelReports.size() < expectedLevels) {
       status = ReportStatus.TEMPORARY;
     } else {
-      status = levelReports.stream()
-          .anyMatch(
-              levelReport -> levelReport.status() == ReportStatus.TEMPORARY)
-                  ? ReportStatus.TEMPORARY
-                  : ReportStatus.COMPLETE;
+      status =
+          levelReports.stream()
+                  .anyMatch(levelReport -> levelReport.status() == ReportStatus.TEMPORARY)
+              ? ReportStatus.TEMPORARY
+              : ReportStatus.COMPLETE;
     }
 
     return new StudentReport(
@@ -123,10 +115,9 @@ public class ReportService {
 
       String promotionReference = participation.promotion().getReference();
 
-      CourseResult result = gradeCalculationService.computeCourseResult(
-          representative.getId(),
-          studentId,
-          memberships);
+      CourseResult result =
+          gradeCalculationService.computeCourseResult(
+              representative.getId(), studentId, memberships);
 
       courses.add(
           new CourseReportEntry(
@@ -142,21 +133,15 @@ public class ReportService {
 
     boolean allCompleted = courses.stream().allMatch(CourseReportEntry::completed);
 
-    long totalCredits = courses.stream()
-        .mapToLong(CourseReportEntry::credits)
-        .sum();
+    long totalCredits = courses.stream().mapToLong(CourseReportEntry::credits).sum();
 
-    ReportStatus status = allCompleted && totalCredits >= Level.PER_LEVEL_CREDIT
-        ? ReportStatus.COMPLETE
-        : ReportStatus.TEMPORARY;
+    ReportStatus status =
+        allCompleted && totalCredits >= Level.PER_LEVEL_CREDIT
+            ? ReportStatus.COMPLETE
+            : ReportStatus.TEMPORARY;
 
     return new LevelReport(
-        level,
-        status,
-        totalCredits,
-        Level.PER_LEVEL_CREDIT,
-        average(courses),
-        courses);
+        level, status, totalCredits, Level.PER_LEVEL_CREDIT, average(courses), courses);
   }
 
   private BigDecimal average(List<CourseReportEntry> courses) {
@@ -168,9 +153,7 @@ public class ReportService {
         continue;
       }
 
-      weighted = weighted.add(
-          course.average()
-              .multiply(BigDecimal.valueOf(course.credits())));
+      weighted = weighted.add(course.average().multiply(BigDecimal.valueOf(course.credits())));
 
       totalCredits += course.credits();
     }
@@ -179,22 +162,17 @@ public class ReportService {
       return null;
     }
 
-    return weighted.divide(
-        BigDecimal.valueOf(totalCredits),
-        2,
-        RoundingMode.HALF_UP);
+    return weighted.divide(BigDecimal.valueOf(totalCredits), 2, RoundingMode.HALF_UP);
   }
 
   private JUser resolveStudent(String studentId) {
-    JUser student = userRepository
-        .findById(studentId)
-        .orElseThrow(
-            () -> new NotFoundException(
-                "Student not found: " + studentId));
+    JUser student =
+        userRepository
+            .findById(studentId)
+            .orElseThrow(() -> new NotFoundException("Student not found: " + studentId));
 
     if (student.getRole() != Role.STUDENT) {
-      throw new BadRequestException(
-          "Only students can have a report");
+      throw new BadRequestException("Only students can have a report");
     }
 
     return student;
@@ -207,12 +185,10 @@ public class ReportService {
       return;
     }
 
-    if (current.getRole() == Role.STUDENT
-        && current.getId().equals(studentId)) {
+    if (current.getRole() == Role.STUDENT && current.getId().equals(studentId)) {
       return;
     }
 
-    throw new ForbiddenException(
-        "You are not allowed to view this report");
+    throw new ForbiddenException("You are not allowed to view this report");
   }
 }

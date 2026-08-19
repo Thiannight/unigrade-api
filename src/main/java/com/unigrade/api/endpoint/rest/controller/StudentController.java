@@ -39,23 +39,17 @@ public class StudentController {
 
     byte[] pdf = pdfReportService.generate(report);
 
-    return ResponseEntity.ok()
-        .contentType(MediaType.APPLICATION_PDF)
-        .body(pdf);
+    return ResponseEntity.ok().contentType(MediaType.APPLICATION_PDF).body(pdf);
   }
 
   @GetMapping("/{studentId}/report/email")
   public ResponseEntity<Void> emailReport(
-      @PathVariable String studentId,
-      @RequestParam(required = false) Level level) {
+      @PathVariable String studentId, @RequestParam(required = false) Level level) {
 
     // This performs the authorization check before publishing the event.
     reportService.generate(studentId, level);
 
-    var event = ReportEmailRequested.builder()
-        .studentId(studentId)
-        .level(level)
-        .build();
+    var event = ReportEmailRequested.builder().studentId(studentId).level(level).build();
 
     reportEmailEventProducer.accept(List.of(event));
 

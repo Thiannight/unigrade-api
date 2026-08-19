@@ -25,29 +25,24 @@ import org.springframework.http.ResponseEntity;
 @ExtendWith(MockitoExtension.class)
 class StudentControllerTest {
 
-  @Mock
-  private ReportService reportService;
+  @Mock private ReportService reportService;
 
-  @Mock
-  private PdfReportService pdfReportService;
+  @Mock private PdfReportService pdfReportService;
 
-  @Mock
-  private EventProducer<ReportEmailRequested> reportEmailEventProducer;
+  @Mock private EventProducer<ReportEmailRequested> reportEmailEventProducer;
 
   private StudentController controller;
 
   @BeforeEach
   void setUp() {
-    controller = new StudentController(
-        reportService,
-        pdfReportService,
-        reportEmailEventProducer);
+    controller = new StudentController(reportService, pdfReportService, reportEmailEventProducer);
   }
 
   @Test
   void getReport_json_returnsReportBody() {
-    StudentReport report = new StudentReport("STD00001", "Ada", "Lovelace", ReportStatus.COMPLETE, 180, 180,
-        List.of(), null);
+    StudentReport report =
+        new StudentReport(
+            "STD00001", "Ada", "Lovelace", ReportStatus.COMPLETE, 180, 180, List.of(), null);
     when(reportService.generate("STD00001", Level.L1)).thenReturn(report);
 
     ResponseEntity<?> response = controller.getReport("STD00001", true, Level.L1);
@@ -58,8 +53,9 @@ class StudentControllerTest {
 
   @Test
   void getReport_pdf_returnsPdfBody() {
-    StudentReport report = new StudentReport("STD00001", "Ada", "Lovelace", ReportStatus.COMPLETE, 180, 180,
-        List.of(), null);
+    StudentReport report =
+        new StudentReport(
+            "STD00001", "Ada", "Lovelace", ReportStatus.COMPLETE, 180, 180, List.of(), null);
     byte[] pdf = "pdf-bytes".getBytes();
     when(reportService.generate("STD00001", null)).thenReturn(report);
     when(pdfReportService.generate(report)).thenReturn(pdf);
