@@ -11,7 +11,6 @@ import com.unigrade.api.model.ReportStatus;
 import com.unigrade.api.model.Role;
 import com.unigrade.api.model.StudentReport;
 import com.unigrade.api.repository.model.JUser;
-import com.unigrade.api.service.PdfReportService;
 import com.unigrade.api.service.ReportService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,7 +20,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,55 +29,24 @@ class StudentControllerTest {
 
   @Mock private ReportService reportService;
 
-  @Mock private PdfReportService pdfReportService;
-
   @Mock private EventProducer<ReportEmailRequested> reportEmailEventProducer;
 
   private StudentController controller;
 
   @BeforeEach
   void setUp() {
-    controller = new StudentController(reportService, pdfReportService, reportEmailEventProducer);
+    controller = new StudentController(reportService, reportEmailEventProducer);
     loginAs("ADMIN001", "admin@unigrade.com", Role.ADMIN);
   }
 
   @Test
-  void getReport_json_returnsReportBody() {
+  void getReport_producesEventAndReturnsAccepted() {
     StudentReport report =
         new StudentReport(
             "STD00001", "Ada", "Lovelace", ReportStatus.COMPLETE, 180, 180, List.of(), null);
     when(reportService.generate("STD00001", Level.L1)).thenReturn(report);
 
-    ResponseEntity<?> response = controller.getReport("STD00001", true, Level.L1);
-
-    assertEquals(HttpStatus.OK, response.getStatusCode());
-    assertEquals(report, response.getBody());
-  }
-
-  @Test
-  void getReport_pdf_returnsPdfBody() {
-    StudentReport report =
-        new StudentReport(
-            "STD00001", "Ada", "Lovelace", ReportStatus.COMPLETE, 180, 180, List.of(), null);
-    byte[] pdf = "pdf-bytes".getBytes();
-    when(reportService.generate("STD00001", null)).thenReturn(report);
-    when(pdfReportService.generate(report)).thenReturn(pdf);
-
-    ResponseEntity<?> response = controller.getReport("STD00001", false, null);
-
-    assertEquals(HttpStatus.OK, response.getStatusCode());
-    assertEquals(MediaType.APPLICATION_PDF, response.getHeaders().getContentType());
-    assertEquals(pdf, response.getBody());
-  }
-
-  @Test
-  void emailReport_producesEventAndReturnsAccepted() {
-    StudentReport report =
-        new StudentReport(
-            "STD00001", "Ada", "Lovelace", ReportStatus.COMPLETE, 180, 180, List.of(), null);
-    when(reportService.generate("STD00001", Level.L1)).thenReturn(report);
-
-    ResponseEntity<Void> response = controller.emailReport("STD00001", Level.L1);
+    ResponseEntity<?> response = controller.getReport("STD00001", Level.L1);
 
     assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
 
@@ -95,13 +62,13 @@ class StudentControllerTest {
   }
 
   @Test
-  void emailReport_withoutLevel_producesEvent() {
+  void getReport_withoutLevel_producesEvent() {
     StudentReport report =
         new StudentReport(
             "STD00002", "Grace", "Hopper", ReportStatus.COMPLETE, 180, 180, List.of(), null);
     when(reportService.generate("STD00002", null)).thenReturn(report);
 
-    ResponseEntity<Void> response = controller.emailReport("STD00002", null);
+    ResponseEntity<?> response = controller.getReport("STD00002", null);
 
     assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
 
@@ -117,13 +84,13 @@ class StudentControllerTest {
   }
 
   @Test
-  void emailReport_performsAuthorizationCheckBeforePublishing() {
+  void getReport_performsAuthorizationCheckBeforePublishing() {
     StudentReport report =
         new StudentReport(
             "STD00003", "Linus", "Torvalds", ReportStatus.COMPLETE, 180, 180, List.of(), null);
     when(reportService.generate("STD00003", null)).thenReturn(report);
 
-    controller.emailReport("STD00003", null);
+    controller.getReport("STD00003", null);
 
     verify(reportService).generate("STD00003", null);
   }
