@@ -1,11 +1,12 @@
 package com.unigrade.api.endpoint.rest.controller;
 
+import com.unigrade.api.endpoint.event.EventProducer;
+import com.unigrade.api.endpoint.event.model.ReportEmailRequested;
 import com.unigrade.api.model.Level;
-import com.unigrade.api.service.PdfReportService;
+import com.unigrade.api.security.SecurityUtils;
 import com.unigrade.api.service.ReportService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,20 +20,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class StudentController {
 
   private final ReportService reportService;
-  private final PdfReportService pdfReportService;
+  private final EventProducer<ReportEmailRequested> reportEmailEventProducer;
 
   @GetMapping("/{studentId}/report")
   public ResponseEntity<?> getReport(
-      @PathVariable String studentId,
-      @RequestParam(defaultValue = "false") boolean json,
-      @RequestParam(required = false) Level level) {
+      @PathVariable String studentId, @RequestParam(required = false) Level level) {
+
     var report = reportService.generate(studentId, level);
-    return (json)
-        ? ResponseEntity.ok(report)
-        : ResponseEntity.ok()
-            .contentType(MediaType.APPLICATION_PDF)
-            .header(
-                HttpHeaders.CONTENT_DISPOSITION, "inline; filename=report-" + studentId + ".pdf")
-            .body(pdfReportService.generate(report));
+
+    var requester = SecurityUtils.currentUser();
+
+    var event =
+        ReportEmailRequested.builder().report(report).requesterEmail(requester.getEmail()).build();
+
+    reportEmailEventProducer.accept(List.of(event));
+
+    return ResponseEntity.accepted().build();
   }
 }
