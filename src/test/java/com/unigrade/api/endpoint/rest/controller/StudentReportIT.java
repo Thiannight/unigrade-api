@@ -2,13 +2,15 @@ package com.unigrade.api.endpoint.rest.controller;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.http.HttpMethod.PUT;
+import static org.springframework.http.HttpStatus.ACCEPTED;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
-import static org.springframework.http.HttpStatus.OK;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.unigrade.api.conf.SecuredFacadeIT;
+import com.unigrade.api.endpoint.event.EventProducer;
+import com.unigrade.api.endpoint.event.model.ReportEmailRequested;
 import com.unigrade.api.model.Course;
 import com.unigrade.api.model.Promotion;
 import com.unigrade.api.model.StudentGroup;
@@ -17,6 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +27,8 @@ import org.springframework.http.ResponseEntity;
 class StudentReportIT extends SecuredFacadeIT {
 
   @Autowired private TestRestTemplate restTemplate;
+
+  @MockBean private EventProducer<ReportEmailRequested> reportEmailEventProducer;
 
   @Test
   void report_buildsLevelReport() {
@@ -38,50 +43,10 @@ class StudentReportIT extends SecuredFacadeIT {
     grade(groupId, courseId, exam1Id, studentId, 12.0, "2024-05-03T09:00:00Z");
     grade(groupId, courseId, exam2Id, studentId, 16.0, "2024-06-02T09:00:00Z");
 
-    ResponseEntity<JsonNode> response =
-        restTemplate.getForEntity("/students/" + studentId + "/report?json=true", JsonNode.class);
+    ResponseEntity<String> response =
+        restTemplate.getForEntity("/students/" + studentId + "/report", String.class);
 
-    assertEquals(OK, response.getStatusCode());
-    JsonNode body = response.getBody();
-    assertNotNull(body);
-    assertEquals(studentId, body.get("studentId").asText());
-    assertEquals("Ada", body.get("firstName").asText());
-    assertEquals("Lovelace", body.get("lastName").asText());
-    assertEquals("TEMPORARY", body.get("status").asText());
-    assertEquals("TEMPORARY", body.get("levels").get(0).get("status").asText());
-    assertEquals(1, body.get("levels").size());
-    assertEquals("L2", body.get("levels").get(0).get("level").asText());
-    assertEquals(
-        "REP-P-1",
-        body.get("levels").get(0).get("courses").get(0).get("promotionReference").asText());
-    assertEquals(
-        "REP-C-101", body.get("levels").get(0).get("courses").get(0).get("reference").asText());
-    assertEquals(6, body.get("levels").get(0).get("courses").get(0).get("credits").asInt());
-    assertTrue(body.get("levels").get(0).get("courses").get(0).get("completed").asBoolean());
-    assertEquals(2, body.get("levels").get(0).get("courses").get(0).get("exams").size());
-    assertEquals(
-        12.0,
-        body.get("levels")
-            .get(0)
-            .get("courses")
-            .get(0)
-            .get("exams")
-            .get(0)
-            .get("score")
-            .asDouble());
-    assertEquals(
-        16.0,
-        body.get("levels")
-            .get(0)
-            .get("courses")
-            .get(0)
-            .get("exams")
-            .get(1)
-            .get("score")
-            .asDouble());
-    assertEquals(14.40, body.get("levels").get(0).get("courses").get(0).get("average").asDouble());
-    assertEquals(14.40, body.get("levels").get(0).get("overallAverage").asDouble());
-    assertEquals(14.40, body.get("overallAverage").asDouble());
+    assertEquals(ACCEPTED, response.getStatusCode());
   }
 
   @Test
@@ -101,37 +66,20 @@ class StudentReportIT extends SecuredFacadeIT {
     String newExamId = createExam(newGroupId, newCourseId, "2025-05-01T09:00:00Z", 1.0);
     grade(newGroupId, newCourseId, newExamId, studentId, 14.0, "2025-05-02T09:00:00Z");
 
-    ResponseEntity<JsonNode> response =
-        restTemplate.getForEntity("/students/" + studentId + "/report?json=true", JsonNode.class);
+    ResponseEntity<String> response =
+        restTemplate.getForEntity("/students/" + studentId + "/report", String.class);
 
-    assertEquals(OK, response.getStatusCode());
-    JsonNode body = response.getBody();
-    assertNotNull(body);
-    assertEquals(1, body.get("levels").size());
-    assertEquals(1, body.get("levels").get(0).get("courses").size());
-    assertEquals("L2", body.get("levels").get(0).get("level").asText());
-    assertEquals(
-        "REP-C-301", body.get("levels").get(0).get("courses").get(0).get("reference").asText());
-    assertEquals(
-        "REP-P-3",
-        body.get("levels").get(0).get("courses").get(0).get("promotionReference").asText());
-    assertEquals(14.0, body.get("levels").get(0).get("courses").get(0).get("average").asDouble());
+    assertEquals(ACCEPTED, response.getStatusCode());
   }
 
   @Test
   void report_noMembership_returnsEmptyLevels() {
     String studentId = createStudent("rep-it-nomember-" + UUID.randomUUID() + "@unigrade.com");
 
-    ResponseEntity<JsonNode> response =
-        restTemplate.getForEntity("/students/" + studentId + "/report?json=true", JsonNode.class);
+    ResponseEntity<String> response =
+        restTemplate.getForEntity("/students/" + studentId + "/report", String.class);
 
-    assertEquals(OK, response.getStatusCode());
-    JsonNode body = response.getBody();
-    assertNotNull(body);
-    assertEquals(0, body.get("levels").size());
-    assertEquals("TEMPORARY", body.get("status").asText());
-    assertEquals(180, body.get("requiredCredits").asInt());
-    assertTrue(body.get("overallAverage").isNull());
+    assertEquals(ACCEPTED, response.getStatusCode());
   }
 
   @Test
@@ -145,35 +93,10 @@ class StudentReportIT extends SecuredFacadeIT {
     String studentId = createStudent("rep-it-filter-" + UUID.randomUUID() + "@unigrade.com");
     createMembership(groupId, studentId, "2024-01-01");
 
-    ResponseEntity<JsonNode> response =
-        restTemplate.getForEntity(
-            "/students/" + studentId + "/report?json=true&level=L2", JsonNode.class);
+    ResponseEntity<String> response =
+        restTemplate.getForEntity("/students/" + studentId + "/report?level=L2", String.class);
 
-    assertEquals(OK, response.getStatusCode());
-    JsonNode body = response.getBody();
-    assertNotNull(body);
-    assertEquals(1, body.get("levels").size());
-    assertEquals("L2", body.get("levels").get(0).get("level").asText());
-  }
-
-  @Test
-  void report_default_returnsPdf() {
-    String uid = UUID.randomUUID().toString().substring(0, 8);
-    UUID groupId = createGroup("PP-" + uid, (short) 2310, (short) 2311);
-    UUID courseId = createCourse("PC-" + uid, "Report Course PDF");
-    assignCourse(groupId, courseId, "2024-01-01", "S3");
-    String studentId = createStudent("rep-it-pdf-" + UUID.randomUUID() + "@unigrade.com");
-    createMembership(groupId, studentId, "2024-01-01");
-    String examId = createExam(groupId, courseId, "2024-05-01T09:00:00Z", 1.0);
-    grade(groupId, courseId, examId, studentId, 14.0, "2024-05-02T09:00:00Z");
-
-    ResponseEntity<byte[]> response =
-        restTemplate.getForEntity("/students/" + studentId + "/report", byte[].class);
-
-    assertEquals(OK, response.getStatusCode());
-    assertNotNull(response.getBody());
-    assertTrue(response.getBody().length > 0);
-    assertEquals("application/pdf", response.getHeaders().getContentType().toString());
+    assertEquals(ACCEPTED, response.getStatusCode());
   }
 
   @Test
