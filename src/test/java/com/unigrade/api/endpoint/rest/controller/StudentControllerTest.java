@@ -8,7 +8,9 @@ import com.unigrade.api.endpoint.event.EventProducer;
 import com.unigrade.api.endpoint.event.model.ReportEmailRequested;
 import com.unigrade.api.model.Level;
 import com.unigrade.api.model.ReportStatus;
+import com.unigrade.api.model.Role;
 import com.unigrade.api.model.StudentReport;
+import com.unigrade.api.repository.model.JUser;
 import com.unigrade.api.service.PdfReportService;
 import com.unigrade.api.service.ReportService;
 import java.util.List;
@@ -21,6 +23,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @ExtendWith(MockitoExtension.class)
 class StudentControllerTest {
@@ -36,6 +40,7 @@ class StudentControllerTest {
   @BeforeEach
   void setUp() {
     controller = new StudentController(reportService, pdfReportService, reportEmailEventProducer);
+    loginAs("ADMIN001", "admin@unigrade.com", Role.ADMIN);
   }
 
   @Test
@@ -69,6 +74,11 @@ class StudentControllerTest {
 
   @Test
   void emailReport_producesEventAndReturnsAccepted() {
+    StudentReport report =
+        new StudentReport(
+            "STD00001", "Ada", "Lovelace", ReportStatus.COMPLETE, 180, 180, List.of(), null);
+    when(reportService.generate("STD00001", Level.L1)).thenReturn(report);
+
     ResponseEntity<Void> response = controller.emailReport("STD00001", Level.L1);
 
     assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
@@ -80,12 +90,17 @@ class StudentControllerTest {
 
     ReportEmailRequested event = captor.getValue().get(0);
 
-    assertEquals("STD00001", event.getStudentId());
-    assertEquals(Level.L1, event.getLevel());
+    assertEquals("STD00001", event.getReport().studentId());
+    assertEquals("admin@unigrade.com", event.getRequesterEmail());
   }
 
   @Test
   void emailReport_withoutLevel_producesEvent() {
+    StudentReport report =
+        new StudentReport(
+            "STD00002", "Grace", "Hopper", ReportStatus.COMPLETE, 180, 180, List.of(), null);
+    when(reportService.generate("STD00002", null)).thenReturn(report);
+
     ResponseEntity<Void> response = controller.emailReport("STD00002", null);
 
     assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
@@ -97,14 +112,29 @@ class StudentControllerTest {
 
     ReportEmailRequested event = captor.getValue().get(0);
 
-    assertEquals("STD00002", event.getStudentId());
-    assertEquals(null, event.getLevel());
+    assertEquals("STD00002", event.getReport().studentId());
+    assertEquals(null, event.getReport().overallAverage());
   }
 
   @Test
   void emailReport_performsAuthorizationCheckBeforePublishing() {
+    StudentReport report =
+        new StudentReport(
+            "STD00003", "Linus", "Torvalds", ReportStatus.COMPLETE, 180, 180, List.of(), null);
+    when(reportService.generate("STD00003", null)).thenReturn(report);
+
     controller.emailReport("STD00003", null);
 
     verify(reportService).generate("STD00003", null);
+  }
+
+  private void loginAs(String id, String email, Role role) {
+    var principal = new JUser();
+    principal.setId(id);
+    principal.setEmail(email);
+    principal.setRole(role);
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
   }
 }

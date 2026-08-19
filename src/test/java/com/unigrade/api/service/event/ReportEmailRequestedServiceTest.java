@@ -12,15 +12,11 @@ import com.unigrade.api.mail.Email;
 import com.unigrade.api.mail.Mailer;
 import com.unigrade.api.model.ReportStatus;
 import com.unigrade.api.model.StudentReport;
-import com.unigrade.api.repository.UserRepository;
-import com.unigrade.api.repository.model.JUser;
 import com.unigrade.api.service.PdfReportService;
-import com.unigrade.api.service.ReportService;
 import java.io.File;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,34 +27,25 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ReportEmailRequestedServiceTest {
 
-  @Mock private ReportService reportService;
   @Mock private PdfReportService pdfReportService;
   @Mock private BucketComponent bucketComponent;
-  @Mock private UserRepository userRepository;
   @Mock private Mailer mailer;
 
   private ReportEmailRequestedService service;
 
   @BeforeEach
   void setUp() {
-    service =
-        new ReportEmailRequestedService(
-            reportService, pdfReportService, bucketComponent, userRepository, mailer);
+    service = new ReportEmailRequestedService(pdfReportService, bucketComponent, mailer);
   }
 
   @Test
-  void accept_uploadsPdfAndSendsPresignedLinkEmail() throws Exception {
-    var event = ReportEmailRequested.builder().studentId("STD00001").level(null).build();
+  void accept_uploadsPdfAndSendsLinkToRequester() throws Exception {
     var report =
         new StudentReport(
             "STD00001", "Ada", "Lovelace", ReportStatus.COMPLETE, 180, 180, List.of(), null);
-    var student = new JUser();
-    student.setId("STD00001");
-    student.setFirstName("Ada");
-    student.setEmail("ada@unigrade.com");
+    var event =
+        ReportEmailRequested.builder().report(report).requesterEmail("admin@unigrade.com").build();
 
-    when(reportService.generateForSystem("STD00001", null)).thenReturn(report);
-    when(userRepository.findById("STD00001")).thenReturn(Optional.of(student));
     when(pdfReportService.generate(report)).thenReturn("pdf-bytes".getBytes());
     when(bucketComponent.presign(any(), any(Duration.class)))
         .thenReturn(URI.create("https://bucket.s3.amazonaws.com/link").toURL());
@@ -68,7 +55,9 @@ class ReportEmailRequestedServiceTest {
     verify(bucketComponent).upload(any(File.class), any(String.class));
     ArgumentCaptor<Email> captor = ArgumentCaptor.forClass(Email.class);
     verify(mailer).accept(captor.capture());
-    assertEquals("ada@unigrade.com", captor.getValue().to().getAddress());
+    assertEquals("admin@unigrade.com", captor.getValue().to().getAddress());
     assertTrue(captor.getValue().htmlBody().contains("https://bucket.s3.amazonaws.com/link"));
+    assertTrue(captor.getValue().htmlBody().contains("Ada Lovelace"));
+    assertTrue(captor.getValue().htmlBody().contains("(STD00001)"));
   }
 }

@@ -4,6 +4,7 @@ import com.unigrade.api.endpoint.event.EventProducer;
 import com.unigrade.api.endpoint.event.model.ReportEmailRequested;
 import com.unigrade.api.model.Level;
 import com.unigrade.api.model.StudentReport;
+import com.unigrade.api.security.SecurityUtils;
 import com.unigrade.api.service.PdfReportService;
 import com.unigrade.api.service.ReportService;
 import java.util.List;
@@ -46,10 +47,12 @@ public class StudentController {
   public ResponseEntity<Void> emailReport(
       @PathVariable String studentId, @RequestParam(required = false) Level level) {
 
-    // This performs the authorization check before publishing the event.
-    reportService.generate(studentId, level);
+    StudentReport report = reportService.generate(studentId, level);
 
-    var event = ReportEmailRequested.builder().studentId(studentId).level(level).build();
+    var requester = SecurityUtils.currentUser();
+
+    var event =
+        ReportEmailRequested.builder().report(report).requesterEmail(requester.getEmail()).build();
 
     reportEmailEventProducer.accept(List.of(event));
 

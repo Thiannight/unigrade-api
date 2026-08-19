@@ -3,15 +3,11 @@ package com.unigrade.api.service.event;
 import static java.io.File.createTempFile;
 
 import com.unigrade.api.endpoint.event.model.ReportEmailRequested;
-import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.file.bucket.BucketComponent;
 import com.unigrade.api.mail.Email;
 import com.unigrade.api.mail.Mailer;
 import com.unigrade.api.model.StudentReport;
-import com.unigrade.api.repository.UserRepository;
-import com.unigrade.api.repository.model.JUser;
 import com.unigrade.api.service.PdfReportService;
-import com.unigrade.api.service.ReportService;
 import jakarta.mail.internet.InternetAddress;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -29,41 +25,37 @@ public class ReportEmailRequestedService implements Consumer<ReportEmailRequeste
 
   private static final Duration LINK_DURATION = Duration.ofHours(24);
 
-  private final ReportService reportService;
   private final PdfReportService pdfReportService;
   private final BucketComponent bucketComponent;
-  private final UserRepository userRepository;
   private final Mailer mailer;
 
   @SneakyThrows
   @Override
   public void accept(ReportEmailRequested event) {
-    StudentReport report = reportService.generateForSystem(event.getStudentId(), event.getLevel());
-    JUser student =
-        userRepository
-            .findById(event.getStudentId())
-            .orElseThrow(() -> new NotFoundException("Student not found: " + event.getStudentId()));
+    StudentReport report = event.getReport();
 
     byte[] pdfBytes = pdfReportService.generate(report);
-    File tempFile = createTempFile("report-" + event.getStudentId(), ".pdf");
+    File tempFile = createTempFile("report-" + report.studentId(), ".pdf");
     try (var out = new FileOutputStream(tempFile)) {
       out.write(pdfBytes);
     }
 
-    String bucketKey = "reports-" + event.getStudentId() + "-" + UUID.randomUUID() + ".pdf";
+    String bucketKey = "reports-" + report.studentId() + "-" + UUID.randomUUID() + ".pdf";
     bucketComponent.upload(tempFile, bucketKey);
     String downloadUrl = bucketComponent.presign(bucketKey, LINK_DURATION).toString();
 
-    mailer.accept(buildEmail(student, downloadUrl));
+    mailer.accept(buildEmail(report, event.getRequesterEmail(), downloadUrl));
   }
 
-  private Email buildEmail(JUser student, String downloadUrl) throws Exception {
-    var to = new InternetAddress(student.getEmail());
-    String html = buildHtmlBody(student.getFirstName(), downloadUrl);
-    return new Email(to, List.of(), List.of(), "Your Unigrade transcript", html, List.of());
+  private Email buildEmail(StudentReport report, String requesterEmail, String downloadUrl)
+      throws Exception {
+    var to = new InternetAddress(requesterEmail);
+    String fullName = report.firstName() + " " + report.lastName();
+    String html = buildHtmlBody(fullName, report.studentId(), downloadUrl);
+    return new Email(to, List.of(), List.of(), "Requested Report Ready", html, List.of());
   }
 
-  private String buildHtmlBody(String firstName, String downloadUrl) {
+  private String buildHtmlBody(String studentFullName, String studentId, String downloadUrl) {
     long expiryHours = LINK_DURATION.toHours();
     return """
 <!DOCTYPE html>
@@ -75,33 +67,26 @@ public class ReportEmailRequestedService implements Consumer<ReportEmailRequeste
           <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; overflow:hidden;">
             <tr>
               <td style="background-color:#1f2937; padding:24px 32px;">
-                <span style="color:#ffffff; font-size:20px; font-weight:bold;">Unigrade</span>
+                <span style="color:#ffffff; font-size:20px; font-weight:bold;">HEI Admin--</span>
               </td>
             </tr>
             <tr>
               <td style="padding:32px;">
-                <p style="margin:0 0 16px; font-size:16px; color:#111827;"> Hello %s,</p>
+                <p style="margin:0 0 16px; font-size:16px; color:#111827;"> Hello,</p>
                 <p style="margin:0 0 24px; font-size:15px; line-height:1.5; color:#374151;">
-                  Your academic transcript is ready. Click the button below to download your PDF report.
+                  The report for %s (%s) you requested is ready. Click the button below to download the PDF report.
                 </p>
                 <table role="presentation" cellpadding="0" cellspacing="0">
                   <tr>
                     <td style="border-radius:6px; background-color:#2563eb;">
                       <a href="%s" target="_blank" style="display:inline-block; padding:12px 24px; font-size:15px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:6px;">
-                        Download your transcript
+                        Download report
                       </a>
                     </td>
                   </tr>
                 </table>
                 <p style="margin:24px 0 0; font-size:13px; color:#6b7280;">
                   This link expires in %d hours.
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:16px 32px; background-color:#f9fafb; border-top:1px solid #e5e7eb;">
-                <p style="margin:0; font-size:12px; color:#9ca3af;">
-                  This is an automated message from Unigrade. Please do not reply to this email.
                 </p>
               </td>
             </tr>
@@ -112,7 +97,7 @@ public class ReportEmailRequestedService implements Consumer<ReportEmailRequeste
   </body>
 </html>
 """
-        .formatted(escapeHtml(firstName), downloadUrl, expiryHours);
+        .formatted(escapeHtml(studentFullName), studentId, downloadUrl, expiryHours);
   }
 
   private String escapeHtml(String value) {
