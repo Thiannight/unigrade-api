@@ -64,6 +64,19 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
+  void unreadableBody_withTargetType_mentionsType() {
+    String msg =
+        "JSON parse error: Cannot deserialize value of type "
+            + "`com.unigrade.api.model.dto.GroupAssignRequest` from Object value";
+
+    ProblemDetail detail =
+        handler.handleUnreadable(new HttpMessageNotReadableException(msg, null, null));
+
+    assertEquals(400, detail.getStatus());
+    assertEquals("Malformed request body. Expected a valid GroupAssignRequest object", detail.getDetail());
+  }
+
+  @Test
   void notFound_mapsTo404() {
     ProblemDetail detail = handler.handleNotFound(new NotFoundException("Promotion not found: x"));
 
