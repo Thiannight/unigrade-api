@@ -74,7 +74,7 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
 
     ResponseEntity<GroupCourse[]> afterEndResponse =
         restTemplate.getForEntity(
-            "/groups/" + groupId + "/courses?activeOnly=true", GroupCourse[].class);
+            "/groups/" + groupId + "/courses?unfinishedOnly=true", GroupCourse[].class);
     assertEquals(OK, afterEndResponse.getStatusCode());
     assertEquals(0, afterEndResponse.getBody().length);
   }

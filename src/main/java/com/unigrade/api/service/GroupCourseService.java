@@ -41,7 +41,7 @@ public class GroupCourseService {
     return repository.findAllByGroupId(groupId).stream().map(mapper::toDomain).toList();
   }
 
-  public List<GroupCourse> findIncompleteByGroupId(UUID groupId) {
+  public List<GroupCourse> findUnfinishedByGroupId(UUID groupId) {
     if (!groupRepository.existsById(groupId)) {
       throw new NotFoundException("Group not found: " + groupId);
     }

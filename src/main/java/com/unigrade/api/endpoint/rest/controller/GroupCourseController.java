@@ -20,10 +20,12 @@ public class GroupCourseController {
   private final GroupCourseService service;
 
   @GetMapping
-  public List<GroupCourse> findActive(
+  public List<GroupCourse> findAll(
       @PathVariable UUID groupId,
-      @RequestParam(required = false, defaultValue = "false") boolean activeOnly) {
-    return (activeOnly) ? service.findIncompleteByGroupId(groupId) : service.findByGroupId(groupId);
+      @RequestParam(required = false, defaultValue = "false") boolean unfinishedOnly) {
+    return (unfinishedOnly)
+        ? service.findUnfinishedByGroupId(groupId)
+        : service.findByGroupId(groupId);
   }
 
   @PostMapping

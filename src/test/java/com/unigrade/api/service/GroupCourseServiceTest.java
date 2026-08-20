@@ -64,7 +64,7 @@ class GroupCourseServiceTest {
     when(groupRepository.existsById(GROUP_ID)).thenReturn(true);
     when(repository.findAllByGroupIdAndEndDateIsNull(GROUP_ID)).thenReturn(List.of(groupCourse()));
 
-    List<GroupCourse> result = service.findIncompleteByGroupId(GROUP_ID);
+    List<GroupCourse> result = service.findUnfinishedByGroupId(GROUP_ID);
 
     assertEquals(1, result.size());
     assertEquals(COURSE_ID, result.get(0).courseId());
@@ -74,7 +74,7 @@ class GroupCourseServiceTest {
   void findActiveByGroup_missingGroup_throwsNotFound() {
     when(groupRepository.existsById(GROUP_ID)).thenReturn(false);
 
-    assertThrows(NotFoundException.class, () -> service.findIncompleteByGroupId(GROUP_ID));
+    assertThrows(NotFoundException.class, () -> service.findUnfinishedByGroupId(GROUP_ID));
   }
 
   @Test
