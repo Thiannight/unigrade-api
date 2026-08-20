@@ -3,6 +3,7 @@ package com.unigrade.api.validation;
 import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.model.Level;
 import com.unigrade.api.model.Role;
+import com.unigrade.api.model.Semester;
 import com.unigrade.api.model.dto.GroupTransferRequest;
 import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.model.JGroupCourse;
@@ -10,6 +11,9 @@ import com.unigrade.api.repository.model.JMembership;
 import com.unigrade.api.repository.model.JUser;
 import com.unigrade.api.service.GradeCalculationService;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -37,35 +41,37 @@ public class MembershipValidator {
     if (request.transferDate().isBefore(oldMembership.getStartDate())) {
       throw new BadRequestException("transferDate must not be before current membership startDate");
     }
-    checkSufficientCreditTotal(oldMembership.getGroup().getId());
-    checkAllCoursesComplete(oldMembership.getGroup().getId(), student.getId(), oldMembership);
+    checkSemesterComplete(oldMembership.getGroup().getId(), student.getId(), oldMembership);
   }
 
-  private void checkSufficientCreditTotal(java.util.UUID groupId) {
-    List<JGroupCourse> courses = groupCourseRepository.findAllByGroupId(groupId);
-    long total = courses.stream().mapToLong(gc -> gc.getCourse().getCredits()).sum();
-    if (total != Level.PER_LEVEL_CREDIT / 2) {
-      throw new BadRequestException(
-          "Cannot transfer yet: Minimum level credit of "
-              + (Level.PER_LEVEL_CREDIT / 2)
-              + " for semester not reached");
-    }
-  }
-
-  private void checkAllCoursesComplete(
-      java.util.UUID groupId, String studentId, JMembership membership) {
+  private void checkSemesterComplete(UUID groupId, String studentId, JMembership membership) {
     List<JGroupCourse> courses = groupCourseRepository.findAllByGroupId(groupId);
     List<JMembership> single = List.of(membership);
-    boolean allComplete =
-        courses.stream()
-            .allMatch(
-                gc ->
-                    gradeCalculationService
-                        .computeCourseResult(gc.getId(), studentId, single)
-                        .completed());
-    if (!allComplete) {
+
+    Map<Semester, List<JGroupCourse>> bySemester =
+        courses.stream().collect(Collectors.groupingBy(JGroupCourse::getSemester));
+
+    boolean transferable =
+        bySemester.values().stream()
+            .anyMatch(
+                semesterCourses -> {
+                  long credits =
+                      semesterCourses.stream().mapToLong(gc -> gc.getCourse().getCredits()).sum();
+                  boolean allComplete =
+                      semesterCourses.stream()
+                          .allMatch(
+                              gc ->
+                                  gradeCalculationService
+                                      .computeCourseResult(gc.getId(), studentId, single)
+                                      .completed());
+                  return credits >= Level.PER_LEVEL_CREDIT / 2 && allComplete;
+                });
+
+    if (!transferable) {
       throw new BadRequestException(
-          "All courses in current group must be completed before transfer");
+          "Cannot transfer: no completed semester with "
+              + (Level.PER_LEVEL_CREDIT / 2)
+              + " credits");
     }
   }
 }

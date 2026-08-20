@@ -220,10 +220,9 @@ class MembershipControllerIT extends SecuredFacadeIT {
 
   private void setupCompleteCourses(
       UUID groupId, String studentId, String courseStartDate, String examDate) {
-    String[] semesters = {"S1", "S2", "S3", "S4", "S5"};
     for (int i = 0; i < 5; i++) {
       UUID courseId = createCourse("LC-C" + i, "Course " + i);
-      assignCourse(groupId, courseId, semesters[i], courseStartDate);
+      assignCourse(groupId, courseId, "S1", courseStartDate);
       UUID examId = createExam(groupId, courseId, examDate, 1.0);
       createGrade(groupId, courseId, examId, studentId, 12.0f);
     }

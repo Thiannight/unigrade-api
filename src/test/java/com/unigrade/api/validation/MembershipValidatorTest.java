@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.model.Role;
+import com.unigrade.api.model.Semester;
 import com.unigrade.api.model.dto.GroupTransferRequest;
 import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.model.JCourse;
@@ -103,7 +104,9 @@ class MembershipValidatorTest {
   @Test
   void validateTransfer_insufficientCredits_throwsBadRequest() {
     when(groupCourseRepository.findAllByGroupId(GROUP_ID))
-        .thenReturn(List.of(groupCourse((short) 6)));
+        .thenReturn(List.of(groupCourse((short) 6, Semester.S1)));
+    when(gradeCalculationService.computeCourseResult(any(), anyString(), anyList()))
+        .thenReturn(new CourseResult(true, BigDecimal.TEN, List.of()));
 
     assertThrows(
         BadRequestException.class,
@@ -127,14 +130,16 @@ class MembershipValidatorTest {
 
   private void mockCompleteCourses() {
     when(groupCourseRepository.findAllByGroupId(GROUP_ID))
-        .thenReturn(List.of(groupCourse((short) 15), groupCourse((short) 15)));
+        .thenReturn(
+            List.of(groupCourse((short) 15, Semester.S1), groupCourse((short) 15, Semester.S1)));
     when(gradeCalculationService.computeCourseResult(any(), anyString(), anyList()))
         .thenReturn(new CourseResult(true, BigDecimal.TEN, List.of()));
   }
 
   private void mockIncompleteCourses() {
     when(groupCourseRepository.findAllByGroupId(GROUP_ID))
-        .thenReturn(List.of(groupCourse((short) 15), groupCourse((short) 15)));
+        .thenReturn(
+            List.of(groupCourse((short) 15, Semester.S1), groupCourse((short) 15, Semester.S1)));
     when(gradeCalculationService.computeCourseResult(any(), anyString(), anyList()))
         .thenReturn(new CourseResult(false, BigDecimal.TEN, List.of()));
   }
@@ -160,13 +165,14 @@ class MembershipValidatorTest {
         .build();
   }
 
-  private JGroupCourse groupCourse(short credits) {
+  private JGroupCourse groupCourse(short credits, Semester semester) {
     var course = new JCourse();
     course.setCredits(credits);
     return JGroupCourse.builder()
         .id(UUID.randomUUID())
         .course(course)
         .group(new JStudentGroup())
+        .semester(semester)
         .build();
   }
 
