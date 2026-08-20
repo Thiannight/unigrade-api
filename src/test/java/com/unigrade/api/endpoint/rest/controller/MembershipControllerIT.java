@@ -6,12 +6,10 @@ import static org.springframework.http.HttpMethod.PUT;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
-import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.HttpStatus.OK;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.unigrade.api.conf.SecuredFacadeIT;
-import com.unigrade.api.model.Membership;
 import com.unigrade.api.model.Promotion;
 import com.unigrade.api.model.StudentGroup;
 import java.time.LocalDate;
@@ -28,112 +26,157 @@ class MembershipControllerIT extends SecuredFacadeIT {
   @Autowired private TestRestTemplate restTemplate;
 
   @Test
-  void assign_transfer_reassign_lifecycle() {
-    UUID groupA = createGroup("MEM-LIFE-1", (short) 2050, (short) 2051);
-    UUID groupB = createGroup("MEM-LIFE-2", (short) 2052, (short) 2053);
-    String studentId = createUser("mem-life-" + UUID.randomUUID() + "@unigrade.com", "Ada");
+  void transfer_noActiveMembership_createsMembership() {
+    UUID groupA = createGroup("MEM-CR-1", (short) 2050, (short) 2051);
+    String studentId = createUser("mem-cr-" + UUID.randomUUID() + "@unigrade.com", "Ada");
 
-    ResponseEntity<JsonNode> assignResponse =
-        restTemplate.postForEntity(
-            "/groups/" + groupA + "/members",
-            Map.of("studentId", studentId, "startDate", "2024-01-01"),
-            JsonNode.class);
-    assertEquals(CREATED, assignResponse.getStatusCode());
-    assertNotNull(assignResponse.getBody());
-    assertEquals(studentId, assignResponse.getBody().get("studentId").asText());
-    assertEquals("2024-01-01", assignResponse.getBody().get("startDate").asText());
-
-    ResponseEntity<Membership[]> activeResponse =
-        restTemplate.getForEntity("/groups/" + groupA + "/members", Membership[].class);
-    assertEquals(OK, activeResponse.getStatusCode());
-    assertEquals(1, activeResponse.getBody().length);
-
-    ResponseEntity<Void> transferResponse =
+    ResponseEntity<JsonNode> response =
         restTemplate.exchange(
-            "/groups/" + groupA + "/members/" + studentId,
+            "/students/" + studentId + "/transfer",
+            PUT,
+            new HttpEntity<>(
+                Map.<String, Object>of("newGroupId", groupA, "transferDate", "2024-01-01")),
+            JsonNode.class);
+
+    assertEquals(OK, response.getStatusCode());
+    assertNotNull(response.getBody());
+    assertEquals(studentId, response.getBody().get("studentId").asText());
+    assertEquals(groupA.toString(), response.getBody().get("groupId").asText());
+
+    ResponseEntity<JsonNode[]> members =
+        restTemplate.getForEntity("/groups/" + groupA + "/members", JsonNode[].class);
+    assertEquals(1, members.getBody().length);
+  }
+
+  @Test
+  void transfer_incompleteCourses_returnsBadRequest() {
+    UUID groupA = createGroup("MEM-INC-1", (short) 2052, (short) 2053);
+    String studentId = createUser("mem-inc-" + UUID.randomUUID() + "@unigrade.com", "Ada");
+
+    transferTo(studentId, groupA, "2024-01-01");
+
+    UUID courseId = createCourse("INC-C1", "Incomplete Course");
+    assignCourse(groupA, courseId, "S1", "2024-01-01");
+    createExam(groupA, courseId, "2024-03-01T09:00:00Z", 1.0);
+
+    UUID groupB = createGroup("MEM-INC-2", (short) 2054, (short) 2055);
+
+    ResponseEntity<String> response =
+        restTemplate.exchange(
+            "/students/" + studentId + "/transfer",
             PUT,
             new HttpEntity<>(
                 Map.<String, Object>of("newGroupId", groupB, "transferDate", "2024-06-01")),
-            Void.class);
-    assertEquals(NO_CONTENT, transferResponse.getStatusCode());
-
-    ResponseEntity<Membership[]> inOldGroupBefore =
-        restTemplate.getForEntity(
-            "/groups/" + groupA + "/members?at=2024-03-01", Membership[].class);
-    assertEquals(1, inOldGroupBefore.getBody().length);
-
-    ResponseEntity<Membership[]> inOldGroupAfter =
-        restTemplate.getForEntity(
-            "/groups/" + groupA + "/members?at=2024-07-01", Membership[].class);
-    assertEquals(0, inOldGroupAfter.getBody().length);
-
-    ResponseEntity<Membership[]> inNewGroup =
-        restTemplate.getForEntity(
-            "/groups/" + groupB + "/members?at=2024-07-01", Membership[].class);
-    assertEquals(1, inNewGroup.getBody().length);
-
-    ResponseEntity<Void> transferBackResponse =
-        restTemplate.exchange(
-            "/groups/" + groupB + "/members/" + studentId,
-            PUT,
-            new HttpEntity<>(
-                Map.<String, Object>of("newGroupId", groupA, "transferDate", "2024-09-01")),
-            Void.class);
-    assertEquals(NO_CONTENT, transferBackResponse.getStatusCode());
-
-    ResponseEntity<Membership[]> afterRejoin =
-        restTemplate.getForEntity("/groups/" + groupA + "/members", Membership[].class);
-    assertEquals(1, afterRejoin.getBody().length);
-  }
-
-  @Test
-  void assign_notStudent_returnsBadRequest() {
-    UUID groupId = createGroup("MEM-NS-1", (short) 2054, (short) 2055);
-    String teacherId =
-        createUser("mem-ns-" + UUID.randomUUID() + "@unigrade.com", "Bob", "TEACHER");
-
-    ResponseEntity<String> response =
-        restTemplate.postForEntity(
-            "/groups/" + groupId + "/members",
-            Map.of("studentId", teacherId, "startDate", "2024-01-01"),
             String.class);
 
     assertEquals(BAD_REQUEST, response.getStatusCode());
   }
 
   @Test
-  void assign_inactiveStudent_returnsBadRequest() {
-    UUID groupId = createGroup("MEM-IN-1", (short) 2056, (short) 2057);
-    String studentId = createUser("mem-in-" + UUID.randomUUID() + "@unigrade.com", "Ada");
+  void transfer_insufficientCredits_returnsBadRequest() {
+    UUID groupA = createGroup("MEM-CRD-1", (short) 2056, (short) 2057);
+    String studentId = createUser("mem-crd-" + UUID.randomUUID() + "@unigrade.com", "Ada");
 
+    transferTo(studentId, groupA, "2024-01-01");
+
+    UUID courseId = createCourse("CRD-C1", "Some Course");
+    assignCourse(groupA, courseId, "S1", "2024-01-01");
+    UUID examId = createExam(groupA, courseId, "2024-03-01T09:00:00Z", 1.0);
+    createGrade(groupA, courseId, examId, studentId, 12.0f);
+
+    UUID groupB = createGroup("MEM-CRD-2", (short) 2058, (short) 2059);
+
+    ResponseEntity<String> response =
+        restTemplate.exchange(
+            "/students/" + studentId + "/transfer",
+            PUT,
+            new HttpEntity<>(
+                Map.<String, Object>of("newGroupId", groupB, "transferDate", "2024-06-01")),
+            String.class);
+
+    assertEquals(BAD_REQUEST, response.getStatusCode());
+  }
+
+  @Test
+  void transfer_fullLifecycle() {
+    UUID groupA = createGroup("MEM-LF-1", (short) 2060, (short) 2061);
+    UUID groupB = createGroup("MEM-LF-2", (short) 2062, (short) 2063);
+    String studentId = createUser("mem-lf-" + UUID.randomUUID() + "@unigrade.com", "Ada");
+
+    transferTo(studentId, groupA, "2024-01-01");
+
+    setupCompleteCourses(groupA, studentId, "2024-01-01", "2024-03-01T09:00:00Z");
+
+    ResponseEntity<JsonNode> transferResponse =
+        restTemplate.exchange(
+            "/students/" + studentId + "/transfer",
+            PUT,
+            new HttpEntity<>(
+                Map.<String, Object>of("newGroupId", groupB, "transferDate", "2024-06-01")),
+            JsonNode.class);
+    assertEquals(OK, transferResponse.getStatusCode());
+    assertEquals(groupB.toString(), transferResponse.getBody().get("groupId").asText());
+
+    ResponseEntity<JsonNode[]> inOldGroup =
+        restTemplate.getForEntity("/groups/" + groupA + "/members?at=2024-07-01", JsonNode[].class);
+    assertEquals(0, inOldGroup.getBody().length);
+
+    ResponseEntity<JsonNode[]> inNewGroup =
+        restTemplate.getForEntity("/groups/" + groupB + "/members?at=2024-07-01", JsonNode[].class);
+    assertEquals(1, inNewGroup.getBody().length);
+  }
+
+  @Test
+  void transfer_toSameGroup_returnsBadRequest() {
+    UUID groupA = createGroup("MEM-SG-1", (short) 2064, (short) 2065);
+    String studentId = createUser("mem-sg-" + UUID.randomUUID() + "@unigrade.com", "Ada");
+
+    transferTo(studentId, groupA, "2024-01-01");
+
+    ResponseEntity<String> response =
+        restTemplate.exchange(
+            "/students/" + studentId + "/transfer",
+            PUT,
+            new HttpEntity<>(
+                Map.<String, Object>of("newGroupId", groupA, "transferDate", "2024-06-01")),
+            String.class);
+
+    assertEquals(BAD_REQUEST, response.getStatusCode());
+  }
+
+  @Test
+  void transfer_inactiveStudent_returnsBadRequest() {
+    UUID groupA = createGroup("MEM-IA-1", (short) 2066, (short) 2067);
+    UUID groupB = createGroup("MEM-IA-2", (short) 2068, (short) 2069);
+    String studentId = createUser("mem-ia-" + UUID.randomUUID() + "@unigrade.com", "Ada");
+
+    transferTo(studentId, groupA, "2024-01-01");
     restTemplate.delete("/users/" + studentId);
 
     ResponseEntity<String> response =
-        restTemplate.postForEntity(
-            "/groups/" + groupId + "/members",
-            Map.of("studentId", studentId, "startDate", "2024-01-01"),
+        restTemplate.exchange(
+            "/students/" + studentId + "/transfer",
+            PUT,
+            new HttpEntity<>(
+                Map.<String, Object>of("newGroupId", groupB, "transferDate", "2024-06-01")),
             String.class);
 
     assertEquals(BAD_REQUEST, response.getStatusCode());
   }
 
   @Test
-  void assign_duplicate_returnsBadRequest() {
-    UUID groupId = createGroup("MEM-DUP-1", (short) 2058, (short) 2059);
-    String studentId = createUser("mem-dup-" + UUID.randomUUID() + "@unigrade.com", "Ada");
+  void getMemberships_returnsList() {
+    UUID groupA = createGroup("MEM-GM-1", (short) 3100, (short) 3101);
+    String studentId = createUser("mem-gm-" + UUID.randomUUID() + "@unigrade.com", "Ada");
 
-    restTemplate.postForEntity(
-        "/groups/" + groupId + "/members",
-        Map.of("studentId", studentId, "startDate", "2024-01-01"),
-        JsonNode.class);
+    transferTo(studentId, groupA, "2024-01-01");
 
-    ResponseEntity<String> response =
-        restTemplate.postForEntity(
-            "/groups/" + groupId + "/members",
-            Map.of("studentId", studentId, "startDate", "2024-05-01"),
-            String.class);
+    ResponseEntity<JsonNode[]> response =
+        restTemplate.getForEntity("/students/" + studentId + "/memberships", JsonNode[].class);
 
-    assertEquals(BAD_REQUEST, response.getStatusCode());
+    assertEquals(OK, response.getStatusCode());
+    assertEquals(1, response.getBody().length);
+    assertEquals(groupA.toString(), response.getBody()[0].get("groupId").asText());
   }
 
   @Test
@@ -145,43 +188,90 @@ class MembershipControllerIT extends SecuredFacadeIT {
   }
 
   @Test
-  void transfer_noActiveMembership_returnsNotFound() {
-    UUID groupId = createGroup("MEM-NM-1", (short) 2060, (short) 2061);
-    String studentId = createUser("mem-nm-" + UUID.randomUUID() + "@unigrade.com", "Ada");
-
-    ResponseEntity<Void> response =
-        restTemplate.exchange(
-            "/groups/" + groupId + "/members/" + studentId,
-            PUT,
-            new HttpEntity<>(
-                Map.<String, Object>of(
-                    "newGroupId", UUID.randomUUID(), "transferDate", "2024-06-01")),
-            Void.class);
-
-    assertEquals(NOT_FOUND, response.getStatusCode());
-  }
-
-  @Test
   void getMembersAt_excludesInactiveUnlessRequested() {
-    UUID groupId = createGroup("MEM-IA-1", (short) 2062, (short) 2063);
-    String studentId = createUser("mem-ia-" + UUID.randomUUID() + "@unigrade.com", "Ada");
+    UUID groupId = createGroup("MEM-IE-1", (short) 3102, (short) 3103);
+    String studentId = createUser("mem-ie-" + UUID.randomUUID() + "@unigrade.com", "Ada");
 
-    restTemplate.postForEntity(
-        "/groups/" + groupId + "/members",
-        Map.of("studentId", studentId, "startDate", "2024-01-01"),
-        JsonNode.class);
+    transferTo(studentId, groupId, "2024-01-01");
     restTemplate.delete("/users/" + studentId);
 
-    ResponseEntity<Membership[]> defaultResponse =
-        restTemplate.getForEntity("/groups/" + groupId + "/members", Membership[].class);
+    ResponseEntity<JsonNode[]> defaultResponse =
+        restTemplate.getForEntity("/groups/" + groupId + "/members", JsonNode[].class);
     assertEquals(OK, defaultResponse.getStatusCode());
     assertEquals(0, defaultResponse.getBody().length);
 
-    ResponseEntity<Membership[]> withInactive =
+    ResponseEntity<JsonNode[]> withInactive =
         restTemplate.getForEntity(
-            "/groups/" + groupId + "/members?includeInactive=true", Membership[].class);
+            "/groups/" + groupId + "/members?includeInactive=true", JsonNode[].class);
     assertEquals(OK, withInactive.getStatusCode());
     assertEquals(1, withInactive.getBody().length);
+  }
+
+  private void transferTo(String studentId, UUID groupId, String transferDate) {
+    ResponseEntity<JsonNode> response =
+        restTemplate.exchange(
+            "/students/" + studentId + "/transfer",
+            PUT,
+            new HttpEntity<>(
+                Map.<String, Object>of("newGroupId", groupId, "transferDate", transferDate)),
+            JsonNode.class);
+    assertEquals(OK, response.getStatusCode());
+  }
+
+  private void setupCompleteCourses(
+      UUID groupId, String studentId, String courseStartDate, String examDate) {
+    String[] semesters = {"S1", "S2", "S3", "S4", "S5"};
+    for (int i = 0; i < 5; i++) {
+      UUID courseId = createCourse("LC-C" + i, "Course " + i);
+      assignCourse(groupId, courseId, semesters[i], courseStartDate);
+      UUID examId = createExam(groupId, courseId, examDate, 1.0);
+      createGrade(groupId, courseId, examId, studentId, 12.0f);
+    }
+  }
+
+  private UUID createCourse(String ref, String title) {
+    Map<String, Object> body = Map.of("reference", ref, "title", title, "credits", (short) 6);
+    ResponseEntity<JsonNode> response =
+        restTemplate.postForEntity("/courses", body, JsonNode.class);
+    assertEquals(CREATED, response.getStatusCode());
+    return UUID.fromString(response.getBody().get("id").asText());
+  }
+
+  private void assignCourse(UUID groupId, UUID courseId, String semester, String startDate) {
+    ResponseEntity<JsonNode> response =
+        restTemplate.postForEntity(
+            "/groups/" + groupId + "/courses",
+            Map.of("courseId", courseId, "semester", semester, "startDate", startDate),
+            JsonNode.class);
+    assertEquals(CREATED, response.getStatusCode());
+  }
+
+  private UUID createExam(UUID groupId, UUID courseId, String examDate, double coefficient) {
+    ResponseEntity<JsonNode> response =
+        restTemplate.postForEntity(
+            "/groups/" + groupId + "/courses/" + courseId + "/exams",
+            Map.of("examDate", examDate, "coefficient", coefficient),
+            JsonNode.class);
+    assertEquals(CREATED, response.getStatusCode());
+    return UUID.fromString(response.getBody().get("id").asText());
+  }
+
+  private void createGrade(
+      UUID groupId, UUID courseId, UUID examId, String studentId, float score) {
+    ResponseEntity<JsonNode> response =
+        restTemplate.postForEntity(
+            "/groups/" + groupId + "/courses/" + courseId + "/exams/" + examId + "/grades",
+            Map.of(
+                "studentId",
+                studentId,
+                "score",
+                score,
+                "gradeDate",
+                "2024-03-02T09:00:00Z",
+                "reason",
+                "Exam"),
+            JsonNode.class);
+    assertEquals(CREATED, response.getStatusCode());
   }
 
   private UUID createPromotion(String reference, Short startYear, Short endYear) {

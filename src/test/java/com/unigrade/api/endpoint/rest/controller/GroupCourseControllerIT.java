@@ -56,6 +56,13 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
     assertEquals(OK, activeResponse.getStatusCode());
     assertEquals(1, activeResponse.getBody().length);
 
+    ResponseEntity<JsonNode> examResponse =
+        restTemplate.postForEntity(
+            "/groups/" + groupId + "/courses/" + courseId + "/exams",
+            Map.of("examDate", "2024-03-01T09:00:00Z", "coefficient", 1.0),
+            JsonNode.class);
+    assertEquals(CREATED, examResponse.getStatusCode());
+
     ResponseEntity<JsonNode> endResponse =
         restTemplate.exchange(
             "/groups/" + groupId + "/courses/" + courseId,
@@ -66,7 +73,8 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
     assertEquals("2024-06-01", endResponse.getBody().get("endDate").asText());
 
     ResponseEntity<GroupCourse[]> afterEndResponse =
-        restTemplate.getForEntity("/groups/" + groupId + "/courses", GroupCourse[].class);
+        restTemplate.getForEntity(
+            "/groups/" + groupId + "/courses?activeOnly=true", GroupCourse[].class);
     assertEquals(OK, afterEndResponse.getStatusCode());
     assertEquals(0, afterEndResponse.getBody().length);
   }
@@ -181,6 +189,11 @@ class GroupCourseControllerIT extends SecuredFacadeIT {
     restTemplate.postForEntity(
         "/groups/" + groupId + "/courses",
         Map.of("courseId", courseId, "semester", "S1", "startDate", "2024-01-01"),
+        JsonNode.class);
+
+    restTemplate.postForEntity(
+        "/groups/" + groupId + "/courses/" + courseId + "/exams",
+        Map.of("examDate", "2024-03-01T09:00:00Z", "coefficient", 1.0),
         JsonNode.class);
 
     restTemplate.exchange(

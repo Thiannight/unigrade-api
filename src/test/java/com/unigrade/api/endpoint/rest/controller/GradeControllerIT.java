@@ -264,7 +264,7 @@ class GradeControllerIT extends SecuredFacadeIT {
     ResponseEntity<JsonNode> response =
         restTemplate.postForEntity(
             "/groups/" + groupId + "/courses/" + courseId + "/exams",
-            Map.of("examDate", examDate, "coefficient", 0.5),
+            Map.of("examDate", examDate, "coefficient", 1.0),
             JsonNode.class);
     assertEquals(CREATED, response.getStatusCode());
     assertNotNull(response.getBody());
@@ -283,9 +283,10 @@ class GradeControllerIT extends SecuredFacadeIT {
   }
 
   private void createMembership(UUID groupId, String studentId, String startDate) {
-    restTemplate.postForEntity(
-        "/groups/" + groupId + "/members",
-        Map.of("studentId", studentId, "startDate", startDate),
+    restTemplate.exchange(
+        "/students/" + studentId + "/transfer",
+        PUT,
+        new HttpEntity<>(Map.of("newGroupId", groupId, "transferDate", startDate)),
         JsonNode.class);
   }
 
