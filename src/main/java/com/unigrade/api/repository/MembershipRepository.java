@@ -16,7 +16,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface MembershipRepository extends JpaRepository<JMembership, UUID> {
 
-  Optional<JMembership> findByGroupIdAndStudentIdAndEndDateIsNull(UUID groupId, String studentId);
+  List<JMembership> findByStudentId(String studentId);
+
+  Optional<JMembership> findByStudentIdAndEndDateIsNull(String studentId);
 
   List<JMembership> findByStudentIdOrderByStartDateAsc(String studentId);
 
