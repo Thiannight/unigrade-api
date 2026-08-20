@@ -1,6 +1,5 @@
 package com.unigrade.api.service;
 
-import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.model.GraduationListEntry;
 import com.unigrade.api.model.Level;
@@ -33,9 +32,6 @@ public class GraduationService {
   private final GradeCalculationService gradeCalculationService;
 
   public List<GraduationListEntry> getGraduates(UUID promotionId, Specialization specialization) {
-    if (specialization == null) {
-      throw new BadRequestException("Specialization is required");
-    }
     JPromotion promotion =
         promotionRepository
             .findById(promotionId)
@@ -53,7 +49,8 @@ public class GraduationService {
 
     List<GraduationListEntry> entries = new ArrayList<>();
     for (JUser student : students) {
-      if (student.getSpecialization() == null || student.getSpecialization() != specialization) {
+      if (student.getSpecialization() == null
+          || (specialization != null && student.getSpecialization() != specialization)) {
         continue;
       }
       Short latestStartYear = latestStartYears.get(student.getId());
@@ -90,7 +87,7 @@ public class GraduationService {
 
     boolean allComplete = true;
     boolean allPass = true;
-    long totalCredits = 0;
+    long earnedCredits = 0;
     BigDecimal weightedAverage = BigDecimal.ZERO;
     long averageCredits = 0;
 
@@ -116,7 +113,9 @@ public class GraduationService {
           allPass = false;
         }
 
-        totalCredits += credits;
+        if (average != null && average.compareTo(BigDecimal.TEN) >= 0) {
+          earnedCredits += credits;
+        }
         if (average != null) {
           weightedAverage = weightedAverage.add(average.multiply(BigDecimal.valueOf(credits)));
           averageCredits += credits;
@@ -129,7 +128,7 @@ public class GraduationService {
             ? null
             : weightedAverage.divide(BigDecimal.valueOf(averageCredits), 2, RoundingMode.HALF_UP);
 
-    return new GraduationData(allComplete, allPass, totalCredits, allTimeAverage);
+    return new GraduationData(allComplete, allPass, earnedCredits, allTimeAverage);
   }
 
   private record GraduationData(

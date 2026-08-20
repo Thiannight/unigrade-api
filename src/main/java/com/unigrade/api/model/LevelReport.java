@@ -6,7 +6,7 @@ import java.util.List;
 public record LevelReport(
     Level level,
     ReportStatus status,
-    long totalCredits,
+    long earnedCredits,
     long requiredCredits,
     BigDecimal overallAverage,
     List<CourseReportEntry> courses) {}

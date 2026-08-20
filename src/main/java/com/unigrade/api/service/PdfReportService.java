@@ -39,7 +39,7 @@ public class PdfReportService {
               "Status: "
                   + report.status().name()
                   + " ("
-                  + report.totalCredits()
+                  + report.earnedCredits()
                   + "/"
                   + report.requiredCredits()
                   + " credits)",
@@ -53,7 +53,7 @@ public class PdfReportService {
                     + " - Status: "
                     + levelReport.status().name()
                     + " ("
-                    + levelReport.totalCredits()
+                    + levelReport.earnedCredits()
                     + "/"
                     + levelReport.requiredCredits()
                     + " credits)",

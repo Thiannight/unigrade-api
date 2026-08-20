@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.model.GraduationListEntry;
 import com.unigrade.api.model.Level;
@@ -89,11 +88,6 @@ class GraduationServiceTest {
     List<GraduationListEntry> result = service.getGraduates(PROMOTION_ID, Specialization.TN);
 
     assertTrue(result.isEmpty());
-  }
-
-  @Test
-  void getGraduates_nullSpecialization_throwsBadRequest() {
-    assertThrows(BadRequestException.class, () -> service.getGraduates(PROMOTION_ID, null));
   }
 
   @Test
