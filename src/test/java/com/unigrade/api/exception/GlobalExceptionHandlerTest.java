@@ -73,7 +73,8 @@ class GlobalExceptionHandlerTest {
         handler.handleUnreadable(new HttpMessageNotReadableException(msg, null, null));
 
     assertEquals(400, detail.getStatus());
-    assertEquals("Malformed request body. Expected a valid GroupAssignRequest object", detail.getDetail());
+    assertEquals(
+        "Malformed request body. Expected a valid GroupAssignRequest object", detail.getDetail());
   }
 
   @Test
