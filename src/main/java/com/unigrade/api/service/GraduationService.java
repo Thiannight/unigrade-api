@@ -1,6 +1,5 @@
 package com.unigrade.api.service;
 
-import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.model.GraduationListEntry;
 import com.unigrade.api.model.Level;
@@ -33,9 +32,6 @@ public class GraduationService {
   private final GradeCalculationService gradeCalculationService;
 
   public List<GraduationListEntry> getGraduates(UUID promotionId, Specialization specialization) {
-    if (specialization == null) {
-      throw new BadRequestException("Specialization is required");
-    }
     JPromotion promotion =
         promotionRepository
             .findById(promotionId)
@@ -53,7 +49,8 @@ public class GraduationService {
 
     List<GraduationListEntry> entries = new ArrayList<>();
     for (JUser student : students) {
-      if (student.getSpecialization() == null || student.getSpecialization() != specialization) {
+      if (student.getSpecialization() == null
+          || (specialization != null && student.getSpecialization() != specialization)) {
         continue;
       }
       Short latestStartYear = latestStartYears.get(student.getId());
