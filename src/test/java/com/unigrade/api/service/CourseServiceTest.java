@@ -12,6 +12,7 @@ import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.CourseMapper;
 import com.unigrade.api.model.Course;
 import com.unigrade.api.repository.CourseRepository;
+import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.model.JCourse;
 import java.util.List;
 import java.util.Optional;
@@ -31,12 +32,13 @@ class CourseServiceTest {
   private static final UUID ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
   @Mock private CourseRepository repository;
+  @Mock private GroupCourseRepository groupCourseRepository;
   private final CourseMapper mapper = new CourseMapper();
   private CourseService service;
 
   @BeforeEach
   void setUp() {
-    service = new CourseService(repository, mapper);
+    service = new CourseService(repository, groupCourseRepository, mapper);
   }
 
   @Test

@@ -13,6 +13,8 @@ import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.UserMapper;
 import com.unigrade.api.model.Role;
 import com.unigrade.api.model.User;
+import com.unigrade.api.repository.MembershipRepository;
+import com.unigrade.api.repository.TeacherCourseRepository;
 import com.unigrade.api.repository.UserRepository;
 import com.unigrade.api.repository.model.JUser;
 import java.time.LocalDate;
@@ -33,13 +35,17 @@ class UserServiceTest {
   private static final String STUDENT_ID = "STD00001";
 
   @Mock private UserRepository repository;
+  @Mock private MembershipRepository membershipRepository;
+  @Mock private TeacherCourseRepository teacherCourseRepository;
   @Mock private PasswordEncoder passwordEncoder;
   private final UserMapper mapper = new UserMapper();
   private UserService service;
 
   @BeforeEach
   void setUp() {
-    service = new UserService(repository, mapper, passwordEncoder);
+    service =
+        new UserService(
+            repository, membershipRepository, teacherCourseRepository, mapper, passwordEncoder);
   }
 
   @Test

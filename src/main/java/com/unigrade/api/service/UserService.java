@@ -5,6 +5,8 @@ import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.UserMapper;
 import com.unigrade.api.model.Role;
 import com.unigrade.api.model.User;
+import com.unigrade.api.repository.MembershipRepository;
+import com.unigrade.api.repository.TeacherCourseRepository;
 import com.unigrade.api.repository.UserRepository;
 import com.unigrade.api.repository.model.JUser;
 import java.time.Year;
@@ -21,6 +23,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class UserService implements UserDetailsService {
   private final UserRepository repository;
+  private final MembershipRepository membershipRepository;
+  private final TeacherCourseRepository teacherCourseRepository;
   private final UserMapper mapper;
   private final PasswordEncoder passwordEncoder;
 
@@ -91,7 +95,14 @@ public class UserService implements UserDetailsService {
   }
 
   public void delete(String id) {
-    repository.delete(repository.findById(id).orElseThrow(this::userNotFound));
+    JUser user = repository.findById(id).orElseThrow(this::userNotFound);
+    if (user.getRole() == Role.STUDENT && membershipRepository.existsByStudentId(id)) {
+      throw new ConflictException("Cannot delete: student has memberships");
+    }
+    if (user.getRole() == Role.TEACHER && teacherCourseRepository.existsByTeacherId(id)) {
+      throw new ConflictException("Cannot delete: teacher has course assignments");
+    }
+    repository.delete(user);
   }
 
   public void deactivate(String id) {

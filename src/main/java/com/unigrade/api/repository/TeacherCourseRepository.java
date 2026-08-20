@@ -15,4 +15,6 @@ public interface TeacherCourseRepository extends JpaRepository<JTeacherCourse, U
   Optional<JTeacherCourse> findByCourseIdAndTeacherId(UUID courseId, String teacherId);
 
   boolean existsByCourseIdAndTeacherId(UUID courseId, String teacherId);
+
+  boolean existsByTeacherId(String teacherId);
 }

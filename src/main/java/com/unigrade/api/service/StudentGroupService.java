@@ -4,6 +4,7 @@ import com.unigrade.api.exception.ConflictException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.StudentGroupMapper;
 import com.unigrade.api.model.StudentGroup;
+import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.PromotionRepository;
 import com.unigrade.api.repository.StudentGroupRepository;
 import com.unigrade.api.repository.model.JPromotion;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 public class StudentGroupService {
 
   private final StudentGroupRepository repository;
+  private final GroupCourseRepository groupCourseRepository;
   private final PromotionRepository promotionRepository;
   private final StudentGroupMapper mapper;
 
@@ -51,6 +53,9 @@ public class StudentGroupService {
   public void delete(UUID id) {
     if (!repository.existsById(id)) {
       throw notFound(id);
+    }
+    if (groupCourseRepository.existsByGroupId(id)) {
+      throw new ConflictException("Cannot delete: group has course assignments");
     }
     repository.deleteById(id);
   }

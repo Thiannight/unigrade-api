@@ -5,6 +5,7 @@ import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.CourseMapper;
 import com.unigrade.api.model.Course;
 import com.unigrade.api.repository.CourseRepository;
+import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.model.JCourse;
 import java.util.List;
 import java.util.UUID;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 public class CourseService {
 
   private final CourseRepository repository;
+  private final GroupCourseRepository groupCourseRepository;
   private final CourseMapper mapper;
 
   public List<Course> findAll(int page, int size) {
@@ -46,6 +48,9 @@ public class CourseService {
   public void delete(UUID id) {
     if (!repository.existsById(id)) {
       throw notFound(id);
+    }
+    if (groupCourseRepository.existsByCourseId(id)) {
+      throw new ConflictException("Cannot delete: course is assigned to groups");
     }
     repository.deleteById(id);
   }

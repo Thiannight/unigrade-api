@@ -24,6 +24,10 @@ public interface GroupCourseRepository extends JpaRepository<JGroupCourse, UUID>
 
   List<JGroupCourse> findAllByGroupIdIn(Set<UUID> groupIds);
 
+  boolean existsByCourseId(UUID courseId);
+
+  boolean existsByGroupId(UUID groupId);
+
   @Query(
       """
       SELECT COALESCE(SUM(gc.course.credits), 0) FROM JGroupCourse gc
