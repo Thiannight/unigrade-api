@@ -15,6 +15,7 @@ import com.unigrade.api.repository.StudentGroupRepository;
 import com.unigrade.api.repository.model.JCourse;
 import com.unigrade.api.repository.model.JGroupCourse;
 import com.unigrade.api.repository.model.JStudentGroup;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +34,14 @@ public class GroupCourseService {
   private final ExamRepository examRepository;
   private final GroupCourseMapper mapper;
 
-  public List<GroupCourse> findActiveByGroup(UUID groupId) {
+  public List<GroupCourse> findByGroupId(UUID groupId) {
+    if (!groupRepository.existsById(groupId)) {
+      throw new NotFoundException("Group not found: " + groupId);
+    }
+    return repository.findAllByGroupId(groupId).stream().map(mapper::toDomain).toList();
+  }
+
+  public List<GroupCourse> findIncompleteByGroupId(UUID groupId) {
     if (!groupRepository.existsById(groupId)) {
       throw new NotFoundException("Group not found: " + groupId);
     }
@@ -62,6 +70,12 @@ public class GroupCourseService {
 
     if (request.endDate().isBefore(active.getStartDate())) {
       throw new BadRequestException("endDate must not be before startDate");
+    }
+
+    BigDecimal courseCurrentCoefficient =
+        examRepository.sumCoefficientByGroupCourseId(active.getId());
+    if (courseCurrentCoefficient.compareTo(BigDecimal.ONE) < 0) {
+      throw new BadRequestException("Course must have 1 total exam coefficient");
     }
 
     active.setEndDate(request.endDate());
