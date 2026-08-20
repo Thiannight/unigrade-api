@@ -5,6 +5,7 @@ import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.PromotionMapper;
 import com.unigrade.api.model.Promotion;
 import com.unigrade.api.repository.PromotionRepository;
+import com.unigrade.api.repository.StudentGroupRepository;
 import com.unigrade.api.repository.model.JPromotion;
 import java.util.List;
 import java.util.UUID;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 public class PromotionService {
 
   private final PromotionRepository repository;
+  private final StudentGroupRepository studentGroupRepository;
   private final PromotionMapper mapper;
 
   public List<Promotion> findAll() {
@@ -43,6 +45,9 @@ public class PromotionService {
   public void delete(UUID id) {
     if (!repository.existsById(id)) {
       throw notFound(id);
+    }
+    if (studentGroupRepository.existsByPromotionId(id)) {
+      throw new ConflictException("Cannot delete: promotion has groups");
     }
     repository.deleteById(id);
   }

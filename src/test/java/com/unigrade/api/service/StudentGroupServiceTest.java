@@ -11,6 +11,7 @@ import com.unigrade.api.exception.ConflictException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.StudentGroupMapper;
 import com.unigrade.api.model.StudentGroup;
+import com.unigrade.api.repository.GroupCourseRepository;
 import com.unigrade.api.repository.PromotionRepository;
 import com.unigrade.api.repository.StudentGroupRepository;
 import com.unigrade.api.repository.model.JPromotion;
@@ -34,13 +35,15 @@ class StudentGroupServiceTest {
   private static final UUID PROMOTION_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
   @Mock private StudentGroupRepository repository;
+  @Mock private GroupCourseRepository groupCourseRepository;
   @Mock private PromotionRepository promotionRepository;
   private final StudentGroupMapper mapper = new StudentGroupMapper();
   private StudentGroupService service;
 
   @BeforeEach
   void setUp() {
-    service = new StudentGroupService(repository, promotionRepository, mapper);
+    service =
+        new StudentGroupService(repository, groupCourseRepository, promotionRepository, mapper);
   }
 
   @Test

@@ -142,6 +142,9 @@ paths:
         '204': { description: Utilisateur supprimé }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: L'utilisateur a des adhésions ou des affectations de cours
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
 
   /promotions:
     get:
@@ -194,6 +197,9 @@ paths:
       responses:
         '204': { description: Promotion supprimée }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: La promotion contient des groupes
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
 
   /promotions/{id}/graduates:
     parameters:
@@ -204,13 +210,14 @@ paths:
     get:
       tags: [Promotions, Reports]
       summary: >
-        Télécharger la liste des diplômés d'une promotion pour une spécialisation donnée,
-        au format Excel (XLSX). Un étudiant est diplômé si tous ses cours sur les 3 niveaux
-        (L1/L2/L3) sont complets, moyennés à 10+ et le total de crédits requis est atteint (ADMIN).
+        Télécharger la liste des diplômés d'une promotion au format Excel (XLSX).
+        Un étudiant est diplômé si tous ses cours sur les 3 niveaux (L1/L2/L3) sont
+        complets, moyennés à 10+ et le total de crédits requis est atteint (ADMIN).
+        Si une spécialisation est précisée, seuls les étudiants correspondants sont inclus.
       parameters:
         - name: specialization
           in: query
-          required: true
+          required: false
           schema: { $ref: '#/components/schemas/Specialization' }
       responses:
         '200':
@@ -290,6 +297,9 @@ paths:
       responses:
         '204': { description: Groupe supprimé }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Le groupe a des affectations de cours
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
 
   /courses:
     get:
@@ -345,6 +355,9 @@ paths:
       responses:
         '204': { description: Cours supprimé }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Le cours est assigné à des groupes
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
 
   /courses/{courseId}/teachers:
     parameters:
@@ -449,7 +462,9 @@ paths:
         schema: { type: string, format: uuid }
     put:
       tags: [GroupCourses]
-      summary: Terminer l'affectation d'un cours à un groupe (fixe une date de fin)
+      summary: >
+        Terminer l'affectation d'un cours à un groupe (fixe une date de fin).
+        La somme des coefficients des examens du cours doit être ≥ 1.
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/GroupCourseEndRequest' } } }
@@ -461,12 +476,14 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
     delete:
       tags: [GroupCourses]
-      summary: Supprimer une affectation active (impossible si des examens existent pour ce cours)
+      summary: >
+        Supprimer une affectation (impossible si des examens existent ou si la somme
+        des coefficients est ≥ 1)
       responses:
         '204': { description: Affectation supprimée }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          description: Des examens existent déjà pour cette affectation
+          description: Des examens existent ou la somme des coefficients est ≥ 1
           content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
 
   /groups/{groupId}/members:
@@ -505,9 +522,10 @@ paths:
     put:
       tags: [Memberships]
       summary: >
-        Transférer un étudiant vers un autre groupe (ADMIN). L'étudiant peut changer de groupe à
-        tout moment, sauf si un de ses cours est incomplet ou que ses crédits de semestre
-        sont insuffisants.
+        Transférer un étudiant vers un autre groupe (ADMIN). L'étudiant peut changer de groupe
+        à tout moment, sauf s'il n'a pas au moins un semestre complet (tous les cours terminés
+        avec au moins 30 crédits). L'étudiant doit être actif, de rôle STUDENT, et ne pas
+        être déjà dans le groupe cible.
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/GroupTransferRequest' } } }
@@ -985,7 +1003,7 @@ components:
       properties:
         level: { $ref: '#/components/schemas/Level' }
         status: { $ref: '#/components/schemas/ReportStatus' }
-        totalCredits: { type: integer }
+        earnedCredits: { type: integer, description: Crédits obtenus (moyenne ≥ 10) }
         requiredCredits: { type: integer }
         overallAverage: { type: number, format: double, nullable: true }
         courses:
@@ -999,7 +1017,7 @@ components:
         firstName: { type: string }
         lastName: { type: string }
         status: { $ref: '#/components/schemas/ReportStatus' }
-        totalCredits: { type: integer }
+        earnedCredits: { type: integer, description: Crédits obtenus (moyenne ≥ 10) }
         requiredCredits: { type: integer }
         levels:
           type: array

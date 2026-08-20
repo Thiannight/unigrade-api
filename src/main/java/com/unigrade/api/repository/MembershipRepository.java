@@ -18,6 +18,8 @@ public interface MembershipRepository extends JpaRepository<JMembership, UUID> {
 
   List<JMembership> findByStudentId(String studentId);
 
+  boolean existsByStudentId(String studentId);
+
   Optional<JMembership> findByStudentIdAndEndDateIsNull(String studentId);
 
   List<JMembership> findByStudentIdOrderByStartDateAsc(String studentId);

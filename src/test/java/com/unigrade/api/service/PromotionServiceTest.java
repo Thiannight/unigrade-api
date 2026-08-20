@@ -13,6 +13,7 @@ import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.PromotionMapper;
 import com.unigrade.api.model.Promotion;
 import com.unigrade.api.repository.PromotionRepository;
+import com.unigrade.api.repository.StudentGroupRepository;
 import com.unigrade.api.repository.model.JPromotion;
 import jakarta.validation.Validation;
 import java.util.List;
@@ -31,12 +32,13 @@ class PromotionServiceTest {
   private static final UUID ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
   @Mock private PromotionRepository repository;
+  @Mock private StudentGroupRepository studentGroupRepository;
   private final PromotionMapper mapper = new PromotionMapper();
   private PromotionService service;
 
   @BeforeEach
   void setUp() {
-    service = new PromotionService(repository, mapper);
+    service = new PromotionService(repository, studentGroupRepository, mapper);
   }
 
   @Test
