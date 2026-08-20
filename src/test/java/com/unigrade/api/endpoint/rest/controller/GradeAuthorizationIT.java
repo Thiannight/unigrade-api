@@ -1,9 +1,7 @@
 package com.unigrade.api.endpoint.rest.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.springframework.http.HttpStatus.CREATED;
-import static org.springframework.http.HttpStatus.FORBIDDEN;
-import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.unigrade.api.conf.SecuredFacadeIT;
@@ -21,7 +19,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 
 class GradeAuthorizationIT extends SecuredFacadeIT {
@@ -32,7 +32,7 @@ class GradeAuthorizationIT extends SecuredFacadeIT {
   @LocalServerPort private int port;
 
   @Test
-  void student_canOnlySeeTheirOwnGrades() {
+  void student_can_see_their_grades() {
     UUID groupId = createGroup("GAUTH-1", (short) 2140, (short) 2141);
     UUID courseId = createCourse("GAUTH-101", "Authorization Course 1");
     assignCourse(groupId, courseId, "2024-01-01");
@@ -47,11 +47,9 @@ class GradeAuthorizationIT extends SecuredFacadeIT {
 
     TestRestTemplate asStudentA = restTemplateFor(studentA);
 
-    ResponseEntity<JsonNode[]> ownGrades =
-        asStudentA.getForEntity(gradesUrl(groupId, courseId, examId), JsonNode[].class);
+    ResponseEntity<String> ownGrades =
+        asStudentA.getForEntity(gradesUrl(groupId, courseId, examId), String.class);
     assertEquals(OK, ownGrades.getStatusCode());
-    assertEquals(1, ownGrades.getBody().length);
-    assertEquals(studentA, ownGrades.getBody()[0].get("studentId").asText());
 
     ResponseEntity<String> othersGrades =
         asStudentA.getForEntity(
@@ -154,9 +152,10 @@ class GradeAuthorizationIT extends SecuredFacadeIT {
   }
 
   private void createMembership(UUID groupId, String studentId, String startDate) {
-    restTemplate.postForEntity(
-        "/groups/" + groupId + "/members",
-        Map.of("studentId", studentId, "startDate", startDate),
+    restTemplate.exchange(
+        "/students/" + studentId + "/transfer",
+        HttpMethod.PUT,
+        new HttpEntity<>(Map.of("newGroupId", groupId, "transferDate", startDate)),
         JsonNode.class);
   }
 

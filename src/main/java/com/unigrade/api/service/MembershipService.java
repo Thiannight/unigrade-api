@@ -4,7 +4,6 @@ import com.unigrade.api.exception.ConflictException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.MembershipMapper;
 import com.unigrade.api.model.Membership;
-import com.unigrade.api.model.dto.GroupAssignRequest;
 import com.unigrade.api.model.dto.GroupTransferRequest;
 import com.unigrade.api.repository.MembershipRepository;
 import com.unigrade.api.repository.StudentGroupRepository;
@@ -32,33 +31,25 @@ public class MembershipService {
   private final MembershipMapper mapper;
   private final MembershipValidator validator;
 
-  @Transactional
-  public Membership assign(UUID groupId, GroupAssignRequest request) {
-    JStudentGroup group = resolveGroup(groupId);
-
-    JUser student = resolveStudent(request.studentId());
-    validator.validateStudent(student);
-
-    var membership = new Membership(null, groupId, request.studentId(), request.startDate(), null);
-    return mapper.toDomain(raceAwareSave(mapper.toEntity(membership, group, student)));
+  public List<Membership> getStudentMemberships(String studentId) {
+    return repository.findByStudentId(studentId).stream().map(mapper::toDomain).toList();
   }
 
   @Transactional
-  public Membership transfer(UUID groupId, String studentId, GroupTransferRequest request) {
+  public Membership transfer(String studentId, GroupTransferRequest request) {
     LocalDate transferDate = request.transferDate();
     UUID newGroupId = request.newGroupId();
 
     JUser student = resolveStudent(studentId);
     JStudentGroup group = resolveGroup(newGroupId);
-    JMembership oldMembership =
-        repository
-            .findByGroupIdAndStudentIdAndEndDateIsNull(groupId, studentId)
-            .orElseThrow(() -> noActiveMembership(groupId, studentId));
+    JMembership oldMembership = repository.findByStudentIdAndEndDateIsNull(studentId).orElse(null);
 
     validator.validateTransfer(student, oldMembership, request);
 
-    oldMembership.setEndDate(transferDate);
-    repository.saveAndFlush(oldMembership);
+    if (oldMembership != null) {
+      oldMembership.setEndDate(transferDate);
+      repository.saveAndFlush(oldMembership);
+    }
 
     var membership = new Membership(null, newGroupId, studentId, transferDate, null);
     return mapper.toDomain(raceAwareSave(mapper.toEntity(membership, group, student)));
@@ -98,10 +89,5 @@ public class MembershipService {
     return userRepository
         .findById(studentId)
         .orElseThrow(() -> new NotFoundException("Student not found: " + studentId));
-  }
-
-  private NotFoundException noActiveMembership(UUID groupId, String studentId) {
-    return new NotFoundException(
-        "No active membership for student " + studentId + " in group " + groupId);
   }
 }

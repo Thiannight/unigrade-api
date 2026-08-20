@@ -10,14 +10,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/groups/{groupId}/courses")
@@ -27,8 +20,12 @@ public class GroupCourseController {
   private final GroupCourseService service;
 
   @GetMapping
-  public List<GroupCourse> findActive(@PathVariable UUID groupId) {
-    return service.findActiveByGroup(groupId);
+  public List<GroupCourse> findAll(
+      @PathVariable UUID groupId,
+      @RequestParam(required = false, defaultValue = "false") boolean unfinishedOnly) {
+    return (unfinishedOnly)
+        ? service.findUnfinishedByGroupId(groupId)
+        : service.findByGroupId(groupId);
   }
 
   @PostMapping

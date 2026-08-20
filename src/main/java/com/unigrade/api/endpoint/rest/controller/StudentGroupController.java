@@ -1,9 +1,12 @@
 package com.unigrade.api.endpoint.rest.controller;
 
+import com.unigrade.api.model.Membership;
 import com.unigrade.api.model.StudentGroup;
+import com.unigrade.api.service.MembershipService;
 import com.unigrade.api.service.StudentGroupService;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class StudentGroupController {
 
   private final StudentGroupService service;
+  private final MembershipService membershipService;
 
   @GetMapping
   public List<StudentGroup> findAll(
@@ -51,5 +55,16 @@ public class StudentGroupController {
   public ResponseEntity<Void> delete(@PathVariable UUID id) {
     service.delete(id);
     return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/{id}/members")
+  public List<Membership> getMembersAt(
+      @PathVariable UUID id,
+      @RequestParam(required = false) LocalDate at,
+      @RequestParam(defaultValue = "false") boolean includeInactive,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "20") int size) {
+    return membershipService.getMembersAt(
+        id, at != null ? at : LocalDate.now(), includeInactive, page, size);
   }
 }
