@@ -1,8 +1,7 @@
 package com.unigrade.api.endpoint.rest.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.springframework.http.HttpStatus.CREATED;
-import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.*;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.unigrade.api.conf.SecuredFacadeIT;
@@ -33,7 +32,7 @@ class GradeAuthorizationIT extends SecuredFacadeIT {
   @LocalServerPort private int port;
 
   @Test
-  void student_cannot_see_grades() {
+  void student_can_see_their_grades() {
     UUID groupId = createGroup("GAUTH-1", (short) 2140, (short) 2141);
     UUID courseId = createCourse("GAUTH-101", "Authorization Course 1");
     assignCourse(groupId, courseId, "2024-01-01");
@@ -50,7 +49,7 @@ class GradeAuthorizationIT extends SecuredFacadeIT {
 
     ResponseEntity<String> ownGrades =
         asStudentA.getForEntity(gradesUrl(groupId, courseId, examId), String.class);
-    assertEquals(FORBIDDEN, ownGrades.getStatusCode());
+    assertEquals(OK, ownGrades.getStatusCode());
 
     ResponseEntity<String> othersGrades =
         asStudentA.getForEntity(
