@@ -1,0 +1,1016 @@
+openapi: 3.0.3
+info:
+  title: HEI Admin-- 
+  description: |
+    API de gestion académique (promotions, groupes, cours, examens, notes, relevés).
+
+  version: "1.0.0"
+servers:
+  - url: /
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Promotions
+  - name: StudentGroups
+  - name: Courses
+  - name: GroupCourses
+  - name: Memberships
+  - name: TeacherCourses
+  - name: Exams
+  - name: Grades
+  - name: Reports
+  - name: Health
+
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authentification et émission d'un JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentification réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users:
+    get:
+      tags: [Users]
+      summary: Lister les utilisateurs (ADMIN)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - name: size
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Liste paginée des utilisateurs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Users]
+      summary: Créer un utilisateur (ADMIN). L'id est généré selon le rôle (STDyyNNN / TCRNNNNN / MGRNNNNN)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserInput' }
+      responses:
+        '201':
+          description: Utilisateur créé
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Email déjà utilisé
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+
+  /users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, pattern: '(STD|MGR|TCR)\d{5}' }
+    get:
+      tags: [Users]
+      summary: Consulter un utilisateur (ADMIN, TEACHER, ou soi-même)
+      responses:
+        '200':
+          description: Utilisateur
+          content: { application/json: { schema: { $ref: '#/components/schemas/User' } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Users]
+      summary: Mettre à jour un utilisateur (ADMIN)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserInput' }
+      responses:
+        '200':
+          description: Utilisateur mis à jour
+          content: { application/json: { schema: { $ref: '#/components/schemas/User' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Email déjà utilisé par un autre utilisateur
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    delete:
+      tags: [Users]
+      summary: Désactiver un utilisateur (soft delete, ADMIN)
+      responses:
+        '204': { description: Utilisateur désactivé }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /users/{id}/hard:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [Users]
+      summary: Supprimer définitivement un utilisateur (ADMIN)
+      responses:
+        '204': { description: Utilisateur supprimé }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /promotions:
+    get:
+      tags: [Promotions]
+      summary: Lister les promotions
+      responses:
+        '200':
+          description: Liste des promotions
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Promotion' } }
+    post:
+      tags: [Promotions]
+      summary: Créer une promotion (ADMIN)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PromotionInput' } } }
+      responses:
+        '201':
+          description: Promotion créée
+          content: { application/json: { schema: { $ref: '#/components/schemas/Promotion' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /promotions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Promotions]
+      summary: Consulter une promotion
+      responses:
+        '200': { description: Promotion, content: { application/json: { schema: { $ref: '#/components/schemas/Promotion' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Promotions]
+      summary: Modifier une promotion (ADMIN)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PromotionInput' } } }
+      responses:
+        '200': { description: Promotion mise à jour, content: { application/json: { schema: { $ref: '#/components/schemas/Promotion' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Promotions]
+      summary: Supprimer une promotion (ADMIN)
+      responses:
+        '204': { description: Promotion supprimée }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /promotions/{id}/graduates:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Promotions, Reports]
+      summary: >
+        Télécharger la liste des diplômés d'une promotion pour une spécialisation donnée,
+        au format Excel (XLSX). Un étudiant est diplômé si tous ses cours sur les 3 niveaux
+        (L1/L2/L3) sont complets, moyennés à 10+ et le total de crédits requis est atteint (ADMIN).
+      parameters:
+        - name: specialization
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/Specialization' }
+      responses:
+        '200':
+          description: Fichier Excel (xlsx) de la liste des diplômés, classés par moyenne décroissante
+          headers:
+            Content-Disposition:
+              schema: { type: string, example: 'attachment; filename=graduates.xlsx' }
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /promotions/view:
+    get:
+      tags: [Promotions]
+      summary: Page HTML (Thymeleaf) listant les promotions avec boutons de téléchargement des diplômés
+      responses:
+        '200':
+          description: Page HTML
+          content: { text/html: { schema: { type: string } } }
+
+  /groups:
+    get:
+      tags: [StudentGroups]
+      summary: Lister les groupes d'étudiants
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - name: size
+          in: query
+          schema: { type: integer, default: 10 }
+      responses:
+        '200':
+          description: Liste des groupes
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/StudentGroup' } } } }
+    post:
+      tags: [StudentGroups]
+      summary: Créer un groupe (ADMIN)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/StudentGroupInput' } } }
+      responses:
+        '201':
+          description: Groupe créé
+          content: { application/json: { schema: { $ref: '#/components/schemas/StudentGroup' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404':
+          description: Promotion introuvable
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /groups/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [StudentGroups]
+      summary: Consulter un groupe
+      responses:
+        '200': { description: Groupe, content: { application/json: { schema: { $ref: '#/components/schemas/StudentGroup' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [StudentGroups]
+      summary: Modifier un groupe (ADMIN)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/StudentGroupInput' } } }
+      responses:
+        '200': { description: Groupe mis à jour, content: { application/json: { schema: { $ref: '#/components/schemas/StudentGroup' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [StudentGroups]
+      summary: Supprimer un groupe (ADMIN)
+      responses:
+        '204': { description: Groupe supprimé }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /courses:
+    get:
+      tags: [Courses]
+      summary: Lister les cours
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - name: size
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Liste des cours
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Course' } } } }
+    post:
+      tags: [Courses]
+      summary: Créer un cours (ADMIN)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CourseInput' } } }
+      responses:
+        '201':
+          description: Cours créé
+          content: { application/json: { schema: { $ref: '#/components/schemas/Course' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /courses/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Courses]
+      summary: Consulter un cours
+      responses:
+        '200': { description: Cours, content: { application/json: { schema: { $ref: '#/components/schemas/Course' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Courses]
+      summary: Modifier un cours (ADMIN)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CourseInput' } } }
+      responses:
+        '200': { description: Cours mis à jour, content: { application/json: { schema: { $ref: '#/components/schemas/Course' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Courses]
+      summary: Supprimer un cours (ADMIN)
+      responses:
+        '204': { description: Cours supprimé }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /courses/{courseId}/teachers:
+    parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [TeacherCourses]
+      summary: Lister les enseignants d'un cours, triés par priorité
+      responses:
+        '200':
+          description: Liste des affectations enseignant/cours
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TeacherCourse' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [TeacherCourses]
+      summary: Affecter un enseignant à un cours (un cours peut avoir plusieurs enseignants)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TeacherAssignmentRequest' } } }
+      responses:
+        '201':
+          description: Affectation créée
+          content: { application/json: { schema: { $ref: '#/components/schemas/TeacherCourse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /courses/{courseId}/teachers/{teacherId}:
+    parameters:
+      - name: courseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: teacherId
+        in: path
+        required: true
+        schema: { type: string, pattern: '(TCR)\d{5}' }
+    put:
+      tags: [TeacherCourses]
+      summary: Modifier la priorité d'un enseignant sur un cours
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TeacherPriorityRequest' } } }
+      responses:
+        '200':
+          description: Priorité mise à jour
+          content: { application/json: { schema: { $ref: '#/components/schemas/TeacherCourse' } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [TeacherCourses]
+      summary: Retirer un enseignant d'un cours
+      responses:
+        '204': { description: Affectation supprimée }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /groups/{groupId}/courses:
+    parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [GroupCourses]
+      summary: Lister les cours d'un groupe. `unfinishedOnly=true` pour ne garder que les affectations actives (non terminées)
+      parameters:
+        - name: unfinishedOnly
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Liste des affectations de cours actives
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/GroupCourse' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [GroupCourses]
+      summary: >
+        Assigner un cours à un groupe (un cours n'est pas forcément donné à tous les groupes).
+        Le total de crédits par semestre pour un groupe ne peut pas dépasser 30.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GroupCourseAssignRequest' } } }
+      responses:
+        '201':
+          description: Cours assigné au groupe
+          content: { application/json: { schema: { $ref: '#/components/schemas/GroupCourse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /groups/{groupId}/courses/{courseId}:
+    parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: courseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [GroupCourses]
+      summary: Terminer l'affectation d'un cours à un groupe (fixe une date de fin)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GroupCourseEndRequest' } } }
+      responses:
+        '200':
+          description: Affectation terminée
+          content: { application/json: { schema: { $ref: '#/components/schemas/GroupCourse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [GroupCourses]
+      summary: Supprimer une affectation active (impossible si des examens existent pour ce cours)
+      responses:
+        '204': { description: Affectation supprimée }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Des examens existent déjà pour cette affectation
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+
+  /groups/{groupId}/members:
+    parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Memberships]
+      summary: Lister les membres d'un groupe à une date donnée
+      parameters:
+        - name: at
+          in: query
+          description: Date de référence (par défaut aujourd'hui)
+          schema: { type: string, format: date }
+        - name: includeInactive
+          in: query
+          schema: { type: boolean, default: false }
+        - $ref: '#/components/parameters/Page'
+        - name: size
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Liste des adhésions actives à la date donnée
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Membership' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /students/{studentId}/transfer:
+    parameters:
+      - name: studentId
+        in: path
+        required: true
+        schema: { type: string, pattern: '(STD)\d{5}' }
+    put:
+      tags: [Memberships]
+      summary: >
+        Transférer un étudiant vers un autre groupe (ADMIN). L'étudiant peut changer de groupe à
+        tout moment, sauf si un de ses cours est incomplet ou que ses crédits de semestre
+        sont insuffisants.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GroupTransferRequest' } } }
+      responses:
+        '200':
+          description: Adhésion mise à jour dans le nouveau groupe
+          content: { application/json: { schema: { $ref: '#/components/schemas/Membership' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /students/{studentId}/memberships:
+    parameters:
+      - name: studentId
+        in: path
+        required: true
+        schema: { type: string, pattern: '(STD)\d{5}' }
+    get:
+      tags: [Memberships]
+      summary: Lister l'historique des adhésions d'un étudiant (ADMIN)
+      responses:
+        '200':
+          description: Liste des adhésions de l'étudiant
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Membership' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /groups/{groupId}/courses/{courseId}/exams:
+    parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: courseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Exams]
+      summary: Lister les examens d'un cours pour un groupe, triés par date
+      responses:
+        '200':
+          description: Liste des examens
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Exam' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Exams]
+      summary: >
+        Créer un examen (ADMIN, ou TEACHER assigné au cours). La somme des coefficients des
+        examens d'un même cours/groupe ne peut pas dépasser 1. La date de l'examen doit être
+        dans la fenêtre d'affectation du cours au groupe.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ExamRequest' } } }
+      responses:
+        '201':
+          description: Examen créé
+          content: { application/json: { schema: { $ref: '#/components/schemas/Exam' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /groups/{groupId}/courses/{courseId}/exams/{examId}:
+    parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: courseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: examId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Exams]
+      summary: Consulter un examen
+      responses:
+        '200': { description: Examen, content: { application/json: { schema: { $ref: '#/components/schemas/Exam' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Exams]
+      summary: Modifier un examen (ADMIN, ou TEACHER assigné au cours)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ExamRequest' } } }
+      responses:
+        '200': { description: Examen mis à jour, content: { application/json: { schema: { $ref: '#/components/schemas/Exam' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Exams]
+      summary: Supprimer un examen (impossible si des notes existent déjà)
+      responses:
+        '204': { description: Examen supprimé }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Des notes existent déjà pour cet examen
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+
+  /groups/{groupId}/courses/{courseId}/exams/{examId}/grades:
+    parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: courseId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: examId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Grades]
+      summary: >
+        Lister l'historique des notes d'un examen. Un étudiant ne peut consulter que ses
+        propres notes ; un enseignant doit être assigné au cours ; un admin voit tout.
+      parameters:
+        - name: studentId
+          in: query
+          schema: { type: string, pattern: '(STD)\d{5}' }
+      responses:
+        '200':
+          description: Historique des notes (ordre chronologique)
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Grade' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Grades]
+      summary: >
+        Noter un étudiant (ADMIN, ou TEACHER assigné au cours). Chaque appel ajoute une nouvelle
+        entrée d'historique (jamais de mise à jour en place) ; `reason` doit expliquer la note ou
+        sa correction. La dernière note (par `gradeDate`) fait foi pour le calcul de moyenne.
+        L'étudiant doit être membre du groupe à la date de l'examen.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GradeRequest' } } }
+      responses:
+        '201':
+          description: Note enregistrée
+          content: { application/json: { schema: { $ref: '#/components/schemas/Grade' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /students/{studentId}/report:
+    parameters:
+      - name: studentId
+        in: path
+        required: true
+        schema: { type: string, pattern: '(STD)\d{5}' }
+    get:
+      tags: [Reports]
+      summary: >
+        Demander le relevé de notes d'un étudiant par email. Un étudiant ne peut demander
+        que son propre relevé ; un admin peut demander le relevé de n'importe quel étudiant.
+        Le rapport est généré puis le lien de téléchargement est envoyé par email au demandeur.
+      parameters:
+        - name: level
+          in: query
+          required: false
+          description: Filtrer sur un seul niveau (L1/L2/L3)
+          schema: { $ref: '#/components/schemas/Level' }
+      responses:
+        '202':
+          description: Rapport généré, email de téléchargement envoyé au demandeur
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /ping:
+    get:
+      tags: [Health]
+      summary: Vérifie que l'application répond
+      security: []
+      responses:
+        '200': { description: pong, content: { text/plain: { schema: { type: string, example: pong } } } }
+
+  /health/db:
+    get:
+      tags: [Health]
+      summary: Vérifie la connexion à la base de données
+      security: []
+      responses:
+        '200': { description: OK }
+        '500': { description: KO }
+
+  /health/email:
+    get:
+      tags: [Health]
+      summary: Envoie une série d'emails de test via SES (subject only, cc, bcc, body, pièce jointe)
+      security: []
+      parameters:
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: email }
+      responses:
+        '200': { description: OK }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, default: 0 }
+
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Unauthorized:
+      description: Non authentifié
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Forbidden:
+      description: Accès refusé
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    NotFound:
+      description: Ressource introuvable
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+    Conflict:
+      description: Conflit (doublon, contrainte de données)
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+
+  schemas:
+    Problem:
+      type: object
+      description: RFC 7807 Problem Detail
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        errors:
+          type: array
+          items: { type: string }
+
+    Role:
+      type: string
+      enum: [STUDENT, TEACHER, ADMIN]
+
+    Specialization:
+      type: string
+      enum: [EL, TN]
+
+    Level:
+      type: string
+      enum: [L1, L2, L3]
+
+    Semester:
+      type: string
+      enum: [S1, S2, S3, S4, S5, S6]
+
+    ReportStatus:
+      type: string
+      enum: [COMPLETE, TEMPORARY]
+
+    LoginRequest:
+      type: object
+      required: [userId, password]
+      properties:
+        userId: { type: string }
+        password: { type: string }
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        userId: { type: string }
+        role: { type: string }
+
+    User:
+      type: object
+      properties:
+        id: { type: string, readOnly: true, pattern: '(STD|MGR|TCR)\d{5}' }
+        firstName: { type: string, maxLength: 100 }
+        lastName: { type: string, maxLength: 100 }
+        birthDate: { type: string, format: date }
+        email: { type: string, format: email, maxLength: 100 }
+        isActive: { type: boolean }
+        role: { $ref: '#/components/schemas/Role' }
+        specialization: { $ref: '#/components/schemas/Specialization' }
+      required: [firstName, birthDate, email, isActive, role]
+
+    UserInput:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            password: { type: string, minLength: 4, maxLength: 255, writeOnly: true }
+          required: [password]
+
+    Promotion:
+      type: object
+      required: [reference, startYear, endYear]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        reference: { type: string, maxLength: 50 }
+        startYear: { type: integer }
+        endYear: { type: integer, description: Doit être strictement supérieur à startYear }
+
+    PromotionInput:
+      allOf:
+        - $ref: '#/components/schemas/Promotion'
+
+    StudentGroup:
+      type: object
+      required: [reference, promotionId]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        reference: { type: string, pattern: '[A-Z][1-9]', description: 'Ex: A1, B2' }
+        promotionId: { type: string, format: uuid }
+
+    StudentGroupInput:
+      $ref: '#/components/schemas/StudentGroup'
+
+    Course:
+      type: object
+      required: [reference, title, credits]
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        reference: { type: string, maxLength: 20 }
+        title: { type: string, maxLength: 50 }
+        credits: { type: integer, minimum: 1 }
+
+    CourseInput:
+      $ref: '#/components/schemas/Course'
+
+    TeacherCourse:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        courseId: { type: string, format: uuid }
+        teacherId: { type: string, pattern: '(TCR)\d{5}' }
+        priority: { type: integer, minimum: 1, maximum: 5, description: '1 = priorité la plus haute' }
+
+    TeacherAssignmentRequest:
+      type: object
+      required: [teacherId, priority]
+      properties:
+        teacherId: { type: string, pattern: '(TCR)\d{5}' }
+        priority: { type: integer, minimum: 1, maximum: 5 }
+
+    TeacherPriorityRequest:
+      type: object
+      required: [priority]
+      properties:
+        priority: { type: integer, minimum: 1, maximum: 5 }
+
+    GroupCourse:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        groupId: { type: string, format: uuid, readOnly: true }
+        courseId: { type: string, format: uuid }
+        semester: { $ref: '#/components/schemas/Semester' }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, nullable: true }
+
+    GroupCourseAssignRequest:
+      type: object
+      required: [courseId, semester, startDate]
+      properties:
+        courseId: { type: string, format: uuid }
+        semester: { $ref: '#/components/schemas/Semester' }
+        startDate: { type: string, format: date }
+
+    GroupCourseEndRequest:
+      type: object
+      required: [endDate]
+      properties:
+        endDate: { type: string, format: date }
+
+    Membership:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        groupId: { type: string, format: uuid, readOnly: true }
+        studentId: { type: string, pattern: '(STD)\d{5}' }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, nullable: true }
+
+    GroupTransferRequest:
+      type: object
+      required: [newGroupId, transferDate]
+      properties:
+        newGroupId: { type: string, format: uuid }
+        transferDate: { type: string, format: date }
+
+    Exam:
+      type: object
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        groupCourseId: { type: string, format: uuid, readOnly: true }
+        examDate: { type: string, format: date-time }
+        coefficient:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 1
+          description: Somme des coefficients d'un même cours/groupe <= 1
+
+    ExamRequest:
+      type: object
+      required: [examDate, coefficient]
+      properties:
+        examDate: { type: string, format: date-time }
+        coefficient:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 1
+
+    Grade:
+      type: object
+      description: Une entrée d'historique de notation (append-only)
+      properties:
+        id: { type: string, format: uuid, readOnly: true }
+        examId: { type: string, format: uuid, readOnly: true }
+        score: { type: number, format: float, minimum: 0, maximum: 20 }
+        gradeDate: { type: string, format: date-time }
+        reason: { type: string, maxLength: 255, description: Justification de la note ou de sa correction }
+        studentId: { type: string, pattern: '(STD)\d{5}' }
+
+    GradeRequest:
+      type: object
+      required: [studentId, score, gradeDate, reason]
+      properties:
+        studentId: { type: string, pattern: '(STD)\d{5}' }
+        score: { type: number, format: float, minimum: 0, maximum: 20 }
+        gradeDate: { type: string, format: date-time }
+        reason: { type: string, maxLength: 255 }
+
+    ExamScore:
+      type: object
+      properties:
+        examId: { type: string, format: uuid }
+        examDate: { type: string, format: date-time }
+        coefficient: { type: number, format: double }
+        score: { type: number, format: double }
+
+    CourseReportEntry:
+      type: object
+      properties:
+        courseId: { type: string, format: uuid }
+        promotionReference: { type: string }
+        reference: { type: string }
+        title: { type: string }
+        credits: { type: integer }
+        completed: { type: boolean }
+        average: { type: number, format: double, nullable: true }
+        exams:
+          type: array
+          items: { $ref: '#/components/schemas/ExamScore' }
+
+    LevelReport:
+      type: object
+      properties:
+        level: { $ref: '#/components/schemas/Level' }
+        status: { $ref: '#/components/schemas/ReportStatus' }
+        totalCredits: { type: integer }
+        requiredCredits: { type: integer }
+        overallAverage: { type: number, format: double, nullable: true }
+        courses:
+          type: array
+          items: { $ref: '#/components/schemas/CourseReportEntry' }
+
+    StudentReport:
+      type: object
+      properties:
+        studentId: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        status: { $ref: '#/components/schemas/ReportStatus' }
+        totalCredits: { type: integer }
+        requiredCredits: { type: integer }
+        levels:
+          type: array
+          items: { $ref: '#/components/schemas/LevelReport' }
+        overallAverage: { type: number, format: double, nullable: true }
+
+    GraduationListEntry:
+      type: object
+      properties:
+        rank: { type: integer }
+        studentId: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        allTimeAverage: { type: number, format: double }
