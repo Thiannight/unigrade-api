@@ -8,7 +8,7 @@ public record StudentReport(
     String firstName,
     String lastName,
     ReportStatus status,
-    long totalCredits,
+    long earnedCredits,
     long requiredCredits,
     List<LevelReport> levels,
     BigDecimal overallAverage) {}

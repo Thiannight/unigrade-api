@@ -57,7 +57,7 @@ public class ReportService {
     List<CourseReportEntry> allCourses =
         levelReports.stream().flatMap(lr -> lr.courses().stream()).toList();
 
-    long totalCredits = levelReports.stream().mapToLong(LevelReport::totalCredits).sum();
+    long earnedCredits = levelReports.stream().mapToLong(LevelReport::earnedCredits).sum();
     int expectedLevels = (levelFilter != null) ? 1 : Level.values().length;
     long requiredCredits = (long) expectedLevels * Level.PER_LEVEL_CREDIT;
 
@@ -76,7 +76,7 @@ public class ReportService {
         student.getFirstName(),
         student.getLastName(),
         status,
-        totalCredits,
+        earnedCredits,
         requiredCredits,
         levelReports,
         average(allCourses));
