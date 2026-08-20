@@ -31,7 +31,7 @@ public class SecurityConfig {
                 auth.requestMatchers("/auth/login", "/login")
                     .permitAll()
                     .requestMatchers("/ping", "/health/**")
-                    .hasRole("ADMIN")
+                    .permitAll()
                     .requestMatchers("/groups/*/courses/*/exams/*/grades")
                     .hasAnyRole("ADMIN", "TEACHER")
                     .requestMatchers(HttpMethod.GET, "/groups/*/courses/*/exams")
