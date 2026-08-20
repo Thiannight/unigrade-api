@@ -22,6 +22,7 @@ import com.unigrade.api.repository.StudentGroupRepository;
 import com.unigrade.api.repository.model.JCourse;
 import com.unigrade.api.repository.model.JGroupCourse;
 import com.unigrade.api.repository.model.JStudentGroup;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -63,7 +64,7 @@ class GroupCourseServiceTest {
     when(groupRepository.existsById(GROUP_ID)).thenReturn(true);
     when(repository.findAllByGroupIdAndEndDateIsNull(GROUP_ID)).thenReturn(List.of(groupCourse()));
 
-    List<GroupCourse> result = service.findActiveByGroup(GROUP_ID);
+    List<GroupCourse> result = service.findUnfinishedByGroupId(GROUP_ID);
 
     assertEquals(1, result.size());
     assertEquals(COURSE_ID, result.get(0).courseId());
@@ -73,7 +74,25 @@ class GroupCourseServiceTest {
   void findActiveByGroup_missingGroup_throwsNotFound() {
     when(groupRepository.existsById(GROUP_ID)).thenReturn(false);
 
-    assertThrows(NotFoundException.class, () -> service.findActiveByGroup(GROUP_ID));
+    assertThrows(NotFoundException.class, () -> service.findUnfinishedByGroupId(GROUP_ID));
+  }
+
+  @Test
+  void findByGroupId_returnsMappedList() {
+    when(groupRepository.existsById(GROUP_ID)).thenReturn(true);
+    when(repository.findAllByGroupId(GROUP_ID)).thenReturn(List.of(groupCourse()));
+
+    List<GroupCourse> result = service.findByGroupId(GROUP_ID);
+
+    assertEquals(1, result.size());
+    assertEquals(COURSE_ID, result.get(0).courseId());
+  }
+
+  @Test
+  void findByGroupId_missingGroup_throwsNotFound() {
+    when(groupRepository.existsById(GROUP_ID)).thenReturn(false);
+
+    assertThrows(NotFoundException.class, () -> service.findByGroupId(GROUP_ID));
   }
 
   @Test
@@ -167,6 +186,7 @@ class GroupCourseServiceTest {
     JGroupCourse active = groupCourse();
     when(repository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
         .thenReturn(Optional.of(active));
+    when(examRepository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID)).thenReturn(BigDecimal.ONE);
     when(repository.saveAndFlush(active)).thenReturn(active);
 
     GroupCourse result = service.end(GROUP_ID, COURSE_ID, new GroupCourseEndRequest(END_DATE));
@@ -174,6 +194,21 @@ class GroupCourseServiceTest {
     assertEquals(END_DATE, active.getEndDate());
     assertEquals(END_DATE, result.endDate());
     verify(repository).saveAndFlush(active);
+  }
+
+  @Test
+  void end_insufficientExamCoefficient_throwsBadRequest() {
+    when(repository.findByGroupIdAndCourseIdAndEndDateIsNull(GROUP_ID, COURSE_ID))
+        .thenReturn(Optional.of(groupCourse()));
+    when(examRepository.sumCoefficientByGroupCourseId(GROUP_COURSE_ID))
+        .thenReturn(new BigDecimal("0.5"));
+
+    BadRequestException exception =
+        assertThrows(
+            BadRequestException.class,
+            () -> service.end(GROUP_ID, COURSE_ID, new GroupCourseEndRequest(END_DATE)));
+
+    assertTrue(exception.getMessage().contains("must have 1"));
   }
 
   @Test

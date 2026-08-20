@@ -40,21 +40,21 @@ public class ExamService {
   private final ExamMapper mapper;
 
   public List<Exam> findByGroupAndCourse(UUID groupId, UUID courseId) {
-    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
+    JGroupCourse assignment = resolveAssignment(groupId, courseId);
     return repository.findByGroupCourseIdOrderByExamDateAsc(assignment.getId()).stream()
         .map(mapper::toDomain)
         .toList();
   }
 
   public Exam findById(UUID groupId, UUID courseId, UUID examId) {
-    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
+    JGroupCourse assignment = resolveAssignment(groupId, courseId);
     return mapper.toDomain(resolveExam(assignment, examId));
   }
 
   @Transactional
   public Exam create(UUID groupId, UUID courseId, ExamRequest request) {
     requireCanManage(courseId);
-    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
+    JGroupCourse assignment = resolveAssignment(groupId, courseId);
     checkExamBeforeCourseEnd(assignment, request.examDate());
 
     BigDecimal coefficient = normalize(request.coefficient());
@@ -68,7 +68,7 @@ public class ExamService {
   @Transactional
   public Exam update(UUID groupId, UUID courseId, UUID examId, ExamRequest request) {
     requireCanManage(courseId);
-    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
+    JGroupCourse assignment = resolveAssignment(groupId, courseId);
     JExam exam = resolveExam(assignment, examId);
     checkExamBeforeCourseEnd(assignment, request.examDate());
 
@@ -86,7 +86,7 @@ public class ExamService {
   @Transactional
   public void delete(UUID groupId, UUID courseId, UUID examId) {
     requireCanManage(courseId);
-    JGroupCourse assignment = resolveActiveAssignment(groupId, courseId);
+    JGroupCourse assignment = resolveAssignment(groupId, courseId);
     JExam exam = resolveExam(assignment, examId);
     if (gradeRepository.existsByExamId(examId)) {
       throw new ConflictException("Cannot delete: grades exist for this exam");
@@ -110,10 +110,10 @@ public class ExamService {
     }
   }
 
-  private JGroupCourse resolveActiveAssignment(UUID groupId, UUID courseId) {
+  private JGroupCourse resolveAssignment(UUID groupId, UUID courseId) {
     return groupCourseRepository
-        .findByGroupIdAndCourseIdAndEndDateIsNull(groupId, courseId)
-        .orElseThrow(() -> noActiveAssignment(groupId, courseId));
+        .findByGroupIdAndCourseId(groupId, courseId)
+        .orElseThrow(() -> noAssignment(groupId, courseId));
   }
 
   private JExam resolveExam(JGroupCourse assignment, UUID examId) {
@@ -144,8 +144,8 @@ public class ExamService {
     return coefficient.setScale(COEFFICIENT_SCALE, RoundingMode.HALF_UP);
   }
 
-  private NotFoundException noActiveAssignment(UUID groupId, UUID courseId) {
+  private NotFoundException noAssignment(UUID groupId, UUID courseId) {
     return new NotFoundException(
-        "No active course assignment for course " + courseId + " in group " + groupId);
+        "No course assignment for course " + courseId + " in group " + groupId);
   }
 }

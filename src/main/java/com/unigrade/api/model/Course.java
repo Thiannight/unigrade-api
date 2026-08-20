@@ -11,6 +11,11 @@ import lombok.Builder;
 @Builder
 public record Course(
     @JsonProperty(access = JsonProperty.Access.READ_ONLY) UUID id,
-    @NotBlank @Size(max = 20) String reference,
-    @NotBlank @Size(max = 50) String title,
-    @NotNull @Positive Short credits) {}
+    @NotBlank(message = "reference is required")
+        @Size(max = 20, message = "reference must be at most 20 characters")
+        String reference,
+    @NotBlank(message = "title is required")
+        @Size(max = 50, message = "title must be at most 50 characters")
+        String title,
+    @NotNull(message = "credits is required") @Positive(message = "credits must be positive")
+        Short credits) {}

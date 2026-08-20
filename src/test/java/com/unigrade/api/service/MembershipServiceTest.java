@@ -1,20 +1,20 @@
 package com.unigrade.api.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.unigrade.api.exception.BadRequestException;
 import com.unigrade.api.exception.ConflictException;
 import com.unigrade.api.exception.NotFoundException;
 import com.unigrade.api.mapper.MembershipMapper;
 import com.unigrade.api.model.Membership;
 import com.unigrade.api.model.Role;
-import com.unigrade.api.model.dto.GroupAssignRequest;
 import com.unigrade.api.model.dto.GroupTransferRequest;
 import com.unigrade.api.repository.MembershipRepository;
 import com.unigrade.api.repository.StudentGroupRepository;
@@ -49,8 +49,8 @@ class MembershipServiceTest {
   @Mock private MembershipRepository repository;
   @Mock private StudentGroupRepository groupRepository;
   @Mock private UserRepository userRepository;
+  @Mock private MembershipValidator validator;
   private final MembershipMapper mapper = new MembershipMapper();
-  private final MembershipValidator validator = new MembershipValidator();
   private MembershipService service;
 
   @BeforeEach
@@ -59,100 +59,17 @@ class MembershipServiceTest {
   }
 
   @Test
-  void assign_saves() {
-    var request = new GroupAssignRequest(STUDENT_ID, START_DATE);
-    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
-    when(repository.save(any())).thenReturn(membership());
-
-    Membership result = service.assign(GROUP_ID, request);
-
-    assertEquals(STUDENT_ID, result.studentId());
-    verify(repository).save(any());
-  }
-
-  @Test
-  void assign_missingGroup_throwsNotFound() {
-    var request = new GroupAssignRequest(STUDENT_ID, START_DATE);
-    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.empty());
-
-    NotFoundException exception =
-        assertThrows(NotFoundException.class, () -> service.assign(GROUP_ID, request));
-
-    assertTrue(exception.getMessage().contains("Group not found"));
-  }
-
-  @Test
-  void assign_missingStudent_throwsNotFound() {
-    var request = new GroupAssignRequest(STUDENT_ID, START_DATE);
-    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.empty());
-
-    NotFoundException exception =
-        assertThrows(NotFoundException.class, () -> service.assign(GROUP_ID, request));
-
-    assertTrue(exception.getMessage().contains("Student not found"));
-  }
-
-  @Test
-  void assign_notStudent_throwsBadRequest() {
-    var request = new GroupAssignRequest(STUDENT_ID, START_DATE);
-    var teacher = new JUser();
-    teacher.setId(STUDENT_ID);
-    teacher.setRole(Role.TEACHER);
-    teacher.setIsActive(true);
-    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(teacher));
-
-    assertThrows(BadRequestException.class, () -> service.assign(GROUP_ID, request));
-  }
-
-  @Test
-  void assign_inactiveStudent_throwsBadRequest() {
-    var request = new GroupAssignRequest(STUDENT_ID, START_DATE);
-    var inactive = new JUser();
-    inactive.setId(STUDENT_ID);
-    inactive.setRole(Role.STUDENT);
-    inactive.setIsActive(false);
-    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(inactive));
-
-    assertThrows(BadRequestException.class, () -> service.assign(GROUP_ID, request));
-  }
-
-  @Test
-  void assign_alreadyInGroup_throwsBadRequest() {
-    var request = new GroupAssignRequest(STUDENT_ID, START_DATE);
-    var grouped = student();
-    grouped.setMemberships(List.of(membership()));
-    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(grouped));
-
-    assertThrows(BadRequestException.class, () -> service.assign(GROUP_ID, request));
-  }
-
-  @Test
-  void assign_duplicateConstraintRace_throwsConflict() {
-    var request = new GroupAssignRequest(STUDENT_ID, START_DATE);
-    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
-    when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
-
-    assertThrows(ConflictException.class, () -> service.assign(GROUP_ID, request));
-  }
-
-  @Test
   void transfer_movesStudent() {
     JMembership membership = membership();
     JUser student = student();
-    when(repository.findByGroupIdAndStudentIdAndEndDateIsNull(GROUP_ID, STUDENT_ID))
+    when(repository.findByStudentIdAndEndDateIsNull(STUDENT_ID))
         .thenReturn(Optional.of(membership));
     when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     when(groupRepository.findById(NEW_GROUP_ID)).thenReturn(Optional.of(newGroup()));
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student));
 
     Membership result =
-        service.transfer(GROUP_ID, STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE));
+        service.transfer(STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE));
 
     assertEquals(END_DATE, membership.getEndDate());
     assertEquals(STUDENT_ID, result.studentId());
@@ -167,9 +84,7 @@ class MembershipServiceTest {
     NotFoundException exception =
         assertThrows(
             NotFoundException.class,
-            () ->
-                service.transfer(
-                    GROUP_ID, STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE)));
+            () -> service.transfer(STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE)));
 
     assertTrue(exception.getMessage().contains("Student not found"));
   }
@@ -182,68 +97,32 @@ class MembershipServiceTest {
     NotFoundException exception =
         assertThrows(
             NotFoundException.class,
-            () ->
-                service.transfer(
-                    GROUP_ID, STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE)));
+            () -> service.transfer(STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE)));
 
     assertTrue(exception.getMessage().contains("Group not found"));
   }
 
   @Test
-  void transfer_noActiveMembership_throwsNotFound() {
-    when(repository.findByGroupIdAndStudentIdAndEndDateIsNull(GROUP_ID, STUDENT_ID))
-        .thenReturn(Optional.empty());
+  void transfer_noActiveMembership_createsMembership() {
+    when(repository.findByStudentIdAndEndDateIsNull(STUDENT_ID)).thenReturn(Optional.empty());
     when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
     when(groupRepository.findById(NEW_GROUP_ID)).thenReturn(Optional.of(newGroup()));
+    when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-    NotFoundException exception =
-        assertThrows(
-            NotFoundException.class,
-            () ->
-                service.transfer(
-                    GROUP_ID, STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE)));
+    Membership result =
+        service.transfer(STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE));
 
-    assertTrue(exception.getMessage().contains("No active membership"));
-  }
-
-  @Test
-  void transfer_toSameGroup_throwsBadRequest() {
-    when(repository.findByGroupIdAndStudentIdAndEndDateIsNull(GROUP_ID, STUDENT_ID))
-        .thenReturn(Optional.of(membership()));
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
-    when(groupRepository.findById(GROUP_ID)).thenReturn(Optional.of(group()));
-
-    BadRequestException exception =
-        assertThrows(
-            BadRequestException.class,
-            () ->
-                service.transfer(
-                    GROUP_ID, STUDENT_ID, new GroupTransferRequest(GROUP_ID, END_DATE)));
-
-    assertTrue(exception.getMessage().contains("Cannot transfer to same group"));
-  }
-
-  @Test
-  void transfer_dateBeforeStart_throwsBadRequest() {
-    when(repository.findByGroupIdAndStudentIdAndEndDateIsNull(GROUP_ID, STUDENT_ID))
-        .thenReturn(Optional.of(membership()));
-    when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(student()));
-    when(groupRepository.findById(NEW_GROUP_ID)).thenReturn(Optional.of(newGroup()));
-
-    assertThrows(
-        BadRequestException.class,
-        () ->
-            service.transfer(
-                GROUP_ID,
-                STUDENT_ID,
-                new GroupTransferRequest(NEW_GROUP_ID, START_DATE.minusDays(1))));
+    assertEquals(STUDENT_ID, result.studentId());
+    assertEquals(NEW_GROUP_ID, result.groupId());
+    assertNull(result.endDate());
+    verify(repository, never()).saveAndFlush(any());
   }
 
   @Test
   void transfer_assignRace_throwsConflict() {
     JMembership membership = membership();
     JUser student = student();
-    when(repository.findByGroupIdAndStudentIdAndEndDateIsNull(GROUP_ID, STUDENT_ID))
+    when(repository.findByStudentIdAndEndDateIsNull(STUDENT_ID))
         .thenReturn(Optional.of(membership));
     when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
     when(groupRepository.findById(NEW_GROUP_ID)).thenReturn(Optional.of(newGroup()));
@@ -251,9 +130,7 @@ class MembershipServiceTest {
 
     assertThrows(
         ConflictException.class,
-        () ->
-            service.transfer(
-                GROUP_ID, STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE)));
+        () -> service.transfer(STUDENT_ID, new GroupTransferRequest(NEW_GROUP_ID, END_DATE)));
   }
 
   @Test
@@ -272,6 +149,16 @@ class MembershipServiceTest {
   void getMembersAt_missingGroup_throwsNotFound() {
     assertThrows(
         NotFoundException.class, () -> service.getMembersAt(GROUP_ID, END_DATE, false, 0, 20));
+  }
+
+  @Test
+  void getStudentMemberships_returnsMappedList() {
+    when(repository.findByStudentId(STUDENT_ID)).thenReturn(List.of(membership()));
+
+    List<Membership> result = service.getStudentMemberships(STUDENT_ID);
+
+    assertEquals(1, result.size());
+    assertEquals(STUDENT_ID, result.get(0).studentId());
   }
 
   private JStudentGroup group() {

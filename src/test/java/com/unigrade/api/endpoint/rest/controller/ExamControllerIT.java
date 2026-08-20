@@ -177,7 +177,7 @@ class ExamControllerIT extends SecuredFacadeIT {
   }
 
   @Test
-  void create_onEndedAssignment_returnsNotFound() {
+  void create_onEndedAssignment_succeeds() {
     UUID groupId = createGroup("EX-GRP-4", (short) 2096, (short) 2097);
     UUID courseId = createCourse("EX-IT-104", "Exam Course IT Ended");
     assignCourse(groupId, courseId, "2024-01-01");
@@ -187,13 +187,13 @@ class ExamControllerIT extends SecuredFacadeIT {
         new HttpEntity<>(Map.of("endDate", "2024-06-01")),
         Void.class);
 
-    ResponseEntity<String> response =
+    ResponseEntity<JsonNode> response =
         restTemplate.postForEntity(
             "/groups/" + groupId + "/courses/" + courseId + "/exams",
             Map.of("examDate", "2024-05-01T09:00:00Z", "coefficient", 0.5),
-            String.class);
+            JsonNode.class);
 
-    assertEquals(NOT_FOUND, response.getStatusCode());
+    assertEquals(CREATED, response.getStatusCode());
   }
 
   @Test
@@ -313,9 +313,10 @@ class ExamControllerIT extends SecuredFacadeIT {
   }
 
   private void createMembership(UUID groupId, String studentId, String startDate) {
-    restTemplate.postForEntity(
-        "/groups/" + groupId + "/members",
-        Map.of("studentId", studentId, "startDate", startDate),
+    restTemplate.exchange(
+        "/students/" + studentId + "/transfer",
+        PUT,
+        new HttpEntity<>(Map.of("newGroupId", groupId, "transferDate", startDate)),
         JsonNode.class);
   }
 

@@ -20,6 +20,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 
 class PromotionViewControllerIT extends SecuredFacadeIT {
@@ -122,23 +124,23 @@ class PromotionViewControllerIT extends SecuredFacadeIT {
 
   private void createMembership(UUID groupId, String studentId, String startDate) {
     ResponseEntity<JsonNode> response =
-        restTemplate.postForEntity(
-            "/groups/" + groupId + "/members",
-            Map.of("studentId", studentId, "startDate", startDate),
+        restTemplate.exchange(
+            "/students/" + studentId + "/transfer",
+            HttpMethod.PUT,
+            new HttpEntity<>(Map.of("newGroupId", groupId, "transferDate", startDate)),
             JsonNode.class);
-    assertEquals(CREATED, response.getStatusCode());
+    assertEquals(OK, response.getStatusCode());
   }
 
   private void transferMembership(
       UUID fromGroupId, String studentId, UUID toGroupId, String transferDate) {
-    ResponseEntity<Void> response =
+    ResponseEntity<JsonNode> response =
         restTemplate.exchange(
-            "/groups/" + fromGroupId + "/members/" + studentId,
-            org.springframework.http.HttpMethod.PUT,
-            new org.springframework.http.HttpEntity<>(
-                Map.of("newGroupId", toGroupId, "transferDate", transferDate)),
-            Void.class);
-    assertEquals(org.springframework.http.HttpStatus.NO_CONTENT, response.getStatusCode());
+            "/students/" + studentId + "/transfer",
+            HttpMethod.PUT,
+            new HttpEntity<>(Map.of("newGroupId", toGroupId, "transferDate", transferDate)),
+            JsonNode.class);
+    assertEquals(OK, response.getStatusCode());
   }
 
   private String createExam(UUID groupId, UUID courseId, String examDate, double coefficient) {

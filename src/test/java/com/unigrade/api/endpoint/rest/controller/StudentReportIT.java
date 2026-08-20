@@ -6,6 +6,7 @@ import static org.springframework.http.HttpStatus.ACCEPTED;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
+import static org.springframework.http.HttpStatus.OK;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.unigrade.api.conf.SecuredFacadeIT;
@@ -52,7 +53,7 @@ class StudentReportIT extends SecuredFacadeIT {
   @Test
   void report_repeat_hidesFailedYear() {
     UUID oldGroupId = createGroup("REP-P-2", (short) 2232, (short) 2233);
-    UUID oldCourseId = createCourse("REP-C-201", "Report Course Failed Year");
+    UUID oldCourseId = createCourse("REP-C-201", "Report Course Failed Year", (short) 30);
     assignCourse(oldGroupId, oldCourseId, "2024-01-01", "S3");
     String studentId = createStudent("rep-it-repeat-" + UUID.randomUUID() + "@unigrade.com");
     createMembership(oldGroupId, studentId, "2024-01-01");
@@ -61,7 +62,7 @@ class StudentReportIT extends SecuredFacadeIT {
 
     UUID newGroupId = createGroup("REP-P-3", (short) 2234, (short) 2235);
     transfer(oldGroupId, studentId, newGroupId, "2025-01-01");
-    UUID newCourseId = createCourse("REP-C-301", "Report Course Repeat Year");
+    UUID newCourseId = createCourse("REP-C-301", "Report Course Repeat Year", (short) 30);
     assignCourse(newGroupId, newCourseId, "2025-01-01", "S3");
     String newExamId = createExam(newGroupId, newCourseId, "2025-05-01T09:00:00Z", 1.0);
     grade(newGroupId, newCourseId, newExamId, studentId, 14.0, "2025-05-02T09:00:00Z");
@@ -118,13 +119,13 @@ class StudentReportIT extends SecuredFacadeIT {
   }
 
   private void transfer(UUID oldGroupId, String studentId, UUID newGroupId, String transferDate) {
-    ResponseEntity<Void> response =
+    ResponseEntity<JsonNode> response =
         restTemplate.exchange(
-            "/groups/" + oldGroupId + "/members/" + studentId,
+            "/students/" + studentId + "/transfer",
             PUT,
             new HttpEntity<>(Map.of("newGroupId", newGroupId, "transferDate", transferDate)),
-            Void.class);
-    assertTrue(response.getStatusCode().is2xxSuccessful());
+            JsonNode.class);
+    assertEquals(OK, response.getStatusCode());
   }
 
   private String createExam(UUID groupId, UUID courseId, String examDate, double coefficient) {
@@ -172,11 +173,12 @@ class StudentReportIT extends SecuredFacadeIT {
 
   private void createMembership(UUID groupId, String studentId, String startDate) {
     ResponseEntity<JsonNode> response =
-        restTemplate.postForEntity(
-            "/groups/" + groupId + "/members",
-            Map.of("studentId", studentId, "startDate", startDate),
+        restTemplate.exchange(
+            "/students/" + studentId + "/transfer",
+            PUT,
+            new HttpEntity<>(Map.of("newGroupId", groupId, "transferDate", startDate)),
             JsonNode.class);
-    assertEquals(CREATED, response.getStatusCode());
+    assertEquals(OK, response.getStatusCode());
   }
 
   private String createStudent(String email) {
@@ -245,12 +247,16 @@ class StudentReportIT extends SecuredFacadeIT {
     return UUID.fromString(response.getBody().get("id").asText());
   }
 
-  private UUID createCourse(String reference, String title) {
-    var course = new Course(null, reference, title, (short) 6);
+  private UUID createCourse(String reference, String title, short credits) {
+    var course = new Course(null, reference, title, credits);
     ResponseEntity<JsonNode> response =
         restTemplate.postForEntity("/courses", course, JsonNode.class);
     assertEquals(CREATED, response.getStatusCode());
     assertNotNull(response.getBody());
     return UUID.fromString(response.getBody().get("id").asText());
+  }
+
+  private UUID createCourse(String reference, String title) {
+    return createCourse(reference, title, (short) 6);
   }
 }
