@@ -32,7 +32,7 @@ public class UserController {
     return service.findAll(page, size);
   }
 
-  @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER') or #id == authentication.principal.id")
+  @PreAuthorize("hasAnyRole('ADMIN') or #id == authentication.principal.id")
   @GetMapping("/{id}")
   public User findById(@PathVariable String id) {
     return service.findById(id);
