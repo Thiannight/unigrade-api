@@ -34,6 +34,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/groups/*/courses/*/exams/*/grades")
                     .hasAnyRole("ADMIN", "TEACHER")
+                    .requestMatchers(HttpMethod.GET, "/groups/*/courses/*/exams/*/grades/*")
+                    .authenticated()
                     .requestMatchers(HttpMethod.GET, "/groups/*/courses/*/exams")
                     .hasAnyRole("ADMIN", "TEACHER")
                     .requestMatchers(HttpMethod.POST, "/groups/*/courses/*/exams")
