@@ -10,5 +10,7 @@ import lombok.Builder;
 @Builder
 public record StudentGroup(
     @JsonProperty(access = JsonProperty.Access.READ_ONLY) UUID id,
-    @NotBlank @Pattern(regexp = "[A-Z][1-9]") String reference,
-    @NotNull UUID promotionId) {}
+    @NotBlank(message = "reference is required")
+        @Pattern(regexp = "[A-Z][1-9]", message = "reference must be a letter followed by a digit")
+        String reference,
+    @NotNull(message = "promotionId is required") UUID promotionId) {}

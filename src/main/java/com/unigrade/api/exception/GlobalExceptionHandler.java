@@ -1,8 +1,6 @@
 package com.unigrade.api.exception;
 
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -44,15 +42,7 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ProblemDetail handleUnreadable(HttpMessageNotReadableException e) {
-    String message = "Malformed request body";
-    if (e.getMessage() != null) {
-      Matcher matcher = Pattern.compile("`([\\w.]+)`").matcher(e.getMessage());
-      if (matcher.find()) {
-        String type = matcher.group(1).substring(matcher.group(1).lastIndexOf('.') + 1);
-        message = "Malformed request body. Expected a valid " + type + " object";
-      }
-    }
-    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, message);
+    return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Malformed request body");
   }
 
   @ExceptionHandler(NotFoundException.class)
