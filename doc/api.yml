@@ -410,7 +410,12 @@ paths:
         schema: { type: string, format: uuid }
     get:
       tags: [GroupCourses]
-      summary: Lister les cours actifs (non terminés) d'un groupe
+      summary: Lister les cours d'un groupe. `unfinishedOnly=true` pour ne garder que les affectations actives (non terminées)
+      parameters:
+        - name: unfinishedOnly
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
       responses:
         '200':
           description: Liste des affectations de cours actives
@@ -490,40 +495,44 @@ paths:
           description: Liste des adhésions actives à la date donnée
           content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Membership' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
-    post:
-      tags: [Memberships]
-      summary: Ajouter un étudiant à un groupe (un étudiant ne peut être que dans un seul groupe actif)
-      requestBody:
-        required: true
-        content: { application/json: { schema: { $ref: '#/components/schemas/GroupAssignRequest' } } }
-      responses:
-        '201':
-          description: Adhésion créée
-          content: { application/json: { schema: { $ref: '#/components/schemas/Membership' } } }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
 
-  /groups/{groupId}/members/{studentId}:
+  /students/{studentId}/transfer:
     parameters:
-      - name: groupId
-        in: path
-        required: true
-        schema: { type: string, format: uuid }
       - name: studentId
         in: path
         required: true
         schema: { type: string, pattern: '(STD)\d{5}' }
     put:
       tags: [Memberships]
-      summary: Transférer un étudiant vers un autre groupe (l'étudiant peut changer de groupe à tout moment)
+      summary: >
+        Transférer un étudiant vers un autre groupe (ADMIN). L'étudiant peut changer de groupe à
+        tout moment, sauf si un de ses cours est incomplet ou que ses crédits de semestre
+        sont insuffisants.
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/GroupTransferRequest' } } }
       responses:
-        '204': { description: Transfert effectué }
+        '200':
+          description: Adhésion mise à jour dans le nouveau groupe
+          content: { application/json: { schema: { $ref: '#/components/schemas/Membership' } } }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /students/{studentId}/memberships:
+    parameters:
+      - name: studentId
+        in: path
+        required: true
+        schema: { type: string, pattern: '(STD)\d{5}' }
+    get:
+      tags: [Memberships]
+      summary: Lister l'historique des adhésions d'un étudiant (ADMIN)
+      responses:
+        '200':
+          description: Liste des adhésions de l'étudiant
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Membership' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
   /groups/{groupId}/courses/{courseId}/exams:
     parameters:
@@ -895,13 +904,6 @@ components:
         studentId: { type: string, pattern: '(STD)\d{5}' }
         startDate: { type: string, format: date }
         endDate: { type: string, format: date, nullable: true }
-
-    GroupAssignRequest:
-      type: object
-      required: [studentId, startDate]
-      properties:
-        studentId: { type: string, pattern: '(STD)\d{5}' }
-        startDate: { type: string, format: date }
 
     GroupTransferRequest:
       type: object
