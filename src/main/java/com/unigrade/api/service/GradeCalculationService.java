@@ -118,7 +118,7 @@ public class GradeCalculationService {
     for (JMembership m : memberships) {
       if (m.getGroup().getId().equals(groupId)
           && !m.getStartDate().isAfter(date)
-          && (m.getEndDate() == null || m.getEndDate().isAfter(date))) {
+          && (m.getEndDate() == null || !m.getEndDate().isBefore(date))) {
         return true;
       }
     }
