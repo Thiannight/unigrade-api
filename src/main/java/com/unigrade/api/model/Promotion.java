@@ -13,9 +13,13 @@ import lombok.Builder;
 @Builder
 public record Promotion(
     @JsonProperty(access = JsonProperty.Access.READ_ONLY) UUID id,
-    @NotBlank @Size(max = 50) String reference,
-    @NotNull @Positive Short startYear,
-    @NotNull @Positive Short endYear) {
+    @NotBlank(message = "reference is required")
+        @Size(max = 50, message = "reference must be at most 50 characters")
+        String reference,
+    @NotNull(message = "startYear is required") @Positive(message = "startYear must be positive")
+        Short startYear,
+    @NotNull(message = "endYear is required") @Positive(message = "endYear must be positive")
+        Short endYear) {
 
   @JsonIgnore
   @AssertTrue(message = "startYear must be strictly before endYear")

@@ -8,5 +8,11 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 
 public record TeacherAssignmentRequest(
-    @NotBlank @Pattern(regexp = "(TCR)\\d{5}") String teacherId,
-    @NotNull @Positive @Min(1) @Max(5) Byte priority) {}
+    @NotBlank(message = "teacherId is required")
+        @Pattern(regexp = "(TCR)\\d{5}", message = "teacherId must be TCR followed by 5 digits")
+        String teacherId,
+    @NotNull(message = "priority is required")
+        @Positive(message = "priority must be positive")
+        @Min(value = 1, message = "priority must be between 1 and 5")
+        @Max(value = 5, message = "priority must be between 1 and 5")
+        Byte priority) {}
