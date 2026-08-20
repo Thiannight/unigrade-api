@@ -108,17 +108,21 @@ public class ReportService {
               result.average(),
               result.exams()));
     }
-
     boolean allCompleted = courses.stream().allMatch(CourseReportEntry::completed);
-    long totalCredits = courses.stream().mapToLong(CourseReportEntry::credits).sum();
+    long allCredits = courses.stream().mapToLong(CourseReportEntry::credits).sum();
+    long earnedCredits =
+        courses.stream()
+            .filter(c -> c.average() != null && c.average().compareTo(BigDecimal.TEN) >= 0)
+            .mapToLong(CourseReportEntry::credits)
+            .sum();
 
     ReportStatus status =
-        allCompleted && totalCredits >= Level.PER_LEVEL_CREDIT
+        allCompleted && allCredits >= Level.PER_LEVEL_CREDIT
             ? ReportStatus.COMPLETE
             : ReportStatus.TEMPORARY;
 
     return new LevelReport(
-        level, status, totalCredits, Level.PER_LEVEL_CREDIT, average(courses), courses);
+        level, status, earnedCredits, Level.PER_LEVEL_CREDIT, average(courses), courses);
   }
 
   private BigDecimal average(List<CourseReportEntry> courses) {

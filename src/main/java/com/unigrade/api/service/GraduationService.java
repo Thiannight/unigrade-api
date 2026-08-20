@@ -90,7 +90,7 @@ public class GraduationService {
 
     boolean allComplete = true;
     boolean allPass = true;
-    long totalCredits = 0;
+    long earnedCredits = 0;
     BigDecimal weightedAverage = BigDecimal.ZERO;
     long averageCredits = 0;
 
@@ -116,7 +116,9 @@ public class GraduationService {
           allPass = false;
         }
 
-        totalCredits += credits;
+        if (average != null && average.compareTo(BigDecimal.TEN) >= 0) {
+          earnedCredits += credits;
+        }
         if (average != null) {
           weightedAverage = weightedAverage.add(average.multiply(BigDecimal.valueOf(credits)));
           averageCredits += credits;
@@ -129,7 +131,7 @@ public class GraduationService {
             ? null
             : weightedAverage.divide(BigDecimal.valueOf(averageCredits), 2, RoundingMode.HALF_UP);
 
-    return new GraduationData(allComplete, allPass, totalCredits, allTimeAverage);
+    return new GraduationData(allComplete, allPass, earnedCredits, allTimeAverage);
   }
 
   private record GraduationData(
